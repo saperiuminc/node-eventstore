@@ -5,6 +5,11 @@ env:
   node: true
   es6: true
 
+parserOptions:
+  ecmaVersion: 8
+  ecmaFeatures:
+    jsx: true
+
 globals:
   __resourceQuery: false
   describe: false

@@ -1,10 +1,13 @@
 // NOTE: used the extended Eventstore with projection
-var EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection'),
+var Eventstore = require('./lib/eventstore'),
     // var Eventstore = require('./lib/eventstore'),
     Base = require('./lib/base'),
     _ = require('lodash'),
     debug = require('debug')('eventstore'),
     StoreEventEmitter = require('./lib/storeEventEmitter');
+
+// patch Eventstore with our own EventstoreWithProjection
+require('./lib/eventstore-projections/eventstore-projection');
 
 function exists(toCheck) {
     var _exists = require('fs').existsSync || require('path').existsSync;
@@ -76,7 +79,7 @@ module.exports = function(options) {
         throw err;
     }
 
-    var eventstore = new EventstoreWithProjection(options, new Store(options));
+    var eventstore = new Eventstore(options, new Store(options));
 
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);

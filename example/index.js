@@ -14,6 +14,7 @@ const es = require('../index')();
             userData: null,
             partitionBy: "instance"
         });
+        console.log('done');
     } catch (error) {
         console.error(error);
     }
