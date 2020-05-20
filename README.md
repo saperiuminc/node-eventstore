@@ -41,6 +41,30 @@ simply run your process with
 
 ## Provide implementation for storage
 
+example with mysql:
+
+```javascript
+var es = require('eventstore')({
+  type: 'mysql',
+  host: 'localhost',                                  // optional
+  port: 3306,                                         // optional
+  user: 'root',                                       // optional
+  password: 'root',                                   // optional
+  database: 'eventstore',                             // optional
+  eventsTableName: 'events',                          // optional
+  undispatchedEventsTableName: 'undispatched_events', // optional
+  snapshotsTableName: 'snapshots',                    // optional
+  connectionPoolLimit: 1                              // optional
+});
+```
+
+   type: 'mysql',
+    host: '127.0.0.1',
+    port: 3306,
+    user: 'root',
+    password: 'root',
+    database: 'eventstore'
+
 example with mongodb:
 
 ```javascript
