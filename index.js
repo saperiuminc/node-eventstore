@@ -45,10 +45,13 @@ function getSpecificStore(options) {
     }
 
     try {
+        console.log('dbPath:', dbPath);
         var db = require(dbPath);
         return db;
     } catch (err) {
 
+        console.error('error in requiring store');
+        console.error(err);
         if (err.message.indexOf('Cannot find module') >= 0 &&
             err.message.indexOf("'") > 0 &&
             err.message.lastIndexOf("'") !== err.message.indexOf("'")) {
