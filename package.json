@@ -1,7 +1,7 @@
 {
     "author": "adrai",
     "name": "@dfv2-dev/eventstore",
-    "version": "1.15.4",
+    "version": "1.15.5-alpha.0",
     "contributors": [
         "Adriano Raiano <adriano@raiano.ch>",
         "Jan Muehlemann <jan.muehlemann@gmail.com>"
