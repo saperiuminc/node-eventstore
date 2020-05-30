@@ -55,13 +55,15 @@
         "jasmine": "^3.5.0",
         "mocha": "3.x.x",
         "mongodb": "2.1.x",
+        "nyc": "^15.0.1",
         "redis": ">=0.10.1",
         "tingodb": ">=0.0.1"
     },
     "scripts": {
         "test": "npm run test:adrai && npm run test:extensions",
         "test:adrai": "mocha",
-        "test:extensions": "jasmine jasmine/*.jasmine-spec.js"
+        "test:extensions": "jasmine jasmine/*.jasmine-spec.js",
+        "test:extensions:coverage": "nyc npm run test:extensions"
     },
     "bugs": {
         "url": "https://github.com/adrai/node-eventstore/issues"
