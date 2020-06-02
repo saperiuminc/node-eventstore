@@ -428,17 +428,47 @@ describe('eventstore-projection tests', () => {
     });
 
     describe('unsubscribe', () => {
-        it('should return true if subscription is existing', (done) => {
-            const token = esWithProjection.subscribe('aggregate_id', 0);
-            const result = esWithProjection.unsubscribe(token);
-            expect(result).toEqual(true);
-            done();
-        });
+        describe('checking unsubscribe result', () => {
+            it('should return true if subscription is existing', (done) => {
+                const token = esWithProjection.subscribe('aggregate_id', 0);
+                const result = esWithProjection.unsubscribe(token);
+                expect(result).toEqual(true);
+                done();
+            });
 
-        it('should return false if subscription is missing', (done) => {
-            const result = esWithProjection.unsubscribe('garbage');
-            expect(result).toEqual(false);
-            done();
-        });
+            it('should return false if subscription is missing', (done) => {
+                const result = esWithProjection.unsubscribe('garbage');
+                expect(result).toEqual(false);
+                done();
+            });
+        })
+
+        describe('breaking the poll loop', () => {
+            it('should stop getting the events if unsubscribed', (done) => {
+                let token = null;
+                const stream = {
+                    events: [
+                        { streamRevision: 1 },
+                        { streamRevision: 2 },
+                        { streamRevision: 3 }
+                    ]
+                };
+
+                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
+                    esWithProjection.unsubscribe(token);
+                    cb(null, stream);
+                });
+
+                token = esWithProjection.subscribe('aggregate_id', 0);
+
+                // TODO: in order to test if the loop stopped i did a simple set timeout to check later on. need to find a better way without
+                // doing a setTimeout
+                setTimeout(() => {
+                    expect(esWithProjection.getEventStream.calls.count()).toEqual(1);
+                    done();
+                }, 10);
+            });
+        })
+
     })
 })
