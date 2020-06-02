@@ -1,7 +1,7 @@
 {
     "author": "adrai",
     "name": "@saperiuminc/eventstore",
-    "version": "1.15.7",
+    "version": "1.15.8",
     "contributors": [
         "Adriano Raiano <adriano@raiano.ch>",
         "Jan Muehlemann <jan.muehlemann@gmail.com>"
