@@ -426,4 +426,19 @@ describe('eventstore-projection tests', () => {
             })
         });
     });
+
+    describe('unsubscribe', () => {
+        it('should return true if subscription is existing', (done) => {
+            const token = esWithProjection.subscribe('aggregate_id', 0);
+            const result = esWithProjection.unsubscribe(token);
+            expect(result).toEqual(true);
+            done();
+        });
+
+        it('should return false if subscription is missing', (done) => {
+            const result = esWithProjection.unsubscribe('garbage');
+            expect(result).toEqual(false);
+            done();
+        });
+    })
 })
