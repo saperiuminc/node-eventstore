@@ -39,6 +39,15 @@ simply run your process with
 
     DEBUG=eventstore* node app.js
 
+## Projection-specific options
+```javascript
+var es = require('eventstore')({
+  pollingMaxRevisions: 5,                             // optional, by default 5
+  pollingTimeout: 1000,                               // optional, by default 1000
+  eventCallbackTimeout: 10000                         // optional, by default 10000
+});
+```
+
 ## Provide implementation for storage
 
 example with mysql:
@@ -54,10 +63,7 @@ var es = require('eventstore')({
   eventsTableName: 'events',                          // optional
   undispatchedEventsTableName: 'undispatched_events', // optional
   snapshotsTableName: 'snapshots',                    // optional
-  connectionPoolLimit: 1,                             // optional
-  pollingMaxRevisions: 5,                             // optional, by default 5
-  pollingTimeout: 1000,                               // optional, by default 1000
-  eventCallbackTimeout: 10000                         // optional, by default 10000
+  connectionPoolLimit: 1                             // optional
 });
 ```
 
