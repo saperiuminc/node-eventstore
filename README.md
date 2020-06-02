@@ -54,7 +54,10 @@ var es = require('eventstore')({
   eventsTableName: 'events',                          // optional
   undispatchedEventsTableName: 'undispatched_events', // optional
   snapshotsTableName: 'snapshots',                    // optional
-  connectionPoolLimit: 1                              // optional
+  connectionPoolLimit: 1,                             // optional
+  pollingMaxRevisions: 5,                             // optional, by default 5
+  pollingTimeout: 1000,                               // optional, by default 1000
+  eventCallbackTimeout: 10000                         // optional, by default 10000
 });
 ```
 
