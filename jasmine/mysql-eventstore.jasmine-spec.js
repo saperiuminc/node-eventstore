@@ -106,6 +106,7 @@ describe('mysql-eventstore', () => {
                     `context VARCHAR(45) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.context'))) VIRTUAL, ` +
                     `stream_revision INT(11) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.streamRevision'))) VIRTUAL, ` +
                     `commit_stamp BIGINT(20) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.commitStamp'))) VIRTUAL, ` +
+                    `commit_sequence INT(11) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.commitSequence'))) VIRTUAL, ` +
                     `PRIMARY KEY (id), ` + 
                     `INDEX idx_get_events_aggregate_id (aggregate_id),` +
                     `INDEX idx_get_events_aggregate (aggregate),` +
@@ -121,6 +122,7 @@ describe('mysql-eventstore', () => {
                     `context VARCHAR(45) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.context'))) VIRTUAL, ` +
                     `stream_revision INT(11) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.streamRevision'))) VIRTUAL, ` +
                     `commit_stamp BIGINT(20) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.commitStamp'))) VIRTUAL, ` +
+                    `commit_sequence INT(11) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.commitSequence'))) VIRTUAL, ` +
                     `PRIMARY KEY (id), ` + 
                     `INDEX idx_get_events_aggregate_id (aggregate_id),` +
                     `INDEX idx_get_events_aggregate (aggregate),` +
