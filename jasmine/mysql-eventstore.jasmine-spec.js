@@ -119,6 +119,7 @@ describe('mysql-eventstore', () => {
                     `aggregate_id VARCHAR(250) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.aggregateId'))) VIRTUAL, ` +
                     `aggregate VARCHAR(45) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.aggregate'))) VIRTUAL, ` +
                     `context VARCHAR(45) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.context'))) VIRTUAL, ` +
+                    `stream_revision INT(11) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.streamRevision'))) VIRTUAL, ` +
                     `commit_stamp BIGINT(20) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.commitStamp'))) VIRTUAL, ` +
                     `PRIMARY KEY (id), ` + 
                     `INDEX idx_get_events_aggregate_id (aggregate_id),` +
