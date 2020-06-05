@@ -1,20 +1,23 @@
 const EventStoreWithProjection = require('../lib/eventstore-projections/eventstore-projection');
 
 describe('eventstore-projection tests', () => {
-    let esWithProjection;
+    // just instantiating for vscode jsdoc intellisense
+    let esWithProjection = new EventStoreWithProjection();
     let options;
+    let defaultStream;
+    let distributedLock;
     beforeEach(() => {
+        distributedLock = jasmine.createSpyObj('distributedLock', ['lock', 'unlock']);
+        distributedLock.lock.and.returnValue(Promise.resolve());
+        distributedLock.unlock.and.returnValue(Promise.resolve());
         options = {
             pollingMaxRevisions: 10,
             pollingTimeout: 0, // so that polling is immediate
-            eventCallbackTimeout: 0
+            eventCallbackTimeout: 0,
+            group: 'test',
+            distributedLock: distributedLock
         };
         esWithProjection = new EventStoreWithProjection(options);
-
-        esWithProjection.getLastEventAsStream = jasmine.createSpy('getLastEventAsStream', esWithProjection.getLastEventAsStream);
-        esWithProjection.getLastEventAsStream.and.callFake((query, cb) => {
-            cb();
-        })
 
         esWithProjection.getLastEvent = jasmine.createSpy('getLastEvent', esWithProjection.getLastEvent);
         esWithProjection.getLastEvent.and.callFake((query, cb) => {
@@ -29,14 +32,27 @@ describe('eventstore-projection tests', () => {
             esWithProjection.deactivatePolling();
             cb();
         });
+
+        defaultStream = jasmine.createSpyObj('default_stream', ['addEvent', 'commit']);
+        defaultStream.events = [];
+        defaultStream.addEvent.and.callFake((event, cb) => {
+            cb();
+        })
+        defaultStream.commit.and.callFake((cb) => {
+            cb();
+        })
+        esWithProjection.getLastEventAsStream = jasmine.createSpy('getLastEventAsStream', esWithProjection.getLastEventAsStream);
+        esWithProjection.getLastEventAsStream.and.callFake((query, cb) => {
+            console.log('common getLastEventAsStream');
+            cb(null, defaultStream);
+        });
     });
 
-    // TODO: will go back to project after subscribe
-    xdescribe('project', () => {
+    describe('project', () => {
         describe('validating params and output', () => {
-            it('should validate the required param projectionParams', (done) => {
+            it('should validate the required param projection', (done) => {
                 esWithProjection.project(null, function(error) {
-                    expect(error.message).toEqual('projectionParams is required');
+                    expect(error.message).toEqual('projection is required');
                     done();
                 });
             });
@@ -53,6 +69,77 @@ describe('eventstore-projection tests', () => {
                     projectionId: 'the_projection_id'
                 }, function(error) {
                     expect(error.message).toEqual('query is required');
+                    done();
+                });
+            });
+
+            it('should validate that query should have at least context, aggregate or aggregateId/streamId', (done) => {
+                esWithProjection.project({
+                    projectionId: 'the_projection_id',
+                    query: {}
+                }, function(error) {
+                    expect(error.message).toEqual('at least an aggregate, context or aggregateId/streamId is required');
+                    done();
+                });
+            });
+
+            it('should pass when only context is passed', (done) => {
+                esWithProjection.project({
+                    projectionId: 'the_projection_id',
+                    query: {
+                        context: 'the_context'
+                    }
+                }, function(error) {
+                    expect(error).toBeUndefined();
+                    done();
+                });
+            });
+
+            it('should pass when only aggregate is passed', (done) => {
+                esWithProjection.project({
+                    projectionId: 'the_projection_id',
+                    query: {
+                        aggregate: 'aggregate'
+                    }
+                }, function(error) {
+                    expect(error).toBeUndefined();
+                    done();
+                });
+            });
+
+            it('should pass when only aggregateId is passed', (done) => {
+                esWithProjection.project({
+                    projectionId: 'the_projection_id',
+                    query: {
+                        aggregateId: 'aggregate_id'
+                    }
+                }, function(error) {
+                    expect(error).toBeUndefined();
+                    done();
+                });
+            });
+
+            it('should pass when only streamId is passed', (done) => {
+                esWithProjection.project({
+                    projectionId: 'the_projection_id',
+                    query: {
+                        streamId: 'stream_id'
+                    }
+                }, function(error) {
+                    expect(error).toBeUndefined();
+                    done();
+                });
+            });
+
+            it('should pass when only context and aggregate are passed', (done) => {
+                esWithProjection.project({
+                    projectionId: 'the_projection_id',
+                    query: {
+                        context: 'context',
+                        aggregate: 'aggregate',
+                    }
+                }, function(error) {
+                    expect(error).toBeUndefined();
                     done();
                 });
             });
@@ -78,18 +165,193 @@ describe('eventstore-projection tests', () => {
             });
         })
 
-        describe('adding to the projection stream', () => {
-            it('should call Eventstore.getLastEventAsStream', (done) => {
+        describe('adding the projection to the projection stream storage', () => {
+            it('should call Eventstore.getLastEventAsStream to get the latest stream storage of the projection', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projectionId = 'the_projection_id';
+
+                var queryProjection = {
+                    aggregateId: `projections:${projectionId}`,
+                    aggregate: 'projection',
+                    context: '__projections__'
+                };
                 esWithProjection.project({
-                    projectionId: 'the_projection_id',
-                    query: {}
+                    projectionId: projectionId,
+                    query: query
                 }, function(error) {
                     expect(error).toBeUndefined();
-                    expect(esWithProjection.getLastEventAsStream).toHaveBeenCalled();
+                    expect(esWithProjection.getLastEventAsStream).toHaveBeenCalledWith(queryProjection, jasmine.any(Function));
                     done();
                 });
 
             });
+
+            it('should call stream.addEvent and commit if there are still no events for the projection stream', (done) => {
+                const projection = {
+                    projectionId: 'the_projection_id',
+                    query: {
+                        context: 'the_context'
+                    }
+                };
+
+                const event = {
+                    name: 'PROJECTION_CREATED',
+                    payload: {
+                        projectionId: projection.projectionId,
+                        query: projection.query,
+                        partitionBy: projection.partitionBy,
+                        group: options.group,
+                        meta: projection.meta
+                    }
+                };
+
+                var job = {
+                    name: `projections:${options.group}:${projection.projectionId}`,
+                    payload: event.eventPayload
+                };
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toBeUndefined();
+                    expect(defaultStream.addEvent).toHaveBeenCalledWith(event, jasmine.any(Function));
+                    expect(defaultStream.commit).toHaveBeenCalledTimes(1);
+                    done();
+                });
+            });
+
+            it('should receive an error when Eventstore.getLastEventAsStream has an error', (done) => {
+                const projection = {
+                    projectionId: 'the_projection_id',
+                    query: {
+                        context: 'the_context'
+                    }
+                };
+
+                const expectedError = new Error('getLastEventAsStream error');
+                esWithProjection.getLastEventAsStream.and.callFake((query, cb) => {
+                    cb(expectedError);
+                });
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toEqual(expectedError);
+                    done();
+                });
+            });
+
+            it('should receive an error when stream.addEvent has an error', (done) => {
+                const projection = {
+                    projectionId: 'the_projection_id',
+                    query: {
+                        context: 'the_context'
+                    }
+                };
+
+                const expectedError = new Error('addEvent error');
+                defaultStream.addEvent.and.callFake((query, cb) => {
+                    cb(expectedError);
+                });
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toEqual(expectedError);
+                    done();
+                });
+            });
+
+            it('should receive an error when stream.commit has an error', (done) => {
+                const projection = {
+                    projectionId: 'the_projection_id',
+                    query: {
+                        context: 'the_context'
+                    }
+                };
+
+                const expectedError = new Error('commit error');
+                defaultStream.commit.and.callFake((cb) => {
+                    cb(expectedError);
+                });
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toEqual(expectedError);
+                    done();
+                });
+            });
+        })
+
+        describe('ensuring that only one projection event is created if multiple instances are created', () => {
+            it('should call lock of the distributedLock', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projectionId = 'the_projection_id';
+
+                var queryProjection = {
+                    aggregateId: `projections:${projectionId}`,
+                    aggregate: 'projection',
+                    context: '__projections__'
+                };
+
+                const lockKey = `projections:${options.group}:${projectionId}`;
+                esWithProjection.project({
+                    projectionId: projectionId,
+                    query: query
+                }, function(error) {
+                    expect(error).toBeUndefined();
+                    expect(esWithProjection.options.distributedLock.lock).toHaveBeenCalledWith(lockKey);
+                    done();
+                });
+            })
+
+            it('should call unlock of the distributedLock', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projectionId = 'the_projection_id';
+
+                var queryProjection = {
+                    aggregateId: `projections:${projectionId}`,
+                    aggregate: 'projection',
+                    context: '__projections__'
+                };
+
+                const lockKey = `projections:${options.group}:${projectionId}`;
+                esWithProjection.project({
+                    projectionId: projectionId,
+                    query: query
+                }, function(error) {
+                    expect(error).toBeUndefined();
+                    expect(esWithProjection.options.distributedLock.unlock).toHaveBeenCalledWith(lockKey);
+                    done();
+                });
+            })
+
+            it('should not have an error if distributedLock is not passed as an option', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projectionId = 'the_projection_id';
+
+                var queryProjection = {
+                    aggregateId: `projections:${projectionId}`,
+                    aggregate: 'projection',
+                    context: '__projections__'
+                };
+
+                esWithProjection.options.distributedLock = undefined;
+
+                const lockKey = `projections:${options.group}:${projectionId}`;
+                esWithProjection.project({
+                    projectionId: projectionId,
+                    query: query
+                }, function(error) {
+                    expect(error).toBeUndefined();
+                    done();
+                });
+            })
         })
     });
 
