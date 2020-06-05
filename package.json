@@ -3,8 +3,11 @@
     "name": "@saperiuminc/eventstore",
     "version": "1.15.11",
     "contributors": [
-        "Adriano Raiano <adriano@raiano.ch>",
-        "Jan Muehlemann <jan.muehlemann@gmail.com>"
+        "Ryan Goce <ryan@saperium.com>",
+        "Gabby Sanchez <gabby@saperium.com>",
+        "Mark Aldecimo <mark.aldecimo@saperium.com>",
+        "Jerome Davadilla <jerome@saperium.com>",
+        "Lobertson Ranin <lobert@saperium.com>"
     ],
     "private": false,
     "repository": {

@@ -6,16 +6,22 @@ describe('eventstore-projection tests', () => {
     let options;
     let defaultStream;
     let distributedLock;
+    let jobsManager;
     beforeEach(() => {
         distributedLock = jasmine.createSpyObj('distributedLock', ['lock', 'unlock']);
         distributedLock.lock.and.returnValue(Promise.resolve());
         distributedLock.unlock.and.returnValue(Promise.resolve());
+
+        jobsManager = jasmine.createSpyObj('distributedLock', ['queueJob']);
+        jobsManager.queueJob.and.returnValue(Promise.resolve());
+
         options = {
             pollingMaxRevisions: 10,
             pollingTimeout: 0, // so that polling is immediate
             eventCallbackTimeout: 0,
             group: 'test',
-            distributedLock: distributedLock
+            distributedLock: distributedLock,
+            jobsManager: jobsManager
         };
         esWithProjection = new EventStoreWithProjection(options);
 
@@ -353,6 +359,60 @@ describe('eventstore-projection tests', () => {
                 });
             })
         })
+
+        describe('queue a job for the projection', () => {
+            it('should call jobsManager.queueJob if jobsManager is passed as an option', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projectionId = 'the_projection_id';
+
+                const projection = {
+                    projectionId: projectionId,
+                    query: query
+                };
+
+                const projectionKey = `projections:${options.group}:${projectionId}`;
+
+                const jobParams = {
+                    key: projectionKey,
+                    payload: {
+                        projectionId: projection.projectionId,
+                        query: projection.query,
+                        partitionBy: projection.partitionBy,
+                        group: options.group,
+                        meta: projection.meta
+                    }
+                };
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toBeUndefined();
+                    expect(esWithProjection.options.jobsManager.queueJob).toHaveBeenCalledWith(jobParams);
+                    done();
+                });
+            });
+
+            it('should not have an error if jobsManager is not defined', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projection = {
+                    projectionId: 'the_projection_id',
+                    query: query
+                };
+
+                const projectionKey = `projections:${options.group}:${projection.projectionId}`;
+
+                esWithProjection.options.jobsManager = undefined;
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toBeUndefined();
+                    done();
+                });
+            });
+        });
     });
 
     describe('activatePolling', () => {
