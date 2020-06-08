@@ -21,7 +21,8 @@ describe('distributed-lock tests', () => {
         options = {
             redis: redis,
             lockTimeToLive: 1000,
-            acquireLockTimeout: 1000
+            acquireLockTimeout: 1000,
+            releaseLockTimeout: 1000
         };
 
         distributedLock = new DistributedLock(options);
@@ -80,7 +81,7 @@ describe('distributed-lock tests', () => {
                 redis.lock.and.callFake((key, ttl, cb) => {
                     // do not resolve
                 })
-                options.acquireLockTimeout = 1;
+                distributedLock.options.acquireLockTimeout = 0;
                 try {
                     const key = 'the_key';
                     const token = await distributedLock.lock(key);
@@ -160,7 +161,7 @@ describe('distributed-lock tests', () => {
                 });
 
                 try {
-                    distributedLock.options.releaseLockTimeout = 1;
+                    distributedLock.options.releaseLockTimeout = 0;
                     // do lock first
                     const lockKey = 'the_key';
                     const lockToken = await distributedLock.lock(lockKey);

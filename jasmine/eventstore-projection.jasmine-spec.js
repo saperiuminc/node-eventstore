@@ -19,7 +19,7 @@ describe('eventstore-projection tests', () => {
             pollingMaxRevisions: 10,
             pollingTimeout: 0, // so that polling is immediate
             eventCallbackTimeout: 0,
-            group: 'test',
+            projectionGroup: 'test',
             distributedLock: distributedLock,
             jobsManager: jobsManager
         };
@@ -209,13 +209,13 @@ describe('eventstore-projection tests', () => {
                         projectionId: projection.projectionId,
                         query: projection.query,
                         partitionBy: projection.partitionBy,
-                        group: options.group,
+                        projectionGroup: options.projectionGroup,
                         meta: projection.meta
                     }
                 };
 
                 var job = {
-                    name: `projections:${options.group}:${projection.projectionId}`,
+                    name: `projection-groups:${options.projectionGroup}:projections:${projection.projectionId}`,
                     payload: event.eventPayload
                 };
 
@@ -299,7 +299,7 @@ describe('eventstore-projection tests', () => {
                     context: '__projections__'
                 };
 
-                const lockKey = `projections:${options.group}:${projectionId}`;
+                const lockKey = `projection-groups:${options.projectionGroup}:projections:${projectionId}`;
                 esWithProjection.project({
                     projectionId: projectionId,
                     query: query
@@ -350,7 +350,7 @@ describe('eventstore-projection tests', () => {
 
                 esWithProjection.options.distributedLock = undefined;
 
-                const lockKey = `projections:${options.group}:${projectionId}`;
+                const lockKey = `projection-groups:${options.projectionGroup}:projections:${projectionId}`;
                 esWithProjection.project({
                     projectionId: projectionId,
                     query: query
@@ -374,7 +374,7 @@ describe('eventstore-projection tests', () => {
                     query: query
                 };
 
-                const projectionKey = `projections:${options.group}:${projectionId}`;
+                const projectionKey = `projection-groups:${options.projectionGroup}:projections:${projectionId}`;
 
                 const jobParams = {
                     key: projectionKey,
@@ -382,7 +382,7 @@ describe('eventstore-projection tests', () => {
                         projectionId: projection.projectionId,
                         query: projection.query,
                         partitionBy: projection.partitionBy,
-                        group: options.group,
+                        projectionGroup: options.projectionGroup,
                         meta: projection.meta
                     }
                 };
@@ -404,7 +404,7 @@ describe('eventstore-projection tests', () => {
                     query: query
                 };
 
-                const projectionKey = `projections:${options.group}:${projection.projectionId}`;
+                const projectionKey = `projection-groups:${options.projectionGroup}:projections:${projection.projectionId}`;
 
                 esWithProjection.options.jobsManager = undefined;
 

@@ -67,7 +67,7 @@
         "test": "npm run test:adrai && npm run test:extensions",
         "test:adrai": "mocha",
         "test:extensions": "jasmine jasmine/*.jasmine-spec.js",
-        "test:extensions:coverage": "nyc npm run test:extensions"
+        "test:extensions:coverage": "nyc --reporter=lcov npm run test:extensions"
     },
     "bugs": {
         "url": "https://github.com/adrai/node-eventstore/issues"

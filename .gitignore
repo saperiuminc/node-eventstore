@@ -18,3 +18,5 @@ package-lock.json
 
 *.tingo
 *.rdb
+.nyc_output
+coverage
