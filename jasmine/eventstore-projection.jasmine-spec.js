@@ -377,8 +377,9 @@ describe('eventstore-projection tests', () => {
                 const projectionKey = `projection-groups:${options.projectionGroup}:projections:${projectionId}`;
 
                 const jobParams = {
-                    key: projectionKey,
-                    payload: {
+                    jobId: projectionKey,
+                    jobGroup: `projection-groups:${options.projectionGroup}`,
+                    jobPayload: {
                         projectionId: projection.projectionId,
                         query: projection.query,
                         partitionBy: projection.partitionBy,

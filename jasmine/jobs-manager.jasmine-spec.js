@@ -3,7 +3,7 @@ const JobsManager = require('../lib/eventstore-projections/jobs-manager');
 
 
 
-fdescribe('jobs-manager tests', () => {
+describe('jobs-manager tests', () => {
     // just instantiating for vscode jsdoc intellisense
     let jobsManager = new JobsManager();
     let options;
