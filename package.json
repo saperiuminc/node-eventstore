@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "async": "2.6.2",
+    "bull": "^3.14.0",
     "debug": "3.1.0",
     "dotty": "0.0.2",
     "jsondate": "0.0.1",

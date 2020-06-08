@@ -1,20 +1,20 @@
 const DistributedLock = require('../lib/eventstore-projections/distributed-lock');
 
-
 describe('distributed-lock tests', () => {
     // just instantiating for vscode jsdoc intellisense
     let distributedLock = new DistributedLock();
     let options;
     let redis;
-    let redidsLock;
+    let redisLock;
     beforeEach(() => {
-        redidsLock = jasmine.createSpyObj('redisLock', ['unlock']);
+        redisLock = jasmine.createSpyObj('redisLock', ['unlock']);
+
         redis = jasmine.createSpyObj('redis', ['lock']);
         redis.lock.and.callFake((key, ttl, cb) => {
-            cb(null, redidsLock);
+            cb(null, redisLock);
         })
 
-        redidsLock.unlock.and.callFake((cb) => {
+        redisLock.unlock.and.callFake((cb) => {
             cb();
         });
 
@@ -125,19 +125,19 @@ describe('distributed-lock tests', () => {
                 // then call unlock
                 await distributedLock.unlock(lockToken);
 
-                expect(redidsLock.unlock).toHaveBeenCalledTimes(1);
+                expect(redisLock.unlock).toHaveBeenCalledTimes(1);
                 done();
             });
 
             it('should resolve if lockToken is not found', async(done) => {
                 await distributedLock.unlock('some_token');
 
-                expect(redidsLock.unlock).toHaveBeenCalledTimes(0);
+                expect(redisLock.unlock).toHaveBeenCalledTimes(0);
                 done();
             });
 
             it('should throw error if there is an error in redis external librarys unlock', async(done) => {
-                redidsLock.unlock.and.callFake((cb) => {
+                redisLock.unlock.and.callFake((cb) => {
                     cb(new Error('some error in unlock'));
                 });
 
@@ -156,7 +156,7 @@ describe('distributed-lock tests', () => {
             });
 
             it('should throw timeout error if redislock.unlock did not resolve in time', async(done) => {
-                redidsLock.unlock.and.callFake((cb) => {
+                redisLock.unlock.and.callFake((cb) => {
                     // do not resolve, let it time out
                 });
 

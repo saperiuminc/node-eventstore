@@ -20,3 +20,4 @@ package-lock.json
 *.rdb
 .nyc_output
 coverage
+npm-debug.log
