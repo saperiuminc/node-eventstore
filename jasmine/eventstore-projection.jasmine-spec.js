@@ -311,6 +311,8 @@ describe('eventstore-projection tests', () => {
             })
 
             it('should call unlock of the distributedLock', (done) => {
+                const lockToken = 'the_lock_token';
+                distributedLock.lock.and.returnValue(Promise.resolve(lockToken));
                 const query = {
                     context: 'the_context'
                 };
@@ -323,13 +325,12 @@ describe('eventstore-projection tests', () => {
                     context: '__projections__'
                 };
 
-                const lockKey = `projections:${options.group}:${projectionId}`;
                 esWithProjection.project({
                     projectionId: projectionId,
                     query: query
                 }, function(error) {
                     expect(error).toBeUndefined();
-                    expect(esWithProjection.options.distributedLock.unlock).toHaveBeenCalledWith(lockKey);
+                    expect(esWithProjection.options.distributedLock.unlock).toHaveBeenCalledWith(lockToken);
                     done();
                 });
             })
