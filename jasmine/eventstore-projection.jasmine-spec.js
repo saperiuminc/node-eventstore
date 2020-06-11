@@ -568,6 +568,28 @@ describe('eventstore-projection tests', () => {
 
                 esWithProjection.subscribe(query, offset);
             });
+
+            it('should call Eventstore.getEventStream with correct revMin when passed an offset', (done) => {
+                const query = { aggregateId: 'aggregate_id' };
+                const offset = 6;
+                esWithProjection.getLastEvent.and.callFake((query, cb) => {
+                    // no events yet for this stream
+                    cb(null, {
+                        streamRevision: 10
+                    });
+                });
+
+                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
+                    const exptectedRevMin = 6;
+                    const expectedRevMax = exptectedRevMin + options.pollingMaxRevisions;
+                    expect(esWithProjection.getEventStream).toHaveBeenCalledWith(query, exptectedRevMin, expectedRevMax, jasmine.any(Function));
+                    esWithProjection.deactivatePolling();
+                    cb();
+                    done();
+                });
+
+                esWithProjection.subscribe(query, offset);
+            });
         });
 
         describe('polling the event stream', () => {
