@@ -59,7 +59,7 @@
     "expect.js": ">=0.1.2",
     "jasmine": "^3.5.0",
     "mocha": "3.x.x",
-    "mongodb": "2.1.x",
+    "mongodb": "3.5.8",
     "nyc": "^15.0.1",
     "shortid": "^2.2.15",
     "redis": ">=0.10.1",
