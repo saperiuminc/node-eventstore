@@ -56,8 +56,7 @@ describe('mysql.eventstore.integration.jasmine-spec', () => {
     });
 
     it('it should be able to subscribe, pre commit, to events at a given offset', function (done) {
-        var expectedEvent = { event: 'this is my second event' };
-
+        var expectedEvent = { event: 'this is my first event' };
         es.subscribe({
             aggregateId: 'test3',
             aggregate: 'test',          
@@ -74,8 +73,8 @@ describe('mysql.eventstore.integration.jasmine-spec', () => {
             aggregate: 'test',          
             context: 'test'                 
           }, function(err, stream) {
-            stream.addEvent({ event: 'this is my first event' });
             stream.addEvent(expectedEvent);
+            stream.addEvent({ event: 'this is my 2nd event' });
             stream.commit();
           });
     });
