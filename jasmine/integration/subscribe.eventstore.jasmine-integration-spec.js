@@ -1,4 +1,6 @@
-var eventstore = require('../../');
+var eventstore = require('../..'),
+    uuid = require('uuid').v4;
+
 var es = eventstore({
     pollingMaxRevisions: 5,
     pollingTimeout: 1000,       
@@ -57,8 +59,9 @@ describe('mysql.eventstore.integration.jasmine-spec', () => {
 
     it('it should be able to subscribe, pre commit, to events at a given offset', function (done) {
         var expectedEvent = { event: 'this is my first event' };
+        var id = uuid().toString();
         es.subscribe({
-            aggregateId: 'test3',
+            aggregateId: id,
             aggregate: 'test',          
             context: 'test'      
         }, 1, function(err, event) {
@@ -69,20 +72,22 @@ describe('mysql.eventstore.integration.jasmine-spec', () => {
         });
 
         es.getEventStream({
-            aggregateId: 'test3',
+            aggregateId: id,
             aggregate: 'test',          
             context: 'test'                 
           }, function(err, stream) {
             stream.addEvent(expectedEvent);
-            stream.addEvent({ event: 'this is my 2nd event' });
+            stream.addEvent({ event: 'this is my second event' });
             stream.commit();
           });
     });
 
     it('it should be able to subscribe, post commit, to events at a given offset', function (done) {
         var expectedEvent = { event: 'this is my second event' };
+        var id = uuid().toString();
+
         es.getEventStream({
-            aggregateId: 'test4',
+            aggregateId: id,
             aggregate: 'test',          
             context: 'test'                 
           }, function(err, stream) {
@@ -91,7 +96,7 @@ describe('mysql.eventstore.integration.jasmine-spec', () => {
             // stream.commit();
             stream.commit(function(err, stream) {
                 es.subscribe({
-                    aggregateId: 'test4',
+                    aggregateId: id,
                     aggregate: 'test',          
                     context: 'test'      
                 }, 1, function(err, event) {
