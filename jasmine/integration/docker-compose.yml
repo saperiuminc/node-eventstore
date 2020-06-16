@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+    testserver:
+        build:
+            context: ../..
+            dockerfile: Dockerfile
+        container_name: testserver
+        restart: always
+        volumes:
+            - ../../:/app
+        ports:
+            - '3000'
+            - '5858'
+        command: bash start.sh dbserver:3306
+        depends_on:
+            - dbserver
+        links:
+            - dbserver
+
+    dbserver:
+        image: mysql:5.7
+        container_name: dbserver
+        ports:
+          - '3306'
+        restart: always
+        environment:
+           - MYSQL_ROOT_PASSWORD=root
+           - MYSQL_DATABASE=eventstore
+           - MYSQL_USER=root
+           - MYSQL_PASSWORD=root
