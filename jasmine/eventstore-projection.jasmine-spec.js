@@ -41,9 +41,6 @@ describe('eventstore-projection tests', () => {
 
         defaultStream = jasmine.createSpyObj('default_stream', ['addEvent', 'commit']);
         defaultStream.events = [];
-        defaultStream.addEvent.and.callFake((event, cb) => {
-            cb();
-        })
         defaultStream.commit.and.callFake((cb) => {
             cb();
         })
@@ -221,7 +218,7 @@ describe('eventstore-projection tests', () => {
 
                 esWithProjection.project(projection, function(error) {
                     expect(error).toBeUndefined();
-                    expect(defaultStream.addEvent).toHaveBeenCalledWith(event, jasmine.any(Function));
+                    expect(defaultStream.addEvent).toHaveBeenCalledWith(event);
                     expect(defaultStream.commit).toHaveBeenCalledTimes(1);
                     done();
                 });
@@ -255,8 +252,8 @@ describe('eventstore-projection tests', () => {
                 };
 
                 const expectedError = new Error('addEvent error');
-                defaultStream.addEvent.and.callFake((query, cb) => {
-                    cb(expectedError);
+                defaultStream.addEvent.and.callFake((event) => {
+                    throw expectedError;
                 });
 
                 esWithProjection.project(projection, function(error) {
