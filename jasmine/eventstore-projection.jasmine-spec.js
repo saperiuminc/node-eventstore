@@ -12,8 +12,9 @@ describe('eventstore-projection tests', () => {
         distributedLock.lock.and.returnValue(Promise.resolve());
         distributedLock.unlock.and.returnValue(Promise.resolve());
 
-        jobsManager = jasmine.createSpyObj('distributedLock', ['queueJob']);
+        jobsManager = jasmine.createSpyObj('distributedLock', ['queueJob', 'processJobGroup']);
         jobsManager.queueJob.and.returnValue(Promise.resolve());
+        jobsManager.processJobGroup.and.returnValue(Promise.resolve());
 
         options = {
             pollingMaxRevisions: 10,
@@ -212,7 +213,7 @@ describe('eventstore-projection tests', () => {
                 };
 
                 var job = {
-                    name: `projection-groups:${options.projectionGroup}:projections:${projection.projectionId}`,
+                    name: `projection-group:${options.projectionGroup}:projection:${projection.projectionId}`,
                     payload: event.eventPayload
                 };
 
@@ -296,7 +297,7 @@ describe('eventstore-projection tests', () => {
                     context: '__projections__'
                 };
 
-                const lockKey = `projection-groups:${options.projectionGroup}:projections:${projectionId}`;
+                const lockKey = `projection-group:${options.projectionGroup}:projection:${projectionId}`;
                 esWithProjection.project({
                     projectionId: projectionId,
                     query: query
@@ -347,7 +348,7 @@ describe('eventstore-projection tests', () => {
 
                 esWithProjection.options.distributedLock = undefined;
 
-                const lockKey = `projection-groups:${options.projectionGroup}:projections:${projectionId}`;
+                const lockKey = `projection-group:${options.projectionGroup}:projection:${projectionId}`;
                 esWithProjection.project({
                     projectionId: projectionId,
                     query: query
@@ -371,18 +372,12 @@ describe('eventstore-projection tests', () => {
                     query: query
                 };
 
-                const projectionKey = `projection-groups:${options.projectionGroup}:projections:${projectionId}`;
+                const projectionKey = `projection-group:${options.projectionGroup}:projection:${projectionId}`;
 
                 const jobParams = {
-                    jobId: projectionKey,
-                    jobGroup: `projection-groups:${options.projectionGroup}`,
-                    jobPayload: {
-                        projectionId: projection.projectionId,
-                        query: projection.query,
-                        partitionBy: projection.partitionBy,
-                        projectionGroup: options.projectionGroup,
-                        meta: projection.meta
-                    }
+                    id: projectionKey,
+                    group: `projection-group:${options.projectionGroup}`,
+                    payload: projection
                 };
 
                 esWithProjection.project(projection, function(error) {
@@ -402,7 +397,56 @@ describe('eventstore-projection tests', () => {
                     query: query
                 };
 
-                const projectionKey = `projection-groups:${options.projectionGroup}:projections:${projection.projectionId}`;
+                const projectionKey = `projection-group:${options.projectionGroup}:projection:${projection.projectionId}`;
+
+                esWithProjection.options.jobsManager = undefined;
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toBeUndefined();
+                    done();
+                });
+            });
+        });
+
+        describe('process projection job group', () => {
+            it('should call jobsManager.queueJob if jobsManager is passed as an option', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projectionId = 'the_projection_id';
+
+                const projection = {
+                    projectionId: projectionId,
+                    query: query
+                };
+
+                const projectionKey = `projection-group:${options.projectionGroup}:projection:${projectionId}`;
+
+                const jobParams = {
+                    id: projectionKey,
+                    group: `projection-group:${options.projectionGroup}`,
+                    payload: projection
+                };
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toBeUndefined();
+                    expect(esWithProjection.options.jobsManager.queueJob).toHaveBeenCalledWith(jobParams);
+                    done();
+                });
+            });
+
+            it('should not have an error if jobsManager is not defined', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projection = {
+                    projectionId: 'the_projection_id',
+                    query: query
+                };
+
+                const projectionKey = `projection-group:${options.projectionGroup}:projection:${projection.projectionId}`;
 
                 esWithProjection.options.jobsManager = undefined;
 
@@ -413,6 +457,45 @@ describe('eventstore-projection tests', () => {
             });
         });
     });
+
+    describe('startAllProjections', () => {
+        describe('validating params and output', () => {
+            it('should not have an error if callback is undefined', (done) => {
+                const result = esWithProjection.startAllProjections();
+                expect(result).toBeUndefined();
+                done();
+            })
+
+            it('should have call the callback if no errors are found', (done) => {
+                const result = esWithProjection.startAllProjections((error, result) => {
+                    expect(error).toBeUndefined();
+                    expect(result).toBeUndefined();
+                    done();
+                });
+            })
+        });
+
+        describe('processing jobs from jobs manager', () => {
+            it('should call processJobGroup of jobsmanager', (done) => {
+                const result = esWithProjection.startAllProjections(() => {
+                    const jobGroup = `projection-group:${options.projectionGroup}`;
+                    expect(jobsManager.processJobGroup).toHaveBeenCalledWith(jobGroup, jasmine.any(Function), jasmine.any(Function));
+                    done();
+                });
+            })
+
+            it('should call the callback with error if jobsmanager throws an error', (done) => {
+                const expectedError = new Error('error in jobsmanager.processJobGroup');
+                jobsManager.processJobGroup.and.callFake(() => {
+                    throw expectedError;
+                });
+                const result = esWithProjection.startAllProjections((error) => {
+                    expect(error).toEqual(expectedError);
+                    done();
+                });
+            })
+        });
+    })
 
     describe('activatePolling', () => {
         it('should activate the polling', () => {
@@ -456,7 +539,9 @@ describe('eventstore-projection tests', () => {
 
             it('should throw an error if offset is not a number', (done) => {
                 try {
-                    esWithProjection.subscribe({ aggregateId: 'aggregate_id' }, null);
+                    esWithProjection.subscribe({
+                        aggregateId: 'aggregate_id'
+                    }, null);
                 } catch (error) {
                     expect(error).toBeInstanceOf(Error);
                     expect(error.message).toEqual('offset should be greater than or equal to 0');
@@ -466,7 +551,9 @@ describe('eventstore-projection tests', () => {
 
             it('should throw an error if offset is less than 0', (done) => {
                 try {
-                    esWithProjection.subscribe({ aggregateId: 'aggregate_id' }, -1);
+                    esWithProjection.subscribe({
+                        aggregateId: 'aggregate_id'
+                    }, -1);
                 } catch (error) {
                     expect(error).toBeInstanceOf(Error);
                     expect(error.message).toEqual('offset should be greater than or equal to 0');
@@ -476,7 +563,9 @@ describe('eventstore-projection tests', () => {
 
             it('should pass if streamId is passed', (done) => {
                 try {
-                    const token = esWithProjection.subscribe({ streamId: 'stream_id' }, 0);
+                    const token = esWithProjection.subscribe({
+                        streamId: 'stream_id'
+                    }, 0);
                     expect(token).toBeInstanceOf(String);
                     done();
                 } catch (error) {
@@ -486,7 +575,9 @@ describe('eventstore-projection tests', () => {
 
             it('should pass if aggregateId is passed', (done) => {
                 try {
-                    const token = esWithProjection.subscribe({ aggregateId: 'aggregate_id' }, 0);
+                    const token = esWithProjection.subscribe({
+                        aggregateId: 'aggregate_id'
+                    }, 0);
                     expect(token).toBeInstanceOf(String);
                     done();
                 } catch (error) {
@@ -495,7 +586,9 @@ describe('eventstore-projection tests', () => {
             });
 
             it('should return a token when no error', (done) => {
-                const token = esWithProjection.subscribe({ aggregateId: 'aggregate_id' }, 0);
+                const token = esWithProjection.subscribe({
+                    aggregateId: 'aggregate_id'
+                }, 0);
                 expect(token).toBeInstanceOf(String);
                 done();
             });
@@ -507,14 +600,18 @@ describe('eventstore-projection tests', () => {
             });
 
             it('should not have an error when callback is not defined', (done) => {
-                esWithProjection.subscribe({ aggregateId: 'aggregate_id' }, 0, null);
+                esWithProjection.subscribe({
+                    aggregateId: 'aggregate_id'
+                }, 0, null);
                 done();
             });
         });
 
         describe('getting streams using offset and its logical boundaries', () => {
             it('should call Eventstore.getLastEvent with correct params', (done) => {
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 esWithProjection.getLastEvent.and.callFake((query, cb) => {
                     expect(esWithProjection.getLastEvent).toHaveBeenCalledWith(query, jasmine.any(Function));
                     done();
@@ -524,7 +621,9 @@ describe('eventstore-projection tests', () => {
             });
 
             it('should call Eventstore.getEventStream with revMin as zero when there are no events yet for that stream. revMax should just add pollingMaxRevisions to revMin', (done) => {
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 esWithProjection.getLastEvent.and.callFake((query, cb) => {
                     // no events yet for this stream
                     cb();
@@ -545,7 +644,9 @@ describe('eventstore-projection tests', () => {
             });
 
             it('should call Eventstore.getEventStream with revMin as minimum revision (last streamRrevision + 1) when the passed offset is later than the minimum revision (last streamRrevision + 1). revMax should just add pollingMaxRevisions to revMin', (done) => {
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 const offset = 15;
                 esWithProjection.getLastEvent.and.callFake((query, cb) => {
                     // no events yet for this stream
@@ -567,7 +668,9 @@ describe('eventstore-projection tests', () => {
             });
 
             it('should call Eventstore.getEventStream with correct revMin when passed an offset', (done) => {
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 const offset = 6;
                 esWithProjection.getLastEvent.and.callFake((query, cb) => {
                     // no events yet for this stream
@@ -603,7 +706,9 @@ describe('eventstore-projection tests', () => {
                     cb();
                 });
 
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 const offset = 15;
 
                 esWithProjection.subscribe(query, offset);
@@ -612,19 +717,30 @@ describe('eventstore-projection tests', () => {
             it('should call onEventCallback when there is a new event', (done) => {
                 // do spyOn again to override default one time call for getEventStream
                 const eventStream = {
-                    events: [
-                        { streamRevision: 1 },
-                        { streamRevision: 2 },
-                        { streamRevision: 3 },
-                        { streamRevision: 4 },
-                        { streamRevision: 5 }
+                    events: [{
+                            streamRevision: 1
+                        },
+                        {
+                            streamRevision: 2
+                        },
+                        {
+                            streamRevision: 3
+                        },
+                        {
+                            streamRevision: 4
+                        },
+                        {
+                            streamRevision: 5
+                        }
                     ]
                 }
                 esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
                     cb(null, eventStream);
                 });
 
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 const offset = 15;
 
                 let onEventCounter = 0;
@@ -643,12 +759,21 @@ describe('eventstore-projection tests', () => {
             it('should continue with the loop even if first getEventStream call throws an error', (done) => {
                 // do spyOn again to override default one time call for getEventStream
                 const eventStream = {
-                    events: [
-                        { streamRevision: 1 },
-                        { streamRevision: 2 },
-                        { streamRevision: 3 },
-                        { streamRevision: 4 },
-                        { streamRevision: 5 }
+                    events: [{
+                            streamRevision: 1
+                        },
+                        {
+                            streamRevision: 2
+                        },
+                        {
+                            streamRevision: 3
+                        },
+                        {
+                            streamRevision: 4
+                        },
+                        {
+                            streamRevision: 5
+                        }
                     ]
                 };
                 esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
@@ -662,7 +787,9 @@ describe('eventstore-projection tests', () => {
                     }
                 });
 
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 const offset = 0;
                 esWithProjection.subscribe(query, offset, (error, event, next) => {
                     next();
@@ -672,10 +799,15 @@ describe('eventstore-projection tests', () => {
             it('should continue with the loop even if onEventCallback throws an error', (done) => {
                 // do spyOn again to override default one time call for getEventStream
                 const eventStream = {
-                    events: [
-                        { streamRevision: 1 },
-                        { streamRevision: 2 },
-                        { streamRevision: 3 }
+                    events: [{
+                            streamRevision: 1
+                        },
+                        {
+                            streamRevision: 2
+                        },
+                        {
+                            streamRevision: 3
+                        }
                     ]
                 };
                 esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
@@ -687,7 +819,9 @@ describe('eventstore-projection tests', () => {
                     }
                 });
 
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 const offset = 0;
                 esWithProjection.subscribe(query, offset, (error, event, next) => {
                     throw new Error('unhandled error on event callback');
@@ -698,17 +832,27 @@ describe('eventstore-projection tests', () => {
                 // do spyOn again to override default one time call for getEventStream
                 const numOfEventsPerStream = 3;
                 const streams = [{
-                        events: [
-                            { streamRevision: 1 },
-                            { streamRevision: 2 },
-                            { streamRevision: 3 }
+                        events: [{
+                                streamRevision: 1
+                            },
+                            {
+                                streamRevision: 2
+                            },
+                            {
+                                streamRevision: 3
+                            }
                         ]
                     },
                     {
-                        events: [
-                            { streamRevision: 4 },
-                            { streamRevision: 5 },
-                            { streamRevision: 6 }
+                        events: [{
+                                streamRevision: 4
+                            },
+                            {
+                                streamRevision: 5
+                            },
+                            {
+                                streamRevision: 6
+                            }
                         ]
                     }
                 ];
@@ -723,7 +867,9 @@ describe('eventstore-projection tests', () => {
                     }
                 });
 
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 const offset = 0;
                 let eventCounter = 0;
                 esWithProjection.subscribe(query, offset, (error, event, next) => {
@@ -741,10 +887,15 @@ describe('eventstore-projection tests', () => {
             it('should still continue if next iterator is not called within the timeout period or timedout', (done) => {
                 // do spyOn again to override default one time call for getEventStream
                 const stream = {
-                    events: [
-                        { streamRevision: 1 },
-                        { streamRevision: 2 },
-                        { streamRevision: 3 }
+                    events: [{
+                            streamRevision: 1
+                        },
+                        {
+                            streamRevision: 2
+                        },
+                        {
+                            streamRevision: 3
+                        }
                     ]
                 };
 
@@ -752,7 +903,9 @@ describe('eventstore-projection tests', () => {
                     cb(null, stream);
                 });
 
-                const query = { aggregateId: 'aggregate_id' };
+                const query = {
+                    aggregateId: 'aggregate_id'
+                };
                 const offset = 0;
                 let eventCounter = 0;
                 esWithProjection.subscribe(query, offset, (error, event, next) => {
@@ -790,10 +943,15 @@ describe('eventstore-projection tests', () => {
             it('should stop getting the events if unsubscribed', (done) => {
                 let token = null;
                 const stream = {
-                    events: [
-                        { streamRevision: 1 },
-                        { streamRevision: 2 },
-                        { streamRevision: 3 }
+                    events: [{
+                            streamRevision: 1
+                        },
+                        {
+                            streamRevision: 2
+                        },
+                        {
+                            streamRevision: 3
+                        }
                     ]
                 };
 
@@ -814,4 +972,5 @@ describe('eventstore-projection tests', () => {
         })
 
     })
+
 })

@@ -1,0 +1,58 @@
+version: '3'
+services:
+  web:
+    build: ./web
+    command: node_modules/.bin/nodemon npm start
+    volumes:
+      - ./web:/app
+    ports:
+      - 3000:3000
+    environment:
+      EVENTSTORE_HOST: eventstore_server
+      EVENTSTORE_PORT: 3001
+    links:
+      - eventstore_server
+    depends_on:
+      - eventstore_server
+
+  eventstore_server:
+    build: ./eventstore-server
+    command: 'bash start.sh redis:6379 db:3306'
+    volumes:
+      - ./eventstore-server:/app
+      - ../:/app/node_modules/@saperiuminc/eventstore
+    ports:
+      - 3001:3000
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      EVENTSTORE_MYSQL_HOST: db
+      EVENTSTORE_MYSQL_PORT: 3306
+      EVENTSTORE_MYSQL_USERNAME: root
+      EVENTSTORE_MYSQL_PASSWORD: root
+      EVENTSTORE_MYSQL_DATABASE: eventstore
+      DEBUG: 'eventstore*'
+    links:
+      - redis
+      - db
+    depends_on:
+      - redis
+      - db
+
+  redis:
+    image: redis:5.0
+    restart: always
+    ports:
+      - 6379:6379
+
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eventstore
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root

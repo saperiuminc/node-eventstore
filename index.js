@@ -1,3 +1,13 @@
+/**
+ * EventStore
+ * @typedef {Object} EventstoreOptions
+ * @property {Number} pollingMaxRevisions maximum number of revisions to get for every polling interval
+ * @property {Number} pollingTimeout timeout in milliseconds for the polling interval
+ * @property {String} projectionGroup name of the projectionGroup if using projection
+ */
+
+const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
+
 var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),
     Base = require('./lib/base'),
     _ = require('lodash'),
@@ -63,10 +73,10 @@ function getSpecificStore(options) {
 }
 
 /**
- * @param {Object} options - The options
+ * @param {EventstoreOptions} options - The options
  * @returns {EventstoreWithProjection} - eventstore with Projection
  */
-module.exports = function(options) {
+const esFunction = function(options) {
     options = options || {};
 
     var Store;
@@ -75,6 +85,40 @@ module.exports = function(options) {
         Store = getSpecificStore(options);
     } catch (err) {
         throw err;
+    }
+
+    if (options.redisConfig) {
+        var Redis = require("ioredis");
+        const redis = new Redis({
+            host: options.redisConfig.host,
+            port: options.redisConfig.port
+        });
+
+        const RedisLock = require('redlock');
+        const redLock = new RedisLock([redis], {
+            driftFactor: 0.01, // time in ms
+            retryCount: 10,
+            retryDelay: 200, // time in ms
+            retryJitter: 200 // time in ms
+        });
+
+        const DistributedLock = require('./lib/eventstore-projections/distributed-lock');
+        const distributedLock = new DistributedLock({
+            redis: redLock
+        });
+
+        const JobsManager = require('./lib/eventstore-projections/jobs-manager');
+        const jobsManager = new JobsManager({
+            BullQueue: require('bull'),
+            redisConfig: {
+                host: options.redisConfig.host,
+                password: options.redisConfig.password,
+                port: options.redisConfig.port
+            }
+        });
+
+        options.jobsManager = jobsManager;
+        options.distributedLock = distributedLock;
     }
 
     var eventstore = new Eventstore(options, new Store(options));
@@ -86,5 +130,7 @@ module.exports = function(options) {
 
     return eventstore;
 };
+
+module.exports = esFunction;
 
 module.exports.Store = Base;
