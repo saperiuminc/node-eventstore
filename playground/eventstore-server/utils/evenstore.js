@@ -9,7 +9,7 @@ const eventstore = require('@saperiuminc/eventstore')({
         host: process.env.REDIS_HOST,
         port: process.env.REDIS_PORT
     },
-    pollingTimeout: 60000
+    pollingTimeout: 10000
 });
 
 eventstore.init(function(err) {
@@ -25,20 +25,41 @@ eventstore.init(function(err) {
         });
 
         eventstore.project({
+            projectionId: 'projectionId',
+            playbackFunction: function(err, event, done) {
+                done();
+            },
+            query: {
+                context: 'dummy_context',
+                aggregate: 'dummy_aggregate'
+            },
+            partitionBy: "instance"
+        });
+
+        eventstore.project({
             projectionId: 'dummy-projection-id',
             query: {
                 context: 'dummy_context',
                 aggregate: 'dummy_aggregate'
             },
-            function(err, event) {
+            function(err, event, done) {
                 console.log('got event', event);
+
+                setTimeout(() => {
+                    done();
+                }, 1000);
             },
             partitionBy: 'instance'
         });
+
+        eventstore.startAllProjections((err) => {
+            if (err) {
+                console.error('error in startAllProjections');
+            } else {
+                console.log('startAllProjections done');
+            }
+        })
     }
 });
 
 module.exports = eventstore;
-
-const abc =require('../../../index')({
-});

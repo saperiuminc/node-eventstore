@@ -380,9 +380,13 @@ describe('eventstore-projection tests', () => {
                     payload: projection
                 };
 
+                const jobOptions = {
+                    delay: undefined
+                }
+
                 esWithProjection.project(projection, function(error) {
                     expect(error).toBeUndefined();
-                    expect(esWithProjection.options.jobsManager.queueJob).toHaveBeenCalledWith(jobParams);
+                    expect(esWithProjection.options.jobsManager.queueJob).toHaveBeenCalledWith(jobParams, jobOptions);
                     done();
                 });
             });
@@ -429,9 +433,13 @@ describe('eventstore-projection tests', () => {
                     payload: projection
                 };
 
+                const jobOptions = {
+                    delay: undefined
+                };
+
                 esWithProjection.project(projection, function(error) {
                     expect(error).toBeUndefined();
-                    expect(esWithProjection.options.jobsManager.queueJob).toHaveBeenCalledWith(jobParams);
+                    expect(esWithProjection.options.jobsManager.queueJob).toHaveBeenCalledWith(jobParams, jobOptions);
                     done();
                 });
             });
@@ -479,7 +487,7 @@ describe('eventstore-projection tests', () => {
             it('should call processJobGroup of jobsmanager', (done) => {
                 const result = esWithProjection.startAllProjections(() => {
                     const jobGroup = `projection-group:${options.projectionGroup}`;
-                    expect(jobsManager.processJobGroup).toHaveBeenCalledWith(jobGroup, jasmine.any(Function), jasmine.any(Function));
+                    expect(jobsManager.processJobGroup).toHaveBeenCalledWith(jasmine.any(Object), jobGroup, jasmine.any(Function), jasmine.any(Function));
                     done();
                 });
             })

@@ -111,6 +111,7 @@ describe('jobs-manager tests', () => {
 
                 expect(queueInstance.add).toHaveBeenCalledWith(job.payload, {
                     jobId: job.id,
+                    delay: undefined,
                     removeOnComplete: true
                 });
                 done();
@@ -164,15 +165,27 @@ describe('jobs-manager tests', () => {
                 try {
                     await jobsManager.processJobGroup();
                 } catch (error) {
-                    expect(error.message).toEqual('jobGroup is required');
+                    expect(error.message).toEqual('owner is required');
+                    done();
+                }
+            })
+
+
+            it('should validate required paramater owner', async (done) => {
+                try {
+                    const owner = this;
+                    await jobsManager.processJobGroup();
+                } catch (error) {
+                    expect(error.message).toEqual('owner is required');
                     done();
                 }
             })
 
             it('should validate required paramater onProcessJob as a function', async (done) => {
                 try {
+                    const owner = this;
                     const jobGroup = 'job_group';
-                    await jobsManager.processJobGroup(jobGroup, 'not a function');
+                    await jobsManager.processJobGroup(owner, jobGroup, 'not a function');
                 } catch (error) {
                     expect(error.message).toEqual('onProcessJob is missing or is not a function');
                     done();
@@ -181,8 +194,9 @@ describe('jobs-manager tests', () => {
 
             it('should validate required paramater onProcessJob as defined', async (done) => {
                 try {
+                    const owner = this;
                     const jobGroup = 'job_group';
-                    await jobsManager.processJobGroup(jobGroup);
+                    await jobsManager.processJobGroup(owner, jobGroup);
                 } catch (error) {
                     expect(error.message).toEqual('onProcessJob is missing or is not a function');
                     done();
@@ -191,11 +205,12 @@ describe('jobs-manager tests', () => {
 
             it('should validate required paramater onCompletedJob as a function', async (done) => {
                 try {
+                    const owner = this;
                     const jobGroup = 'job_group';
-                    const onProcessJob = (job, jobDone) => {
+                    const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
                         jobDone();
-                    }
-                    await jobsManager.processJobGroup(jobGroup, onProcessJob, 'not a function');
+                    };
+                    await jobsManager.processJobGroup(owner, jobGroup, onProcessJob, 'not a function');
                 } catch (error) {
                     expect(error.message).toEqual('onCompletedJob is missing or is not a function');
                     done();
@@ -204,11 +219,12 @@ describe('jobs-manager tests', () => {
 
             it('should validate required paramater onCompletedJob as defined', async (done) => {
                 try {
+                    const owner = this;
                     const jobGroup = 'job_group';
-                    const onProcessJob = (job, jobDone) => {
+                    const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
                         jobDone();
-                    }
-                    await jobsManager.processJobGroup(jobGroup, onProcessJob);
+                    };
+                    await jobsManager.processJobGroup(owner, jobGroup, onProcessJob);
                 } catch (error) {
                     expect(error.message).toEqual('onCompletedJob is missing or is not a function');
                     done();
@@ -217,11 +233,14 @@ describe('jobs-manager tests', () => {
 
             it('should return a Promise of type void', async (done) => {
                 try {
+                    const owner = this;
                     const jobGroup = 'job_group';
-                    const onProcessJob = (job, jobDone) => {};
+                    const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
+                        jobDone();
+                    };
 
-                    const onCompletedJob = (job) => {}
-                    const result = jobsManager.processJobGroup(jobGroup, onProcessJob, onCompletedJob);
+                    const onCompletedJob = (jobId, jobData) => {}
+                    const result = jobsManager.processJobGroup(owner, jobGroup, onProcessJob, onCompletedJob);
 
                     expect(result).toBeInstanceOf(Promise);
                     result.then((result) => {
@@ -247,10 +266,13 @@ describe('jobs-manager tests', () => {
                 // queue a job first
                 const promise = jobsManager.queueJob(job);
 
-                const onProcessJob = (job, jobDone) => {};
-                const onCompletedJob = (job) => {}
+                const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
+                    jobDone();
+                };
+                const onCompletedJob = (jobId, jobData) => {}
 
-                await jobsManager.processJobGroup(job.group, onProcessJob, onCompletedJob);
+                const owner = this;
+                await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
 
                 expect(queueInstance.on).toHaveBeenCalledWith('error', jasmine.any(Function));
                 expect(queueInstance.on).toHaveBeenCalledWith('waiting', jasmine.any(Function));
@@ -278,10 +300,13 @@ describe('jobs-manager tests', () => {
                 // queue a job first
                 const promise = jobsManager.queueJob(job);
 
-                const onProcessJob = (job, jobDone) => {};
-                const onCompletedJob = (job) => {}
+                const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
+                    jobDone();
+                };
+                const onCompletedJob = (jobId, jobData) => {}
 
-                await jobsManager.processJobGroup(job.group, onProcessJob, onCompletedJob);
+                const owner = this;
+                await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
 
                 expect(queueInstance.process).toHaveBeenCalledWith(1, jasmine.any(Function));
                 done();
@@ -301,10 +326,10 @@ describe('jobs-manager tests', () => {
                 // queue a job first
                 const promise = jobsManager.queueJob(job);
 
-                const onProcessJob = (job, jobDone) => {
+                const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
                     jobDone(null, jobResult);
                 };
-                const onCompletedJob = (job) => {}
+                const onCompletedJob = (jobId, jobData) => {}
 
                 queueInstance.process.and.callFake((concurrency, cb) => {
                     cb(job, (err, result) => {
@@ -314,7 +339,8 @@ describe('jobs-manager tests', () => {
                     });
                 })
 
-                await jobsManager.processJobGroup(job.group, onProcessJob, onCompletedJob);
+                const owner = this;
+                await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
             })
 
             it('should get an error as part of the done callback if there is an error in the onProcessJob callback', async (done) => {
@@ -332,10 +358,10 @@ describe('jobs-manager tests', () => {
                 // queue a job first
                 const promise = jobsManager.queueJob(job);
 
-                const onProcessJob = (job, jobDone) => {
+                const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
                     jobDone(expectedError);
                 };
-                const onCompletedJob = (job) => {}
+                const onCompletedJob = (jobId, jobData) => {}
 
                 queueInstance.process.and.callFake((concurrency, cb) => {
                     cb(job, (err, result) => {
@@ -345,7 +371,8 @@ describe('jobs-manager tests', () => {
                     });
                 })
 
-                await jobsManager.processJobGroup(job.group, onProcessJob, onCompletedJob);
+                const owner = this;
+                await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
             })
 
             it('should call onCompletedJob when a complted event is received from bulls queue', async (done) => {
@@ -355,6 +382,11 @@ describe('jobs-manager tests', () => {
                     payload: 'job_payload'
                 }
 
+                const bullJob = {
+                    id: job.id,
+                    data: job.payload
+                }
+
                 const jobResult = {
                     lastOffset: 1
                 }
@@ -362,22 +394,25 @@ describe('jobs-manager tests', () => {
                 // queue a job first
                 const promise = jobsManager.queueJob(job);
 
-                const onProcessJob = (job, jobDone) => {
-                    
+                const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
+                    jobDone(null, jobResult);
                 };
-                const onCompletedJob = (job, result) => {
-                    expect(job).toEqual(job);
-                    expect(result).toEqual(jobResult);
+                const onCompletedJob = (jobId, jobData) => {
+                    console.log('onCompletedJob result', jobId, jobData);
+                    expect(jobId).toEqual(bullJob.id);
+                    expect(jobData).toEqual(bullJob.data);
                     done();
                 }
 
                 queueInstance.on.and.callFake((event, cb) => {
                     if (event == 'completed') {
-                        cb(job, jobResult);
+                        cb(bullJob, jobResult);
                     }
                 })
 
-                await jobsManager.processJobGroup(job.group, onProcessJob, onCompletedJob);
+                const owner = this;
+
+                await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
             })
         })
     })
