@@ -25,17 +25,35 @@ eventstore.init(function(err) {
         });
 
         eventstore.project({
-            projectionId: 'dummy-projection-id',
-            query: {
-                context: 'dummy_context',
-                aggregate: 'dummy_aggregate'
-            },
-            function(err, event, done) {
+            projectionId: 'dummy-projection-id-1',
+            playbackFunction: function(event, funcs, done) {
+                // funcs.getState();
+                // funcs.outputState();
                 console.log('got event', event);
 
                 setTimeout(() => {
                     done();
                 }, 1000);
+            },
+            query: {
+                context: 'dummy_context',
+                aggregate: 'dummy_aggregate'
+            },
+            partitionBy: 'instance'
+        });
+
+        eventstore.project({
+            projectionId: 'dummy-projection-id-2',
+            playbackFunction: function(event, done) {
+                console.log('got event', event);
+
+                setTimeout(() => {
+                    done();
+                }, 1000);
+            },
+            query: {
+                context: 'dummy_context',
+                aggregate: 'dummy_aggregate'
             },
             partitionBy: 'instance'
         });
