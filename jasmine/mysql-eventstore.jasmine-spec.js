@@ -108,10 +108,11 @@ describe('mysql-eventstore', () => {
                     `commit_stamp BIGINT(20) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.commitStamp'))) VIRTUAL, ` +
                     `commit_sequence INT(11) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.commitSequence'))) VIRTUAL, ` +
                     `PRIMARY KEY (id), ` + 
-                    `INDEX idx_get_events_aggregate_id (aggregate_id),` +
+                    `INDEX idx_get_events_aggregate_id_stream_revision (aggregate_id, stream_revision),` +
                     `INDEX idx_get_events_aggregate_context (aggregate, context, commit_stamp, stream_revision, commit_sequence),` +
                     `INDEX idx_get_events_context (context),` +
-                    `INDEX idx_get_events_commit_stamp (commit_stamp)` +
+                    `INDEX idx_get_events_commit_stamp (commit_stamp),` +
+                    `INDEX idx_get_last_events_aggregate_id (aggregate_id ASC, commit_stamp DESC, stream_revision DESC, commit_sequence DESC)` +
                 `)`;
 
                 const createUndispatchedEventsTableQuery = `CREATE TABLE IF NOT EXISTS ${mysqlES._options.database}.${mysqlES._options.undispatchedEventsTableName} (` +
