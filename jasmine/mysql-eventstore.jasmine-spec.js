@@ -109,7 +109,7 @@ describe('mysql-eventstore', () => {
                     `commit_sequence INT(11) GENERATED ALWAYS AS (json_unquote(json_extract(event,'$.commitSequence'))) VIRTUAL, ` +
                     `PRIMARY KEY (id), ` + 
                     `INDEX idx_get_events_aggregate_id (aggregate_id),` +
-                    `INDEX idx_get_events_aggregate (aggregate),` +
+                    `INDEX idx_get_events_aggregate_context (aggregate, context, commit_stamp, stream_revision, commit_sequence),` +
                     `INDEX idx_get_events_context (context),` +
                     `INDEX idx_get_events_commit_stamp (commit_stamp)` +
                 `)`;
@@ -1004,7 +1004,7 @@ describe('mysql-eventstore', () => {
                 mockConnection.release.and.callFake(function() {});
             });
 
-            it('should call a SELECT query on the proper database, and events table with proper params if limit and skip are undefined', (done) => {
+            it('should call a SELECT query on the proper database (with late row lookup), and events table with proper params if limit and skip are undefined', (done) => {
                 const expectedQueryPayloads = [mockQuery.aggregate, mockQuery.context, mockQuery.aggregateId, 0, 0];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, [{ payload: '{}' }], 'mockFields');
@@ -1013,7 +1013,7 @@ describe('mysql-eventstore', () => {
                 initMysqlES(() => {
                     mysqlES.getEvents(mockQuery, undefined, undefined, () => {
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1022,7 +1022,7 @@ describe('mysql-eventstore', () => {
                 });
             }, 250);
 
-            it('should call a SELECT query on the proper database, and events table with proper params if limit and skip are null', (done) => {
+            it('should call a SELECT query on the proper database (with late row lookup), and events table with proper params if limit and skip are null', (done) => {
                 const expectedQueryPayloads = [mockQuery.aggregate, mockQuery.context, mockQuery.aggregateId, 0, 0];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, [{ payload: '{}' }], 'mockFields');
@@ -1031,7 +1031,7 @@ describe('mysql-eventstore', () => {
                 initMysqlES(() => {
                     mysqlES.getEvents(mockQuery, null, null, () => {
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1040,7 +1040,7 @@ describe('mysql-eventstore', () => {
                 });
             }, 250);
 
-            it('should call a SELECT query on the proper database, and events table with proper params if limit and skip are NaN', (done) => {
+            it('should call a SELECT query on the proper database (with late row lookup), and events table with proper params if limit and skip are NaN', (done) => {
                 const expectedQueryPayloads = [mockQuery.aggregate, mockQuery.context, mockQuery.aggregateId, 0, 0];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, [{ payload: '{}' }], 'mockFields');
@@ -1049,7 +1049,7 @@ describe('mysql-eventstore', () => {
                 initMysqlES(() => {
                     mysqlES.getEvents(mockQuery, 'skip', 'limit', () => {
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1058,7 +1058,7 @@ describe('mysql-eventstore', () => {
                 });
             }, 250);
 
-            it('should call a SELECT query on the proper database, and events table with proper params if query is empty', (done) => {
+            it('should call a SELECT query on the proper database (with late row lookup), and events table with proper params if query is empty', (done) => {
                 const expectedQueryPayloads = [0, 0];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, [{ payload: '{}' }], 'mockFields');
@@ -1067,7 +1067,7 @@ describe('mysql-eventstore', () => {
                 initMysqlES(() => {
                     mysqlES.getEvents({}, 0, 0, () => {
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1076,7 +1076,7 @@ describe('mysql-eventstore', () => {
                 });
             }, 250);
 
-            it('should call a SELECT query on the proper database, and events table with proper params if query is undefined', (done) => {
+            it('should call a SELECT query on the proper database (with late row lookup), and events table with proper params if query is undefined', (done) => {
                 const expectedQueryPayloads = [0, 0];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, [{ payload: '{}' }], 'mockFields');
@@ -1085,7 +1085,7 @@ describe('mysql-eventstore', () => {
                 initMysqlES(() => {
                     mysqlES.getEvents(undefined, 0, 0, () => {
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1094,7 +1094,7 @@ describe('mysql-eventstore', () => {
                 });
             }, 250);
 
-            it('should call a SELECT query on the proper database, and events table with proper params if query is null', (done) => {
+            it('should call a SELECT query on the proper database (with late row lookup), and events table with proper params if query is null', (done) => {
                 const expectedQueryPayloads = [0, 0];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, [{ payload: '{}' }], 'mockFields');
@@ -1103,7 +1103,7 @@ describe('mysql-eventstore', () => {
                 initMysqlES(() => {
                     mysqlES.getEvents(null, 0, 0, () => {
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1112,7 +1112,7 @@ describe('mysql-eventstore', () => {
                 });
             }, 250);
 
-            it('should call a SELECT query on the proper database, and events table with proper params if aggregate is missing in query', (done) => {
+            it('should call a SELECT query on the proper database (with late row lookup), and events table with proper params if aggregate is missing in query', (done) => {
                 const expectedQueryPayloads = [mockQuery.context, mockQuery.aggregateId, 0, 0];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, [{ payload: '{}' }], 'mockFields');
@@ -1121,7 +1121,7 @@ describe('mysql-eventstore', () => {
                 initMysqlES(() => {
                     mysqlES.getEvents({ context: mockQuery.context, aggregateId: mockQuery.aggregateId }, 0, 0, () => {
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events WHERE context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events WHERE context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1130,7 +1130,7 @@ describe('mysql-eventstore', () => {
                 });
             }, 250);
 
-            it('should call a SELECT query on the proper database, and events table with proper params if aggregate and context are missing in query', (done) => {
+            it('should call a SELECT query on the proper database (with late row lookup), and events table with proper params if aggregate and context are missing in query', (done) => {
                 const expectedQueryPayloads = [mockQuery.aggregateId, 0, 0];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, [{ payload: '{}' }], 'mockFields');
@@ -1139,7 +1139,7 @@ describe('mysql-eventstore', () => {
                 initMysqlES(() => {
                     mysqlES.getEvents({ aggregateId: mockQuery.aggregateId }, 0, 0, () => {
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events WHERE aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events WHERE aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1148,8 +1148,8 @@ describe('mysql-eventstore', () => {
                 });
             }, 250);
 
-            it('should call a SELECT query on the proper database, and events table with proper params if limit and skip are defined ', (done) => {
-                const expectedQueryPayloads = [mockQuery.aggregate, mockQuery.context, mockQuery.aggregateId, 100, 10];
+            it('should call a SELECT query on the proper database (with late row lookup), and events table with proper params if limit and skip are defined ', (done) => {
+                const expectedQueryPayloads = [mockQuery.aggregate, mockQuery.context, mockQuery.aggregateId, 10, 100];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, [{ payload: '{}' }], 'mockFields');
                 });
@@ -1157,7 +1157,7 @@ describe('mysql-eventstore', () => {
                 initMysqlES(() => {
                     mysqlES.getEvents(mockQuery, 10, 100, () => {
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1167,7 +1167,7 @@ describe('mysql-eventstore', () => {
             }, 250);
 
             it('should return the proper results if there are events', (done) => {
-                const expectedQueryPayloads = [mockQuery.aggregate, mockQuery.context, mockQuery.aggregateId, 100, 10];
+                const expectedQueryPayloads = [mockQuery.aggregate, mockQuery.context, mockQuery.aggregateId, 10, 100];
                 const mockEvent = {
                     id: 'mockEventId',
                     aggregateId: mockAggregateId,
@@ -1196,7 +1196,7 @@ describe('mysql-eventstore', () => {
                     mysqlES.getEvents(mockQuery, 10, 100, (error, results) => {
                         expect(error).toBeFalsy();
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1207,7 +1207,7 @@ describe('mysql-eventstore', () => {
             }, 250);
 
             it('should return the proper results if there are no events', (done) => {
-                const expectedQueryPayloads = [mockQuery.aggregate, mockQuery.context, mockQuery.aggregateId, 100, 10];
+                const expectedQueryPayloads = [mockQuery.aggregate, mockQuery.context, mockQuery.aggregateId, 10, 100];
                 const mockResults = [];
                 mockConnection.query.and.callFake(function(query, payload, callback) {
                     callback(null, mockResults, 'mockFields');
@@ -1216,7 +1216,7 @@ describe('mysql-eventstore', () => {
                     mysqlES.getEvents(mockQuery, 10, 100, (error, results) => {
                         expect(error).toBeFalsy();
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1234,7 +1234,7 @@ describe('mysql-eventstore', () => {
                     context: mockContext
                 };
 
-                const expectedQueryPayloads = [mockQueryWithIntAggregateId.aggregate, mockQueryWithIntAggregateId.context, `${mockQueryWithIntAggregateId.aggregateId}`, 100, 10];
+                const expectedQueryPayloads = [mockQueryWithIntAggregateId.aggregate, mockQueryWithIntAggregateId.context, `${mockQueryWithIntAggregateId.aggregateId}`, 10, 100];
                 const mockEvent = {
                     id: 'mockEventId0',
                     aggregateId: mockIntAggregateId,
@@ -1264,7 +1264,7 @@ describe('mysql-eventstore', () => {
                     mysqlES.getEvents(mockQueryWithIntAggregateId, 10, 100, (error, results) => {
                         expect(error).toBeFalsy();
                         expect(mockConnection.query).toHaveBeenCalledWith(
-                            `SELECT id, event FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ? OFFSET ?`,
+                            `SELECT e.id, event FROM ( SELECT id FROM ${mockOptions.database}.events WHERE aggregate = ? AND context = ? AND aggregate_id = ? ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence ASC LIMIT ?, ? ) o JOIN ${mockOptions.database}.events e ON o.id = e.id ORDER BY commit_stamp ASC, stream_revision ASC, commit_sequence`,
                             expectedQueryPayloads,
                             jasmine.any(Function)
                         );
@@ -1342,7 +1342,6 @@ describe('mysql-eventstore', () => {
                 });
             }, 250);
         });
-
     });
 
     describe('getEventsSince', () => {
