@@ -25,18 +25,6 @@ eventstore.init(function(err) {
         });
 
         eventstore.project({
-            projectionId: 'projectionId',
-            playbackFunction: function(err, event, done) {
-                done();
-            },
-            query: {
-                context: 'dummy_context',
-                aggregate: 'dummy_aggregate'
-            },
-            partitionBy: "instance"
-        });
-
-        eventstore.project({
             projectionId: 'dummy-projection-id',
             query: {
                 context: 'dummy_context',
