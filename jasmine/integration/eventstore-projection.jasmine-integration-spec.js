@@ -54,11 +54,13 @@ describe('mysql.eventstore.integration.jasmine-spec', () => {
             // do a projectioon
             es.project({
                 projectionId: projectionId,
-                playbackFunction: function(event, funcs, donePlayback) {
-                    // check that we get the event in the playbackFunction
-                    expect(event.payload).toEqual(expectedEvent);
-                    donePlayback();
-                    done();
+                playbackInterface: {
+                    DUMMY_CREATED: (event, funcs, donePlayback) => {
+                        // check that we get the event in the playbackFunction
+                        expect(event.payload).toEqual(expectedEvent);
+                        donePlayback();
+                        done();
+                    }
                 },
                 query: query,
                 partitionBy: 'instance'
