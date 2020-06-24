@@ -481,6 +481,11 @@ describe('eventstore-projection tests', () => {
                     done();
                 });
             })
+
+            it('should have no errors if callback is null or undefined and jobs manager is undefined', (done) => {
+                const result = esWithProjection.startAllProjections();
+                done();
+            })
         });
 
         describe('processing jobs from jobs manager', () => {
