@@ -1,8 +1,5 @@
 const JobsManager = require('../lib/eventstore-projections/jobs-manager');
 
-
-
-
 describe('jobs-manager tests', () => {
     // just instantiating for vscode jsdoc intellisense
     let jobsManager = new JobsManager();
@@ -11,12 +8,12 @@ describe('jobs-manager tests', () => {
     let bullsQueue;
     let queueInstance;
     beforeEach(() => {
-        ioredis = jasmine.createSpyObj('ioredis', ['redisOptions','keys','hmset','hgetall']);
+        ioredis = jasmine.createSpyObj('ioredis', ['options','keys','hmset','hgetall']);
         bullQueue = jasmine.createSpyObj('bullQueue', ['Queue']);
         queueInstance = jasmine.createSpyObj('queueInstance', ['add', 'on', 'process']);
         bullQueue.Queue.and.returnValue(queueInstance);
         queueInstance.add.and.returnValue(Promise.resolve());
-        ioredis.redisOptions.and.returnValue({
+        ioredis.options.and.returnValue({
             host: 'localhost',
             port: 6379,
             password: 'secret'
@@ -96,7 +93,7 @@ describe('jobs-manager tests', () => {
                 await jobsManager.queueJob(job);
 
                 expect(bullQueue.Queue).toHaveBeenCalledWith(job.group, {
-                    redis: options.ioredis.redisOptions
+                    redis: options.ioredis.options
                 });
                 done();
             })
