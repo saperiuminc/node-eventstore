@@ -112,7 +112,8 @@ describe('jobs-manager tests', () => {
                 expect(queueInstance.add).toHaveBeenCalledWith(job.payload, {
                     jobId: job.id,
                     delay: undefined,
-                    removeOnComplete: true
+                    removeOnComplete: true,
+                    timeout: 10000
                 });
                 done();
             })
