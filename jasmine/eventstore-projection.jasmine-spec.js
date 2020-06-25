@@ -481,6 +481,11 @@ describe('eventstore-projection tests', () => {
                     done();
                 });
             })
+
+            it('should have no errors if callback is null or undefined and jobs manager is undefined', (done) => {
+                const result = esWithProjection.startAllProjections();
+                done();
+            })
         });
 
         describe('processing jobs from jobs manager', () => {
@@ -501,6 +506,236 @@ describe('eventstore-projection tests', () => {
                     expect(error).toEqual(expectedError);
                     done();
                 });
+            })
+
+            it('should call the playback interface when an event is processed', (done) => {
+                const expectedEventstoreEvent = {
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_added',
+                        payload: {
+                            someField: 'field1'
+                        }
+                    }
+                }
+
+                const projection = {
+                    query: {
+                        aggregate: 'aggregate',
+                        context: 'context'
+                    },
+                    projectionId: 'projectionId',
+                    playbackInterface: {
+                        aggregate_added: function(event, funcs, playbackDone) {
+                            expect(event.payload).toEqual(expectedEventstoreEvent.payload);
+                            playbackDone();
+                            done();
+                        }
+                    }
+                };
+
+                jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                });
+
+                esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
+                    cb(null, [expectedEventstoreEvent]);
+                });
+
+                esWithProjection.project(projection);
+
+                const result = esWithProjection.startAllProjections();
+            })
+
+            it('should still continue with the playback even if an event got an error', (done) => {
+                const eventstoreEvents = [{
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_added',
+                        payload: {
+                            someField: 'field1'
+                        }
+                    }
+                }, {
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_updated',
+                        payload: {
+                            someField: 'field2'
+                        }
+                    }
+                }]
+
+                const expectedError = new Error('error in playing back aggregate_added event');
+                const projection = {
+                    query: {
+                        aggregate: 'aggregate',
+                        context: 'context'
+                    },
+                    projectionId: 'projectionId',
+                    playbackInterface: {
+                        aggregate_added: function(event, funcs, playbackDone) {
+                            throw expectedError;
+                        },
+                        aggregate_updated: function(event, funcs, playbackDone) {
+                            const expectedEventstoreEvent = eventstoreEvents[1];
+                            expect(event.payload).toEqual(expectedEventstoreEvent.payload);
+                            playbackDone();
+                            done();
+                        }
+                    }
+                };
+
+                jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                });
+
+                esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
+                    cb(null, eventstoreEvents);
+                });
+
+                esWithProjection.project(projection);
+
+                const result = esWithProjection.startAllProjections();
+            })
+
+            it('should still continue with the playback even if the playback interface explicitly sends out an error', (done) => {
+                const eventstoreEvents = [{
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_added',
+                        payload: {
+                            someField: 'field1'
+                        }
+                    }
+                }, {
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_updated',
+                        payload: {
+                            someField: 'field2'
+                        }
+                    }
+                }]
+
+                const expectedError = new Error('error in playing back aggregate_added event');
+                const projection = {
+                    query: {
+                        aggregate: 'aggregate',
+                        context: 'context'
+                    },
+                    projectionId: 'projectionId',
+                    playbackInterface: {
+                        aggregate_added: function(event, funcs, playbackDone) {
+                            playbackDone(expectedError);
+                        },
+                        aggregate_updated: function(event, funcs, playbackDone) {
+                            const expectedEventstoreEvent = eventstoreEvents[1];
+                            expect(event.payload).toEqual(expectedEventstoreEvent.payload);
+                            playbackDone();
+                            done();
+                        }
+                    }
+                };
+
+                jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                });
+
+                esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
+                    cb(null, eventstoreEvents);
+                });
+
+                esWithProjection.project(projection);
+
+                const result = esWithProjection.startAllProjections();
+            })
+
+            it('should still continue with the playback even if the playback interface timedout', (done) => {
+                const eventstoreEvents = [{
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_added',
+                        payload: {
+                            someField: 'field1'
+                        }
+                    }
+                }, {
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_updated',
+                        payload: {
+                            someField: 'field2'
+                        }
+                    }
+                }]
+
+                const expectedError = new Error('error in playing back aggregate_added event');
+                const projection = {
+                    query: {
+                        aggregate: 'aggregate',
+                        context: 'context'
+                    },
+                    projectionId: 'projectionId',
+                    playbackInterface: {
+                        aggregate_added: function(event, funcs, playbackDone) {
+                            // let this time out
+                            // throw expectedError;
+                        },
+                        aggregate_updated: function(event, funcs, playbackDone) {
+                            const expectedEventstoreEvent = eventstoreEvents[1];
+                            expect(event.payload).toEqual(expectedEventstoreEvent.payload);
+                            playbackDone();
+                            done();
+                        }
+                    }
+                };
+
+                jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                });
+
+                esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
+                    cb(null, eventstoreEvents);
+                });
+
+                esWithProjection.project(projection);
+
+                const result = esWithProjection.startAllProjections();
+            })
+
+            it('should call queue another job when a job is completed', (done) => {
+                const projection = {
+                    query: {
+                        aggregate: 'aggregate',
+                        context: 'context'
+                    },
+                    projectionId: 'projectionId',
+                    playbackInterface: {}
+                };
+
+                jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                    onProcessCompletedJob.call(owner, 'jobId', projection);
+
+                    const projectionKey = `projection-group:${options.projectionGroup}:projection:${projection.projectionId}`;
+
+                    const job = {
+                        id: projectionKey,
+                        group: jobGroup,
+                        payload: projection
+                    };
+
+                    expect(jobsManager.queueJob).toHaveBeenCalledWith(job, { delay: options.pollingTimeout });
+                    done();
+                });
+
+                esWithProjection.project(projection);
+
+                const result = esWithProjection.startAllProjections();
             })
         });
     })

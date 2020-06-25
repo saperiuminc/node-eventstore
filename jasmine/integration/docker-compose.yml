@@ -7,6 +7,8 @@ services:
             dockerfile: Dockerfile
         container_name: testserver
         restart: always
+        environment:
+            - DEBUG=eventstore:projection
         volumes:
             - ../../:/app
         ports:
@@ -15,8 +17,17 @@ services:
         command: bash start.sh dbserver:3306
         depends_on:
             - dbserver
+            - redis
         links:
             - dbserver
+            - redis
+        
+
+    redis:
+        image: redis:5.0
+        restart: always
+        ports:
+            - 6379:6379
 
     dbserver:
         image: mysql:5.7
