@@ -413,7 +413,7 @@ describe('jobs-manager tests', () => {
                 const owner = this;
                 await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
             })
-
+            
             it('should call _getJobResult and _setJobResult on process.queue', async (done) => {
                 // arrange
                 const job = {
@@ -498,6 +498,63 @@ describe('jobs-manager tests', () => {
                 ioredis.keys.and.returnValue(Promise.resolve([`eventstore-projection-job:${job.id}`]));
                 ioredis.hgetall.and.returnValue(Promise.resolve({
                     lastResult: JSON.stringify({ lastOffset: 1 })
+                }));
+
+                const onProcessJob = async (jobId, jobData, lastResult) => {
+                    return jobResult;
+                };
+                const onCompletedJob = (jobId, jobData) => {
+                    // assert
+                    expect(ioredis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
+                    expect(ioredis.hgetall).toHaveBeenCalled();
+                    expect(ioredis.hmset).toHaveBeenCalled();
+                    done();
+                };
+
+                const owner = this;
+                await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
+                // end arrange
+
+                // act
+                await jobsManager.queueJob(job);
+            });
+
+
+            it('should call _getJobResult and _setJobResult on process.queue with last result null', async (done) => {
+                // arrange
+                const job = {
+                    id: 'job_id',
+                    group: 'job_group',
+                    payload: 'job_payload'
+                };
+
+                const jobResult = {
+                    lastOffset: 2
+                };
+
+                let processCallback = () => {};
+                let completedCallback = () => {};
+                queueInstance.on.and.callFake((event, cb) => {
+                    if (event == 'completed') {
+                        completedCallback = cb;
+                    }
+                });
+                queueInstance.process.and.callFake((concurrency, pcb) => {
+                    processCallback = pcb;
+                });
+                queueInstance.add.and.callFake(async (data, options) => {
+                    const result = await processCallback({
+                        data: data,
+                        opts: options,
+                        id: options.jobId
+                    });
+                    // assert
+                    expect(result).toEqual(jobResult);
+                    completedCallback(job, result);
+                });
+                ioredis.keys.and.returnValue(Promise.resolve([`eventstore-projection-job:${job.id}`]));
+                ioredis.hgetall.and.returnValue(Promise.resolve({
+                    lastResult: null
                 }));
 
                 const onProcessJob = async (jobId, jobData, lastResult) => {
