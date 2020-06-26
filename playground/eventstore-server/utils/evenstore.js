@@ -41,7 +41,7 @@ eventstore.init(function(err) {
                 context: 'dummy_context',
                 aggregate: 'dummy_aggregate'
             },
-            partitionBy: '',
+            partitionBy: 'stream',
             outputState: 'true'
         });
 
