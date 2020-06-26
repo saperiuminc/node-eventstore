@@ -91,6 +91,7 @@ const esFunction = function(options) {
         var Redis = require("ioredis");
         const redis = new Redis({
             host: options.redisConfig.host,
+            password: options.redisConfig.password,
             port: options.redisConfig.port
         });
 
@@ -110,11 +111,7 @@ const esFunction = function(options) {
         const JobsManager = require('./lib/eventstore-projections/jobs-manager');
         const jobsManager = new JobsManager({
             BullQueue: require('bull'),
-            redisConfig: {
-                host: options.redisConfig.host,
-                password: options.redisConfig.password,
-                port: options.redisConfig.port
-            }
+            ioredis: redis
         });
 
         options.jobsManager = jobsManager;

@@ -1,30 +1,27 @@
 const JobsManager = require('../lib/eventstore-projections/jobs-manager');
 
-
-
-
 describe('jobs-manager tests', () => {
     // just instantiating for vscode jsdoc intellisense
     let jobsManager = new JobsManager();
     let options;
-    let redis;
+    let ioredis;
     let bullsQueue;
     let queueInstance;
     beforeEach(() => {
-        redis = jasmine.createSpyObj('redis', ['']);
+        ioredis = jasmine.createSpyObj('ioredis', ['options','keys','hmset','hgetall']);
         bullQueue = jasmine.createSpyObj('bullQueue', ['Queue']);
         queueInstance = jasmine.createSpyObj('queueInstance', ['add', 'on', 'process']);
         bullQueue.Queue.and.returnValue(queueInstance);
         queueInstance.add.and.returnValue(Promise.resolve());
-
+        ioredis.options.and.returnValue({
+            host: 'localhost',
+            port: 6379,
+            password: 'secret'
+        });
+        
         options = {
-            redis: redis,
-            BullQueue: bullQueue.Queue,
-            redisConfig: {
-                host: 'localhost',
-                port: 6379,
-                password: 'secret'
-            }
+            ioredis: ioredis,
+            BullQueue: bullQueue.Queue
         };
 
         jobsManager = new JobsManager(options);
@@ -96,7 +93,7 @@ describe('jobs-manager tests', () => {
                 await jobsManager.queueJob(job);
 
                 expect(bullQueue.Queue).toHaveBeenCalledWith(job.group, {
-                    redis: options.redisConfig
+                    redis: options.ioredis.options
                 });
                 done();
             })
@@ -112,7 +109,8 @@ describe('jobs-manager tests', () => {
                 expect(queueInstance.add).toHaveBeenCalledWith(job.payload, {
                     jobId: job.id,
                     delay: undefined,
-                    removeOnComplete: true
+                    removeOnComplete: true,
+                    timeout: 10000
                 });
                 done();
             })
@@ -326,17 +324,15 @@ describe('jobs-manager tests', () => {
                 // queue a job first
                 const promise = jobsManager.queueJob(job);
 
-                const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
-                    jobDone(null, jobResult);
+                const onProcessJob = async (jobId, jobData, lastResult) => {
+                    return jobResult;
                 };
                 const onCompletedJob = (jobId, jobData) => {}
 
-                queueInstance.process.and.callFake((concurrency, cb) => {
-                    cb(job, (err, result) => {
-                        expect(err).toBeFalsy();
-                        expect(result).toEqual(jobResult);
-                        done();
-                    });
+                queueInstance.process.and.callFake(async (concurrency, cb) => {
+                    const result = await cb(job);
+                    expect(result).toEqual(jobResult);
+                    done();
                 })
 
                 const owner = this;
@@ -358,17 +354,18 @@ describe('jobs-manager tests', () => {
                 // queue a job first
                 const promise = jobsManager.queueJob(job);
 
-                const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
-                    jobDone(expectedError);
+                const onProcessJob = (jobId, jobData, lastResult) => {
+                    throw expectedError;
                 };
                 const onCompletedJob = (jobId, jobData) => {}
 
-                queueInstance.process.and.callFake((concurrency, cb) => {
-                    cb(job, (err, result) => {
+                queueInstance.process.and.callFake(async (concurrency, cb) => {
+                    try {
+                        const result = await cb(job);
+                    } catch(err) {
                         expect(err).toEqual(expectedError);
-                        expect(result).toBeUndefined();
                         done();
-                    });
+                    }
                 })
 
                 const owner = this;
@@ -411,9 +408,170 @@ describe('jobs-manager tests', () => {
                 })
 
                 const owner = this;
-
                 await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
             })
-        })
-    })
-})
+            
+            it('should call _getJobResult and _setJobResult on process.queue', async (done) => {
+                // arrange
+                const job = {
+                    id: 'job_id',
+                    group: 'job_group',
+                    payload: 'job_payload'
+                };
+
+                const jobResult = {
+                    lastOffset: 1
+                };
+
+                let processCallback = () => {};
+                let completedCallback = () => {};
+                queueInstance.on.and.callFake((event, cb) => {
+                    if (event == 'completed') {
+                        completedCallback = cb;
+                    }
+                });
+                queueInstance.process.and.callFake((concurrency, pcb) => {
+                    processCallback = pcb;
+                });
+                queueInstance.add.and.callFake(async (data, options) => {
+                    const result = await processCallback({
+                        data: data,
+                        opts: options,
+                        id: options.jobId
+                    });
+                    completedCallback(job, result);
+                });
+
+                const onProcessJob = async (jobId, jobData, lastResult) => {
+                    return jobResult;
+                };
+                const onCompletedJob = (jobId, jobData) => {
+                    // assert
+                    expect(ioredis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
+                    expect(ioredis.hmset).toHaveBeenCalled();
+                    done();
+                };
+
+                const owner = this;
+                await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
+                // end arrange
+
+                // act
+                await jobsManager.queueJob(job);
+            });
+
+            it('should call _getJobResult and _setJobResult on process.queue with ioredis.keys value', async (done) => {
+                // arrange
+                const job = {
+                    id: 'job_id',
+                    group: 'job_group',
+                    payload: 'job_payload'
+                };
+
+                const jobResult = {
+                    lastOffset: 2
+                };
+
+                let processCallback = () => {};
+                let completedCallback = () => {};
+                queueInstance.on.and.callFake((event, cb) => {
+                    if (event == 'completed') {
+                        completedCallback = cb;
+                    }
+                });
+                queueInstance.process.and.callFake((concurrency, pcb) => {
+                    processCallback = pcb;
+                });
+                queueInstance.add.and.callFake(async (data, options) => {
+                    const result = await processCallback({
+                        data: data,
+                        opts: options,
+                        id: options.jobId
+                    });
+                    // assert
+                    expect(result).toEqual(jobResult);
+                    completedCallback(job, result);
+                });
+                ioredis.keys.and.returnValue(Promise.resolve([`eventstore-projection-job:${job.id}`]));
+                ioredis.hgetall.and.returnValue(Promise.resolve({
+                    lastResult: JSON.stringify({ lastOffset: 1 })
+                }));
+
+                const onProcessJob = async (jobId, jobData, lastResult) => {
+                    return jobResult;
+                };
+                const onCompletedJob = (jobId, jobData) => {
+                    // assert
+                    expect(ioredis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
+                    expect(ioredis.hgetall).toHaveBeenCalled();
+                    expect(ioredis.hmset).toHaveBeenCalled();
+                    done();
+                };
+
+                const owner = this;
+                await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
+                // end arrange
+
+                // act
+                await jobsManager.queueJob(job);
+            });
+
+
+            it('should call _getJobResult and _setJobResult on process.queue with last result null', async (done) => {
+                // arrange
+                const job = {
+                    id: 'job_id',
+                    group: 'job_group',
+                    payload: 'job_payload'
+                };
+
+                const jobResult = {
+                    lastOffset: 2
+                };
+
+                let processCallback = () => {};
+                let completedCallback = () => {};
+                queueInstance.on.and.callFake((event, cb) => {
+                    if (event == 'completed') {
+                        completedCallback = cb;
+                    }
+                });
+                queueInstance.process.and.callFake((concurrency, pcb) => {
+                    processCallback = pcb;
+                });
+                queueInstance.add.and.callFake(async (data, options) => {
+                    const result = await processCallback({
+                        data: data,
+                        opts: options,
+                        id: options.jobId
+                    });
+                    // assert
+                    expect(result).toEqual(jobResult);
+                    completedCallback(job, result);
+                });
+                ioredis.keys.and.returnValue(Promise.resolve([`eventstore-projection-job:${job.id}`]));
+                ioredis.hgetall.and.returnValue(Promise.resolve({
+                    lastResult: null
+                }));
+
+                const onProcessJob = async (jobId, jobData, lastResult) => {
+                    return jobResult;
+                };
+                const onCompletedJob = (jobId, jobData) => {
+                    // assert
+                    expect(ioredis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
+                    expect(ioredis.hgetall).toHaveBeenCalled();
+                    expect(ioredis.hmset).toHaveBeenCalled();
+                    done();
+                };
+
+                const owner = this;
+                await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
+                // end arrange
+
+                // act
+                await jobsManager.queueJob(job);
+            });
+        });
+    });
+});
