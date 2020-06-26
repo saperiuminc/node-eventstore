@@ -26,36 +26,23 @@ eventstore.init(function(err) {
 
         eventstore.project({
             projectionId: 'dummy-projection-id-1',
-            playbackFunction: function(event, funcs, done) {
-                // funcs.getState();
-                // funcs.outputState();
-                console.log('got event', event);
-
-                setTimeout(() => {
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                },
+                DUMMY_CREATED: function(state, event, funcs, done) {
+                    state.count++;
                     done();
-                }, 1000);
+                }
             },
             query: {
                 context: 'dummy_context',
                 aggregate: 'dummy_aggregate'
             },
-            partitionBy: 'instance'
-        });
-
-        eventstore.project({
-            projectionId: 'dummy-projection-id-2',
-            playbackFunction: function(event, done) {
-                console.log('got event', event);
-
-                setTimeout(() => {
-                    done();
-                }, 1000);
-            },
-            query: {
-                context: 'dummy_context',
-                aggregate: 'dummy_aggregate'
-            },
-            partitionBy: 'instance'
+            partitionBy: '',
+            outputState: 'true'
         });
 
         eventstore.startAllProjections((err) => {

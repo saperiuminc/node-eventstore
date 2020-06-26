@@ -55,7 +55,7 @@ describe('mysql.eventstore.integration.jasmine-spec', () => {
             es.project({
                 projectionId: projectionId,
                 playbackInterface: {
-                    DUMMY_CREATED: (event, funcs, donePlayback) => {
+                    DUMMY_CREATED: (state, event, funcs, donePlayback) => {
                         // check that we get the event in the playbackFunction
                         expect(event.payload).toEqual(expectedEvent);
                         donePlayback();
