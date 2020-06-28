@@ -20,29 +20,83 @@ eventstore.init(function(err) {
         console.log('es initialized');
 
         // some dummy calls for testing
-        eventstore.subscribe('dummy_stream_id', 0, (err, event) => {
-            console.log('received event');
+        eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event) => {
+            console.log('received event', event);
         });
 
+        // this code is in vehicle micro
+        // expectation is saleschannelinstancevehicle is bound to the vehicle micro
         eventstore.project({
-            projectionId: 'dummy-projection-id-1',
+            projectionId: 'titles-dashboard-vehicle-stream',
             playbackInterface: {
                 $init: function() {
                     return {
                         count: 0
                     }
                 },
-                DUMMY_CREATED: function(state, event, funcs, done) {
-                    state.count++;
+                SALES_CHANNEL_INSTANCE_VEHICLE_SOLD: function(state, event, funcs, done) {
+                    const targetQuery = {
+                        context: 'vehicle',
+                        aggregate: 'titles-dashboard-vehicle-stream',
+                        aggregateId: event.payload.vehicleId
+                    }
+                    funcs.emit(targetQuery, event);
+                    done();
+                },
+                VEHICLE_CREATED: function(state, event, funcs, done) {
+                    const targetQuery = {
+                        context: 'vehicle',
+                        aggregate: 'titles-dashboard-vehicle-stream',
+                        aggregateId: event.payload.vehicleId
+                    }
+                    funcs.emit(targetQuery, event);
+                    done();
+                }
+            },
+            query: {},
+            partitionBy: 'stream',
+            outputState: 'false'
+        });
+
+        eventstore.project({
+            projectionId: 'titles-dashboard-vehicle-list',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        vehicles: []
+                    }
+                },
+                SALES_CHANNEL_INSTANCE_VEHICLE_SOLD: function(state, event, funcs, done) {
+                    state.vehicles.forEach((vehicle) => {
+                        if (vehicle.vehicleId == event.payload.vehicleId) {
+                            vehicle.sold_at = event.payload.sold_at
+                        }
+                    });
+                    done();
+                },
+                VEHICLE_CREATED: function(state, event, funcs, done) {
+                    vehicles.push({
+                        vehicleId: event.payload.vehicleId,
+                        year: event.payload.year,
+                        make: event.payload.make,
+                        model: event.payload.model
+                    });
+
+                    const targetQuery = {
+                        context: 'vehicle',
+                        aggregate: 'titles-dashboard-vehicle-stream',
+                        aggregateId: event.payload.vehicleId
+                    }
+                    funcs.emit(targetQuery, event);
                     done();
                 }
             },
             query: {
-                context: 'dummy_context',
-                aggregate: 'dummy_aggregate'
+                context: 'vehicle',
+                aggregate: 'titles-dashboard-vehicle-stream'
             },
-            partitionBy: 'stream',
-            outputState: 'true'
+            partitionBy: '',
+            outputState: 'false'
         });
 
         eventstore.startAllProjections((err) => {
@@ -52,6 +106,20 @@ eventstore.init(function(err) {
                 console.log('startAllProjections done');
             }
         })
+
+        const event = await eventstore._getLastEventAsync('titles-dashboard-vehicle-list-result');
+
+        const state = event.payload;
+
+        const titlesDashboardVehicles = state.vehicles.filter((vehicle) => {
+            if (vehicle.sold_at) {
+                return true;
+            } else {
+                return false;
+            }
+        });
+
+        titlesDashboardVehicles
     }
 });
 

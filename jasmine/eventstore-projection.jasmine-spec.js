@@ -1136,6 +1136,96 @@ describe('eventstore-projection tests', () => {
 
                     const result = esWithProjection.startAllProjections();
                 })
+
+                it('should save the new event if emit is called', (done) => {
+                    const targetQuery = {
+                        aggregate: 'target_aggregate',
+                        context: 'context',
+                        aggregateId: 'target_aggregate_id'
+                    }
+                    const projection = {
+                        query: {
+                            aggregate: 'aggregate',
+                            context: 'context'
+                        },
+                        projectionId: 'projectionId',
+                        playbackInterface: {
+                            $init: function() {
+
+                            },
+                            aggregate_added: function(state, event, funcs, playbackDone) {
+                                funcs.emit(targetQuery, event.payload, playbackDone);
+                            }
+                        },
+                        outputState: 'true'
+                    };
+
+                    const expectedEventstoreEvent = {
+                        id: 'some_es_id',
+                        payload: {
+                            name: 'aggregate_added',
+                            payload: {
+                                someField: 'field1'
+                            }
+                        },
+                        aggregateId: 'aggregateId',
+                        aggregate: 'aggregate',
+                        context: 'context'
+                    }
+
+                    const expectedProjectionState = {
+                        id: `${projection.projectionId}-result`,
+                        state: {
+                            count: 10
+                        }
+                    }
+
+                    jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                    });
+
+                    esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
+                        cb(null, [expectedEventstoreEvent]);
+                    });
+
+                    const lastEvent = {
+                        payload: {
+                            count: 1
+                        }
+                    }
+                    esWithProjection.getLastEvent.and.callFake((query, cb) => {
+                        if (query.aggregateId == expectedProjectionState.id) {
+                            cb(null, {
+                                payload: expectedProjectionState.state
+                            });
+                        } else if (targetQuery.aggregateId == query.aggregateId) {
+                            // make sure that the call to get aggregateId to the target is here
+                            expect(query).toEqual(targetQuery);
+                            cb(null, expectedEventstoreEvent);
+                        }
+                    });
+
+                    const projectionStream = jasmine.createSpyObj('projectionStream', ['addEvent', 'commit']);
+                    projectionStream.commit.and.callFake((cb) => {
+                        if (projectionStream.addEvent.calls.count() == 1) {
+                            // expect that the event that committed second is the emit call
+                            expect(projectionStream.addEvent).toHaveBeenCalledWith(expectedEventstoreEvent.payload);
+                            cb();
+                            done();
+                        } else {
+                            cb();
+                        }
+                    })
+
+                    esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
+                        cb(null, projectionStream);
+                    });
+
+                    esWithProjection.project(projection);
+
+                    const result = esWithProjection.startAllProjections();
+                })
             })
         });
     })
