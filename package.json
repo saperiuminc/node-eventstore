@@ -46,6 +46,7 @@
     "lodash": "4.17.15",
     "mysql": "^2.18.1",
     "parent-require": "1.0.0",
+    "pubsub-js": "^1.8.0",
     "redlock": "^4.1.0",
     "tolerance": "1.0.0",
     "uuid": "3.3.3"

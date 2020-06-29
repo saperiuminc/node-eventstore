@@ -111,7 +111,7 @@ const esFunction = function(options) {
         const JobsManager = require('./lib/eventstore-projections/jobs-manager');
         const jobsManager = new JobsManager({
             BullQueue: require('bull'),
-            ioredis: redis
+            redis: redis
         });
 
         options.jobsManager = jobsManager;
