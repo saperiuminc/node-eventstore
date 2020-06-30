@@ -6,8 +6,7 @@
  * @property {String} projectionGroup name of the projectionGroup if using projection
  */
 
-const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
-
+// const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
 var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),
     Base = require('./lib/base'),
     _ = require('lodash'),
