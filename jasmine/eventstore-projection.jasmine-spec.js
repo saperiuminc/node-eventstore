@@ -905,6 +905,59 @@ describe('eventstore-projection tests', () => {
                     const result = esWithProjection.startAllProjections();
                 })
 
+                it('should call the $any event handler if it is defined and no event handler for the given event name is present', (done) => {
+                    const projection = {
+                        query: {
+                            aggregate: 'aggregate',
+                            context: 'context'
+                        },
+                        projectionId: 'projectionId',
+                        playbackInterface: {
+                            $init: function() {
+                                // no return
+                            },
+                            $any: function(state, event, funcs, playbackDone) {
+                                playbackDone();
+                                done();
+                            }
+                        },
+                        outputState: 'true'
+                    };
+
+                    const expectedEventstoreEvent = {
+                        id: 'some_es_id',
+                        payload: {
+                            name: 'aggregate_added',
+                            payload: {
+                                someField: 'field1'
+                            }
+                        }
+                    }
+
+                    jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        return Promise.resolve();
+                    });
+
+                    esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
+                        cb(null, [expectedEventstoreEvent]);
+                    });
+
+                    const lastEvent = {
+                        payload: {
+                            count: 1
+                        }
+                    }
+                    esWithProjection.getLastEvent.and.callFake((query, cb) => {
+                        cb();
+                    });
+
+                    esWithProjection.project(projection);
+
+                    const result = esWithProjection.startAllProjections();
+                })
+
                 it('should get the correct state stream if partitionBy is set to "stream"', (done) => {
                     const projection = {
                         query: {
@@ -1154,7 +1207,6 @@ describe('eventstore-projection tests', () => {
 
                     const result = esWithProjection.startAllProjections();
                 })
-
 
                 it('should pass the correct state and event to the correct event handler', (done) => {
                     const projection = {
