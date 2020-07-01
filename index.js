@@ -6,8 +6,7 @@
  * @property {String} projectionGroup name of the projectionGroup if using projection
  */
 
-const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
-
+// const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
 var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),
     Base = require('./lib/base'),
     _ = require('lodash'),
@@ -111,7 +110,7 @@ const esFunction = function(options) {
         const JobsManager = require('./lib/eventstore-projections/jobs-manager');
         const jobsManager = new JobsManager({
             BullQueue: require('bull'),
-            ioredis: redis
+            redis: redis
         });
 
         options.jobsManager = jobsManager;

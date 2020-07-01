@@ -4,23 +4,23 @@ describe('jobs-manager tests', () => {
     // just instantiating for vscode jsdoc intellisense
     let jobsManager = new JobsManager();
     let options;
-    let ioredis;
+    let redis;
     let bullsQueue;
     let queueInstance;
     beforeEach(() => {
-        ioredis = jasmine.createSpyObj('ioredis', ['options','keys','hmset','hgetall']);
+        redis = jasmine.createSpyObj('redis', ['options','keys','hmset','hgetall']);
         bullQueue = jasmine.createSpyObj('bullQueue', ['Queue']);
         queueInstance = jasmine.createSpyObj('queueInstance', ['add', 'on', 'process']);
         bullQueue.Queue.and.returnValue(queueInstance);
         queueInstance.add.and.returnValue(Promise.resolve());
-        ioredis.options.and.returnValue({
+        redis.options.and.returnValue({
             host: 'localhost',
             port: 6379,
             password: 'secret'
         });
         
         options = {
-            ioredis: ioredis,
+            redis: redis,
             BullQueue: bullQueue.Queue
         };
 
@@ -93,7 +93,7 @@ describe('jobs-manager tests', () => {
                 await jobsManager.queueJob(job);
 
                 expect(bullQueue.Queue).toHaveBeenCalledWith(job.group, {
-                    redis: options.ioredis.options
+                    redis: options.redis.options
                 });
                 done();
             })
@@ -447,8 +447,8 @@ describe('jobs-manager tests', () => {
                 };
                 const onCompletedJob = (jobId, jobData) => {
                     // assert
-                    expect(ioredis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
-                    expect(ioredis.hmset).toHaveBeenCalled();
+                    expect(redis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
+                    expect(redis.hmset).toHaveBeenCalled();
                     done();
                 };
 
@@ -460,7 +460,7 @@ describe('jobs-manager tests', () => {
                 await jobsManager.queueJob(job);
             });
 
-            it('should call _getJobResult and _setJobResult on process.queue with ioredis.keys value', async (done) => {
+            it('should call _getJobResult and _setJobResult on process.queue with redis.keys value', async (done) => {
                 // arrange
                 const job = {
                     id: 'job_id',
@@ -492,8 +492,8 @@ describe('jobs-manager tests', () => {
                     expect(result).toEqual(jobResult);
                     completedCallback(job, result);
                 });
-                ioredis.keys.and.returnValue(Promise.resolve([`eventstore-projection-job:${job.id}`]));
-                ioredis.hgetall.and.returnValue(Promise.resolve({
+                redis.keys.and.returnValue(Promise.resolve([`eventstore-projection-job:${job.id}`]));
+                redis.hgetall.and.returnValue(Promise.resolve({
                     lastResult: JSON.stringify({ lastOffset: 1 })
                 }));
 
@@ -502,9 +502,9 @@ describe('jobs-manager tests', () => {
                 };
                 const onCompletedJob = (jobId, jobData) => {
                     // assert
-                    expect(ioredis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
-                    expect(ioredis.hgetall).toHaveBeenCalled();
-                    expect(ioredis.hmset).toHaveBeenCalled();
+                    expect(redis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
+                    expect(redis.hgetall).toHaveBeenCalled();
+                    expect(redis.hmset).toHaveBeenCalled();
                     done();
                 };
 
@@ -549,8 +549,8 @@ describe('jobs-manager tests', () => {
                     expect(result).toEqual(jobResult);
                     completedCallback(job, result);
                 });
-                ioredis.keys.and.returnValue(Promise.resolve([`eventstore-projection-job:${job.id}`]));
-                ioredis.hgetall.and.returnValue(Promise.resolve({
+                redis.keys.and.returnValue(Promise.resolve([`eventstore-projection-job:${job.id}`]));
+                redis.hgetall.and.returnValue(Promise.resolve({
                     lastResult: null
                 }));
 
@@ -559,9 +559,9 @@ describe('jobs-manager tests', () => {
                 };
                 const onCompletedJob = (jobId, jobData) => {
                     // assert
-                    expect(ioredis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
-                    expect(ioredis.hgetall).toHaveBeenCalled();
-                    expect(ioredis.hmset).toHaveBeenCalled();
+                    expect(redis.keys).toHaveBeenCalledWith(`eventstore-projection-job:${job.id}`);
+                    expect(redis.hgetall).toHaveBeenCalled();
+                    expect(redis.hmset).toHaveBeenCalled();
                     done();
                 };
 

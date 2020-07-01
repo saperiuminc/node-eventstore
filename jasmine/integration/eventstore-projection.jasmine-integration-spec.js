@@ -21,7 +21,7 @@ var es = eventstore({
     }
 });
 
-describe('mysql.eventstore.integration.jasmine-spec', () => {
+describe('eventstore-projection.jasmine-integration-spec', () => {
     beforeAll((done) => {
         es.init(function(err) {
             done();
