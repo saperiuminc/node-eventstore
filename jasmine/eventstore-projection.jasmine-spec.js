@@ -34,7 +34,7 @@ describe('eventstore-projection tests', () => {
 
         esWithProjection.getEventStream = jasmine.createSpy('getEventStream', esWithProjection.getEventStream);
         esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-            console.log('common getEventStream');
+            // console.log('common getEventStream');
             // by default we only poll/loop one time for the event stream
             esWithProjection.deactivatePolling();
             cb();
@@ -47,7 +47,7 @@ describe('eventstore-projection tests', () => {
         })
         esWithProjection.getLastEventAsStream = jasmine.createSpy('getLastEventAsStream', esWithProjection.getLastEventAsStream);
         esWithProjection.getLastEventAsStream.and.callFake((query, cb) => {
-            console.log('common getLastEventAsStream');
+            // console.log('common getLastEventAsStream');
             cb(null, defaultStream);
         });
     });
@@ -539,12 +539,16 @@ describe('eventstore-projection tests', () => {
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    cb(null, [expectedEventstoreEvent]);
+                    if(firstLoop == 0) {
+                        firstLoop+= 1;
+                        cb(null, [expectedEventstoreEvent]);
+                    }
+                    cb(null, []);
                 });
 
                 esWithProjection.project(projection);
-
                 const result = esWithProjection.startAllProjections();
             })
 
@@ -592,8 +596,13 @@ describe('eventstore-projection tests', () => {
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    cb(null, eventstoreEvents);
+                    if(firstLoop == 0) {
+                        firstLoop+= 1;
+                        cb(null, eventstoreEvents);
+                    }
+                    cb(null, []);
                 });
 
                 esWithProjection.project(projection);
@@ -645,8 +654,13 @@ describe('eventstore-projection tests', () => {
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    cb(null, eventstoreEvents);
+                    if(firstLoop == 0) {
+                        firstLoop+= 1;
+                        cb(null, eventstoreEvents);
+                    }
+                    cb(null, []);
                 });
 
                 esWithProjection.project(projection);
@@ -702,8 +716,13 @@ describe('eventstore-projection tests', () => {
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    cb(null, eventstoreEvents);
+                    if(firstLoop == 0) {
+                        firstLoop+= 1;
+                        cb(null, eventstoreEvents);
+                    }
+                    cb(null, []);
                 });
 
                 esWithProjection.project(projection);
@@ -770,8 +789,13 @@ describe('eventstore-projection tests', () => {
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        cb(null, [expectedEventstoreEvent]);
+                        if(firstLoop == 0) {
+                            firstLoop+= 1;
+                            cb(null, [expectedEventstoreEvent]);
+                        }
+                        cb(null, []);
                     });
 
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
@@ -819,8 +843,13 @@ describe('eventstore-projection tests', () => {
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        cb(null, [expectedEventstoreEvent]);
+                        if(firstLoop == 0) {
+                            firstLoop+= 1;
+                            cb(null, [expectedEventstoreEvent]);
+                        }
+                        cb(null, []);
                     });
 
                     const lastEvent = {
@@ -873,8 +902,13 @@ describe('eventstore-projection tests', () => {
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        cb(null, [expectedEventstoreEvent]);
+                        if(firstLoop == 0) {
+                            firstLoop+= 1;
+                            cb(null, [expectedEventstoreEvent]);
+                        }
+                        cb(null, []);
                     });
 
                     const lastEvent = {
@@ -925,8 +959,13 @@ describe('eventstore-projection tests', () => {
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        cb(null, [expectedEventstoreEvent]);
+                        if(firstLoop == 0) {
+                            firstLoop+= 1;
+                            cb(null, [expectedEventstoreEvent]);
+                        }
+                        cb(null, []);
                     });
 
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
@@ -981,8 +1020,13 @@ describe('eventstore-projection tests', () => {
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        cb(null, [expectedEventstoreEvent]);
+                        if(firstLoop == 0) {
+                            firstLoop+= 1;
+                            cb(null, [expectedEventstoreEvent]);
+                        }
+                        cb(null, []);
                     });
 
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
@@ -1044,8 +1088,13 @@ describe('eventstore-projection tests', () => {
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        cb(null, [expectedEventstoreEvent]);
+                        if(firstLoop == 0) {
+                            firstLoop+= 1;
+                            cb(null, [expectedEventstoreEvent]);
+                        }
+                        cb(null, []);
                     });
 
                     const lastEvent = {
@@ -1105,8 +1154,13 @@ describe('eventstore-projection tests', () => {
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        cb(null, [expectedEventstoreEvent]);
+                        if(firstLoop == 0) {
+                            firstLoop+= 1;
+                            cb(null, [expectedEventstoreEvent]);
+                        }
+                        cb(null, []);
                     });
 
                     const lastEvent = {
@@ -1185,8 +1239,13 @@ describe('eventstore-projection tests', () => {
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        cb(null, [expectedEventstoreEvent]);
+                        if(firstLoop == 0) {
+                            firstLoop+= 1;
+                            cb(null, [expectedEventstoreEvent]);
+                        }
+                        cb(null, []);
                     });
 
                     const lastEvent = {
@@ -1705,5 +1764,4 @@ describe('eventstore-projection tests', () => {
         })
 
     })
-
 })
