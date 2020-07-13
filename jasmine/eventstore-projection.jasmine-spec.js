@@ -148,20 +148,12 @@ describe('eventstore-projection tests', () => {
                 });
             });
 
-            it('should not throw an error if callback is not a function', (done) => {
-                esWithProjection.project({
-                    projectionId: 'the_projection_id',
-                    query: {}
-                });
-                expect(true).toBeTruthy();
-                done();
-            });
-
-
             it('should return void', (done) => {
                 const res = esWithProjection.project({
                     projectionId: 'the_projection_id',
-                    query: {}
+                    query: {
+                        streamId: 'abc'
+                    }
                 });
 
                 expect(res).toBeUndefined();
