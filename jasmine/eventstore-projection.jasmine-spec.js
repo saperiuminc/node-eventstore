@@ -1,4 +1,5 @@
 const EventStoreWithProjection = require('../lib/eventstore-projections/eventstore-projection');
+const EventstorePlaybackList = require('../lib/eventstore-projections/eventstore-playback-list');
 
 describe('eventstore-projection tests', () => {
     // just instantiating for vscode jsdoc intellisense
@@ -9,6 +10,8 @@ describe('eventstore-projection tests', () => {
     let jobsManager;
     let redisSub;
     let redisPub;
+    let eventStorePlaybacklist;
+    let EventStorePlaybackListFunction;
     beforeEach(() => {
         distributedLock = jasmine.createSpyObj('distributedLock', ['lock', 'unlock']);
         distributedLock.lock.and.returnValue(Promise.resolve());
@@ -18,13 +21,27 @@ describe('eventstore-projection tests', () => {
         jobsManager.queueJob.and.returnValue(Promise.resolve());
         jobsManager.processJobGroup.and.returnValue(Promise.resolve());
 
+        EventStorePlaybackListFunction = jasmine.createSpy('EventStorePlaybackListFunction');
+        eventStorePlaybacklist = jasmine.createSpyObj('eventStorePlaybacklist', ['init']);
+        eventStorePlaybacklist.init.and.returnValue(Promise.resolve());
+
+        EventStorePlaybackListFunction.and.returnValue(eventStorePlaybacklist);
+
         options = {
             pollingMaxRevisions: 10,
             pollingTimeout: 0, // so that polling is immediate
             eventCallbackTimeout: 0,
             projectionGroup: 'test',
             distributedLock: distributedLock,
-            jobsManager: jobsManager
+            jobsManager: jobsManager,
+            EventstorePlaybackList: EventStorePlaybackListFunction,
+            playbackListStore: {
+                host: 'host',
+                port: 'port',
+                database: 'database',
+                user: 'user',
+                password: 'password'
+            }
         };
         esWithProjection = new EventStoreWithProjection(options);
 
@@ -480,6 +497,238 @@ describe('eventstore-projection tests', () => {
                 });
             });
         });
+
+        describe('creating playback lists', () => {
+            describe('should validate some required options', () => {
+                it('should validate EventstorePlaybackList', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        playbackList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.EventstorePlaybackList = null;
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('EventstorePlaybackList must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate playbackListStore', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        playbackList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.playbackListStore = null;
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('playbackListStore must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate playbackListStore.host', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        playbackList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.playbackListStore = {
+                        port: 'port',
+                        database: 'database',
+                        user: 'user',
+                        password: 'password'
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('playbackListStore.host must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate playbackListStore.port', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        playbackList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.playbackListStore = {
+                        host: 'host',
+                        database: 'database',
+                        user: 'user',
+                        password: 'password'
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('playbackListStore.port must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate playbackListStore.database', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        playbackList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.playbackListStore = {
+                        host: 'host',
+                        port: 'port',
+                        user: 'user',
+                        password: 'password'
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('playbackListStore.database must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate playbackListStore.user', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        playbackList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.playbackListStore = {
+                        host: 'host',
+                        port: 'port',
+                        database: 'database',
+                        password: 'password'
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('playbackListStore.user must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate playbackListStore.password', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        playbackList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.playbackListStore = {
+                        host: 'host',
+                        port: 'port',
+                        database: 'database',
+                        user: 'user',
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('playbackListStore.password must be provided in the options');
+                        done();
+                    });
+                });
+            });
+            
+            it('should create and init the playback list correctly', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projectionId = 'the_projection_id';
+
+                const projection = {
+                    projectionId: projectionId,
+                    query: query,
+                    playbackList: {
+                        name: '',
+                        fields: [{
+                            name: 'field_name',
+                            type: 'string'
+                        }],
+                        secondaryKeys: {
+                            idx_field_name: [
+                                { name: 'field_name', sort: 'ASC'}
+                            ]
+                        }
+                    }
+                };
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toBeUndefined();
+                    expect(eventStorePlaybacklist.init).toHaveBeenCalled();
+                    expect(EventStorePlaybackListFunction).toHaveBeenCalledWith({
+                        host: esWithProjection.options.playbackListStore.host,
+                        port: esWithProjection.options.playbackListStore.port,
+                        database: esWithProjection.options.playbackListStore.database,
+                        user: esWithProjection.options.playbackListStore.user,
+                        password: esWithProjection.options.playbackListStore.password,
+                        mysql: require('mysql'),
+                        listName: projection.playbackList.name,
+                        fields: projection.playbackList.fields,
+                        secondaryKeys: projection.playbackList.secondaryKeys
+                    });
+                    done();
+                });
+            });
+        })
     });
 
     describe('startAllProjections', () => {
