@@ -32,62 +32,17 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
         done();
     });
 
-    describe('project', () => {
-        it('should be able to receive an event based on a query', (done) => {
-            var projectionId = uuid().toString();
+    describe('subscribe', () => {
+
+        it('it should be able to get event stream 0', function(done) {
             const dummyId = uuid().toString();
             const dummyContext = uuid().toString();
             const dummyAggregate = uuid().toString();
 
-            var expectedEvent = {
-                name: 'DUMMY_CREATED',
-                payload: {
-                    dummyId: dummyId
-                }
-            };
-
-            const query = {
-                context: dummyContext,
-                aggregate: dummyAggregate
-            }
-
-            // do a projectioon
-            es.project({
-                projectionId: projectionId,
-                playbackInterface: {
-                    DUMMY_CREATED: (state, event, funcs, donePlayback) => {
-                        // check that we get the event in the playbackFunction
-                        expect(event.payload).toEqual(expectedEvent);
-                        donePlayback();
-                        done();
-                    }
-                },
-                query: query,
-                partitionBy: 'instance'
-            });
-
-            es.startAllProjections();
-
-            // add an event to the stream
             es.getEventStream({
                 aggregateId: dummyId,
-                aggregate: query.aggregate,
-                context: query.context
-            }, function(err, stream) {
-                stream.addEvent(expectedEvent);
-                // stream.commit();
-                stream.commit(function(err, stream) {});
-            });
-        });
-    });
-
-    describe('subscribe', () => {
-
-        it('it should be able to get event stream 0', function(done) {
-            es.getEventStream({
-                aggregateId: 'test1',
-                aggregate: 'test',
-                context: 'test'
+                aggregate: dummyAggregate,
+                context: dummyContext
             }, function(err, stream) {
                 var events = stream.events;
                 expect(events.length).toEqual(0);
@@ -96,22 +51,26 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
         });
 
         it('it should be able to subscribe to events', function(done) {
+            const dummyId = uuid().toString();
+            const dummyContext = uuid().toString();
+            const dummyAggregate = uuid().toString();
+
             var expectedEvent = {
                 event: 'this is my event'
             };
             es.subscribe({
-                aggregateId: 'test2',
-                aggregate: 'test',
-                context: 'test'
+                aggregateId: dummyId,
+                aggregate: dummyAggregate,
+                context: dummyContext
             }, 0, function(err, event) {
                 expect(event.payload).toEqual(expectedEvent);
                 done()
             });
 
             es.getEventStream({
-                aggregateId: 'test2',
-                aggregate: 'test',
-                context: 'test'
+                aggregateId: dummyId,
+                aggregate: dummyAggregate,
+                context: dummyContext
             }, function(err, stream) {
                 stream.addEvent(expectedEvent);
                 stream.commit();
@@ -119,14 +78,17 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
         });
 
         it('it should be able to subscribe, pre commit, to events at a given offset', function(done) {
+            const dummyId = uuid().toString();
+            const dummyContext = uuid().toString();
+            const dummyAggregate = uuid().toString();
+
             var expectedEvent = {
                 event: 'this is my first event'
             };
-            var id = uuid().toString();
             es.subscribe({
-                aggregateId: id,
-                aggregate: 'test',
-                context: 'test'
+                aggregateId: dummyId,
+                aggregate: dummyAggregate,
+                context: dummyContext
             }, 1, function(err, event) {
                 console.log('event');
                 console.log(event);
@@ -135,9 +97,9 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
             });
 
             es.getEventStream({
-                aggregateId: id,
-                aggregate: 'test',
-                context: 'test'
+                aggregateId: dummyId,
+                aggregate: dummyAggregate,
+                context: dummyContext
             }, function(err, stream) {
                 stream.addEvent(expectedEvent);
                 stream.addEvent({
@@ -148,15 +110,17 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
         });
 
         it('it should be able to subscribe, post commit, to events at a given offset', function(done) {
+            const dummyId = uuid().toString();
+            const dummyContext = uuid().toString();
+            const dummyAggregate = uuid().toString();
+
             var expectedEvent = {
                 event: 'this is my second event'
             };
-            var id = uuid().toString();
-
             es.getEventStream({
-                aggregateId: id,
-                aggregate: 'test',
-                context: 'test'
+                aggregateId: dummyId,
+                aggregate: dummyAggregate,
+                context: dummyContext
             }, function(err, stream) {
                 stream.addEvent({
                     event: 'this is my first event'
@@ -165,9 +129,9 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
                 // stream.commit();
                 stream.commit(function(err, stream) {
                     es.subscribe({
-                        aggregateId: id,
-                        aggregate: 'test',
-                        context: 'test'
+                        aggregateId: dummyId,
+                        aggregate: dummyAggregate,
+                        context: dummyContext
                     }, 1, function(err, event) {
                         console.log('event');
                         console.log(event);

@@ -1,9 +1,15 @@
 /**
+ * PlaybackListStoreConfig
+ * @typedef {import('./lib/eventstore-projections/eventstore-projection').PlaybackListStoreConfig} PlaybackListStoreConfig
+ */
+
+/**
  * EventStore
  * @typedef {Object} EventstoreOptions
  * @property {Number} pollingMaxRevisions maximum number of revisions to get for every polling interval
  * @property {Number} pollingTimeout timeout in milliseconds for the polling interval
  * @property {String} projectionGroup name of the projectionGroup if using projection
+ * @property {PlaybackListStoreConfig} playbackListStore
  */
 
 // const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
@@ -117,7 +123,26 @@ const esFunction = function(options) {
         options.distributedLock = distributedLock;
     }
 
+    // inject the playback list library
+    options.EventstorePlaybackList = require('./lib/eventstore-projections/eventstore-playback-list');
+    options.EventstorePlaybackListView = require('./lib/eventstore-projections/eventstore-playback-list-view');
+
     var eventstore = new Eventstore(options, new Store(options));
+
+    // NOTE: temporarily use redisConfig as flag to enable notification pubsub
+    if (options.redisConfig) {
+        const redisSub = new Redis({
+            host: options.redisConfig.host,
+            password: options.redisConfig.password,
+            port: options.redisConfig.port
+        });
+        const redisPub = new Redis({
+            host: options.redisConfig.host,
+            password: options.redisConfig.password,
+            port: options.redisConfig.port
+        });
+        eventstore.setupNotifyPubSub(redisSub, redisPub);
+    }
 
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
