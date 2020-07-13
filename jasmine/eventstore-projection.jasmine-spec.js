@@ -2341,4 +2341,72 @@ describe('eventstore-projection tests', () => {
         })
 
     })
+
+    describe('getPlaybackList', () => {
+        it('should return no playbacklist if it still does not exist', (done) => {
+            const query = {
+                context: 'the_context'
+            };
+
+            const projectionId = 'the_projection_id';
+
+            const projection = {
+                projectionId: projectionId,
+                query: query,
+                playbackList: {
+                    name: 'playbacklist_name',
+                    fields: [{
+                        name: 'field_name',
+                        type: 'string'
+                    }],
+                    secondaryKeys: {
+                        idx_field_name: [
+                            { name: 'field_name', sort: 'ASC'}
+                        ]
+                    }
+                }
+            };
+
+            esWithProjection.project(projection, function(error) {
+                esWithProjection.getPlaybackList('not_existing', (err, pb) => {
+                    expect(err).toBeFalsy();
+                    expect(pb).toBeFalsy();
+                    done();
+                });
+            });
+        })
+
+        it('should return the correct playback list', (done) => {
+            const query = {
+                context: 'the_context'
+            };
+
+            const projectionId = 'the_projection_id';
+
+            const projection = {
+                projectionId: projectionId,
+                query: query,
+                playbackList: {
+                    name: 'playbacklist_name',
+                    fields: [{
+                        name: 'field_name',
+                        type: 'string'
+                    }],
+                    secondaryKeys: {
+                        idx_field_name: [
+                            { name: 'field_name', sort: 'ASC'}
+                        ]
+                    }
+                }
+            };
+
+            esWithProjection.project(projection, function(error) {
+                esWithProjection.getPlaybackList('playbacklist_name', (err, pb) => {
+                    expect(err).toBeFalsy();
+                    expect(pb).toBeTruthy();
+                    done();
+                });
+            });
+        })
+    });
 })
