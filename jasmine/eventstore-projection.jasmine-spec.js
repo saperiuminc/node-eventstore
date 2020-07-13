@@ -11,7 +11,10 @@ describe('eventstore-projection tests', () => {
     let redisSub;
     let redisPub;
     let eventStorePlaybacklist;
+    let eventStorePlaybacklistView;
     let EventStorePlaybackListFunction;
+    let EventstorePlaybackListViewFunction;
+
     beforeEach(() => {
         distributedLock = jasmine.createSpyObj('distributedLock', ['lock', 'unlock']);
         distributedLock.lock.and.returnValue(Promise.resolve());
@@ -27,6 +30,13 @@ describe('eventstore-projection tests', () => {
 
         EventStorePlaybackListFunction.and.returnValue(eventStorePlaybacklist);
 
+        EventstorePlaybackListViewFunction = jasmine.createSpy('EventstorePlaybackListViewFunction');
+        eventStorePlaybacklistView = jasmine.createSpyObj('eventStorePlaybacklistView', ['init']);
+        eventStorePlaybacklistView.init.and.returnValue(Promise.resolve());
+
+        EventstorePlaybackListViewFunction.and.returnValue(eventStorePlaybacklistView);
+
+
         options = {
             pollingMaxRevisions: 10,
             pollingTimeout: 0, // so that polling is immediate
@@ -35,6 +45,7 @@ describe('eventstore-projection tests', () => {
             distributedLock: distributedLock,
             jobsManager: jobsManager,
             EventstorePlaybackList: EventStorePlaybackListFunction,
+            EventstorePlaybackListView: EventstorePlaybackListViewFunction,
             playbackListStore: {
                 host: 'host',
                 port: 'port',
@@ -2402,6 +2413,146 @@ describe('eventstore-projection tests', () => {
 
             esWithProjection.project(projection, function(error) {
                 esWithProjection.getPlaybackList('playbacklist_name', (err, pb) => {
+                    expect(err).toBeFalsy();
+                    expect(pb).toBeTruthy();
+                    done();
+                });
+            });
+        })
+    });
+
+    describe('registerPlaybackListView', () => {
+        describe('should validate some required options', () => {
+            it('should validate EventstorePlaybackListView', (done) => {
+                // NOTE: just removing the option to test
+                esWithProjection.options.EventstorePlaybackListView = null;
+
+                esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                    expect(error.message).toEqual('EventstorePlaybackListView must be provided in the options');
+                    done();
+                });
+            });
+
+            it('should validate playbackListStore', (done) => {
+                // NOTE: just removing the option to test
+                esWithProjection.options.playbackListStore = null;
+
+                esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                    expect(error.message).toEqual('playbackListStore must be provided in the options');
+                    done();
+                });
+            });
+
+            it('should validate playbackListStore.host', (done) => {
+                // NOTE: just removing the option to test
+                esWithProjection.options.playbackListStore = {
+                    port: 'port',
+                    database: 'database',
+                    user: 'user',
+                    password: 'password'
+                };
+
+                esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                    expect(error.message).toEqual('playbackListStore.host must be provided in the options');
+                    done();
+                });
+            });
+
+            it('should validate playbackListStore.port', (done) => {
+
+                // NOTE: just removing the option to test
+                esWithProjection.options.playbackListStore = {
+                    host: 'host',
+                    database: 'database',
+                    user: 'user',
+                    password: 'password'
+                };
+
+                esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                    expect(error.message).toEqual('playbackListStore.port must be provided in the options');
+                    done();
+                });
+            });
+
+            it('should validate playbackListStore.database', (done) => {
+
+                // NOTE: just removing the option to test
+                esWithProjection.options.playbackListStore = {
+                    host: 'host',
+                    port: 'port',
+                    user: 'user',
+                    password: 'password'
+                };
+
+                esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                    expect(error.message).toEqual('playbackListStore.database must be provided in the options');
+                    done();
+                });
+            });
+
+            it('should validate playbackListStore.user', (done) => {
+                // NOTE: just removing the option to test
+                esWithProjection.options.playbackListStore = {
+                    host: 'host',
+                    port: 'port',
+                    database: 'database',
+                    password: 'password'
+                };
+
+                esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                    expect(error.message).toEqual('playbackListStore.user must be provided in the options');
+                    done();
+                });
+            });
+
+            it('should validate playbackListStore.password', (done) => {
+                // NOTE: just removing the option to test
+                esWithProjection.options.playbackListStore = {
+                    host: 'host',
+                    port: 'port',
+                    database: 'database',
+                    user: 'user',
+                };
+
+                esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                    expect(error.message).toEqual('playbackListStore.password must be provided in the options');
+                    done();
+                });
+            });
+        });
+
+        it('should register the correct playback list view', (done) => {
+            esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                expect(EventstorePlaybackListViewFunction).toHaveBeenCalledWith({
+                    host: esWithProjection.options.playbackListStore.host,
+                    port: esWithProjection.options.playbackListStore.port,
+                    database: esWithProjection.options.playbackListStore.database,
+                    user: esWithProjection.options.playbackListStore.user,
+                    password: esWithProjection.options.playbackListStore.password,
+                    mysql: require('mysql'),
+                    listName: 'list_name',
+                    query: 'select * from list_name'
+                });
+                expect(eventStorePlaybacklistView.init).toHaveBeenCalledTimes(1);
+                done();
+            });
+        })
+    });
+
+    describe('getPlaybackListView', () => {
+        it('should return falsy if playbacklistview is not existing', (done) => {
+            esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                esWithProjection.getPlaybackListView('not_existing', function(err, pb) {
+                    expect(err).toBeFalsy();
+                    expect(pb).toBeFalsy();
+                    done();
+                });
+            });
+        })
+
+        it('should return truthy if playbacklistview exists', (done) => {
+            esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
+                esWithProjection.getPlaybackListView('list_name', function(err, pb) {
                     expect(err).toBeFalsy();
                     expect(pb).toBeTruthy();
                     done();
