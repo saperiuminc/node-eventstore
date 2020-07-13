@@ -129,6 +129,21 @@ const esFunction = function(options) {
 
     var eventstore = new Eventstore(options, new Store(options));
 
+    // NOTE: temporarily use redisConfig as flag to enable notification pubsub
+    if (options.redisConfig) {
+        const redisSub = new Redis({
+            host: options.redisConfig.host,
+            password: options.redisConfig.password,
+            port: options.redisConfig.port
+        });
+        const redisPub = new Redis({
+            host: options.redisConfig.host,
+            password: options.redisConfig.password,
+            port: options.redisConfig.port
+        });
+        eventstore.setupNotifyPubSub(redisSub, redisPub);
+    }
+
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
         storeEventEmitter.addEventEmitter();
