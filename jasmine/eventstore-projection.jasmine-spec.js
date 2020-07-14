@@ -1,5 +1,7 @@
-const EventStoreWithProjection = require('../lib/eventstore-projections/eventstore-projection');
-const EventstorePlaybackList = require('../lib/eventstore-projections/eventstore-playback-list');
+
+let EventStoreWithProjection = require('../lib/eventstore-projections/eventstore-projection');
+const mockery = require('mockery');
+mockery.enable();
 
 describe('eventstore-projection tests', () => {
     // just instantiating for vscode jsdoc intellisense
@@ -16,6 +18,13 @@ describe('eventstore-projection tests', () => {
     let EventstorePlaybackListViewFunction;
 
     beforeEach(() => {
+        const proxyquire =  require('proxyquire');
+        EventStorePlaybackListFunction = jasmine.createSpy('EventStorePlaybackListFunction');
+        eventStorePlaybacklist = jasmine.createSpyObj('eventStorePlaybacklist', ['init']);
+        eventStorePlaybacklist.init.and.returnValue(Promise.resolve());
+        EventStorePlaybackListFunction.and.returnValue(eventStorePlaybacklist);
+        mockery.registerMock('./eventstore-playback-list', EventStorePlaybackListFunction);
+
         distributedLock = jasmine.createSpyObj('distributedLock', ['lock', 'unlock']);
         distributedLock.lock.and.returnValue(Promise.resolve());
         distributedLock.unlock.and.returnValue(Promise.resolve());
@@ -24,17 +33,15 @@ describe('eventstore-projection tests', () => {
         jobsManager.queueJob.and.returnValue(Promise.resolve());
         jobsManager.processJobGroup.and.returnValue(Promise.resolve());
 
-        EventStorePlaybackListFunction = jasmine.createSpy('EventStorePlaybackListFunction');
-        eventStorePlaybacklist = jasmine.createSpyObj('eventStorePlaybacklist', ['init']);
-        eventStorePlaybacklist.init.and.returnValue(Promise.resolve());
+        
 
-        EventStorePlaybackListFunction.and.returnValue(eventStorePlaybacklist);
 
         EventstorePlaybackListViewFunction = jasmine.createSpy('EventstorePlaybackListViewFunction');
         eventStorePlaybacklistView = jasmine.createSpyObj('eventStorePlaybacklistView', ['init']);
         eventStorePlaybacklistView.init.and.returnValue(Promise.resolve());
-
         EventstorePlaybackListViewFunction.and.returnValue(eventStorePlaybacklistView);
+        mockery.registerMock('./eventstore-playback-list-view', EventstorePlaybackListViewFunction);
+
 
 
         options = {
@@ -511,29 +518,6 @@ describe('eventstore-projection tests', () => {
 
         describe('creating playback lists', () => {
             describe('should validate some required options', () => {
-                it('should validate EventstorePlaybackList', (done) => {
-                    const query = {
-                        context: 'the_context'
-                    };
-    
-                    const projectionId = 'the_projection_id';
-    
-                    const projection = {
-                        projectionId: projectionId,
-                        query: query,
-                        playbackList: {
-                        }
-                    };
-    
-                    // NOTE: just removing the option to test
-                    esWithProjection.options.EventstorePlaybackList = null;
-    
-                    esWithProjection.project(projection, function(error) {
-                        expect(error.message).toEqual('EventstorePlaybackList must be provided in the options');
-                        done();
-                    });
-                });
-
                 it('should validate playbackListStore', (done) => {
                     const query = {
                         context: 'the_context'
@@ -731,7 +715,6 @@ describe('eventstore-projection tests', () => {
                         database: esWithProjection.options.playbackListStore.database,
                         user: esWithProjection.options.playbackListStore.user,
                         password: esWithProjection.options.playbackListStore.password,
-                        mysql: require('mysql'),
                         listName: projection.playbackList.name,
                         fields: projection.playbackList.fields,
                         secondaryKeys: projection.playbackList.secondaryKeys
@@ -2423,15 +2406,6 @@ describe('eventstore-projection tests', () => {
 
     describe('registerPlaybackListView', () => {
         describe('should validate some required options', () => {
-            it('should validate EventstorePlaybackListView', (done) => {
-                // NOTE: just removing the option to test
-                esWithProjection.options.EventstorePlaybackListView = null;
-
-                esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
-                    expect(error.message).toEqual('EventstorePlaybackListView must be provided in the options');
-                    done();
-                });
-            });
 
             it('should validate playbackListStore', (done) => {
                 // NOTE: just removing the option to test
@@ -2529,7 +2503,6 @@ describe('eventstore-projection tests', () => {
                     database: esWithProjection.options.playbackListStore.database,
                     user: esWithProjection.options.playbackListStore.user,
                     password: esWithProjection.options.playbackListStore.password,
-                    mysql: require('mysql'),
                     listName: 'list_name',
                     query: 'select * from list_name'
                 });

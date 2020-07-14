@@ -37,18 +37,20 @@ const eventstore = require('@saperiuminc/eventstore')({
     user: process.env.EVENTSTORE_MYSQL_USERNAME,
     password: process.env.EVENTSTORE_MYSQL_PASSWORD,
     database: process.env.EVENTSTORE_MYSQL_DATABASE,
+    // projections-specific configuration below
     redisConfig: {
         host: process.env.REDIS_HOST,
         port: process.env.REDIS_PORT
-    },
+    }, // required
     playbackListStore: {
         host: process.env.EVENTSTORE_MYSQL_HOST,
         port: process.env.EVENTSTORE_MYSQL_PORT,
         user: process.env.EVENTSTORE_MYSQL_USERNAME,
         password: process.env.EVENTSTORE_MYSQL_PASSWORD,
         database: process.env.EVENTSTORE_MYSQL_DATABASE
-    },
-    pollingTimeout: 10000
+    }, // required
+
+    pollingTimeout: 10000 // optional
 });
 
 eventstore.init(async function(err) {

@@ -123,10 +123,6 @@ const esFunction = function(options) {
         options.distributedLock = distributedLock;
     }
 
-    // inject the playback list library
-    options.EventstorePlaybackList = require('./lib/eventstore-projections/eventstore-playback-list');
-    options.EventstorePlaybackListView = require('./lib/eventstore-projections/eventstore-playback-list-view');
-
     var eventstore = new Eventstore(options, new Store(options));
 
     // NOTE: temporarily use redisConfig as flag to enable notification pubsub
