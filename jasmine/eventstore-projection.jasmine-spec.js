@@ -18,7 +18,6 @@ describe('eventstore-projection tests', () => {
     let EventstorePlaybackListViewFunction;
 
     beforeEach(() => {
-        const proxyquire =  require('proxyquire');
         EventStorePlaybackListFunction = jasmine.createSpy('EventStorePlaybackListFunction');
         eventStorePlaybacklist = jasmine.createSpyObj('eventStorePlaybacklist', ['init']);
         eventStorePlaybacklist.init.and.returnValue(Promise.resolve());
