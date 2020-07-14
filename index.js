@@ -79,7 +79,7 @@ function getSpecificStore(options) {
 
 /**
  * @param {EventstoreOptions} options - The options
- * @returns {EventstoreWithProjection} - eventstore with Projection
+ * @returns {Eventstore} - eventstore with Projection
  */
 const esFunction = function(options) {
     options = options || {};

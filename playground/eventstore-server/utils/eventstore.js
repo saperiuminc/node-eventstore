@@ -1,3 +1,5 @@
+
+
 const _projectAsync = function(eventstore, projection) {
     return new Promise((resolve, reject) => {
         try {
@@ -76,6 +78,13 @@ eventstore.init(async function(err) {
                         count: 0
                     }
                 },
+                /**
+                 * @param {import('./types').VehicleListState} state the name of the playback list
+                 * @param {import('./types').VehicleCreatedEvent} event the name of the playback list
+                 * @param {Object} funcs the last event that built this projection state
+                 * @param {Function} done the last event that built this projection state
+                 * @returns {void} Returns void. Use the callback to the get playbacklist
+                 */
                 VEHICLE_CREATED: function(state, event, funcs, done) {
                     funcs.getPlaybackList('vehicle_list', function(err, playbackList) {
                         console.log('got vehicle_created event', event);
