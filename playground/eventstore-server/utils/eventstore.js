@@ -13,7 +13,7 @@ module.exports = (async function() {
             host: process.env.REDIS_HOST,
             port: process.env.REDIS_PORT
         }, // required
-        playbackListStore: {
+        listStore: {
             host: process.env.EVENTSTORE_MYSQL_HOST,
             port: process.env.EVENTSTORE_MYSQL_PORT,
             user: process.env.EVENTSTORE_MYSQL_USERNAME,
@@ -78,6 +78,19 @@ module.exports = (async function() {
             outputState: 'true',
             playbackList: {
                 name: 'vehicle_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }],
+                secondaryKeys: {
+                    idx_vehicleId: [{
+                        name: 'vehicleId',
+                        sort: 'ASC'
+                    }]
+                }
+            },
+            stateList: {
+                name: 'vehicle_state_list',
                 fields: [{
                     name: 'vehicleId',
                     type: 'string'

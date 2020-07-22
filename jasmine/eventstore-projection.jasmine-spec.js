@@ -12,8 +12,10 @@ describe('eventstore-projection tests', () => {
     let jobsManager;
     let redisSub;
     let redisPub;
+    let eventStoreStatelist;
     let eventStorePlaybacklist;
     let eventStorePlaybacklistView;
+    let EventStoreStateListFunction;
     let EventStorePlaybackListFunction;
     let EventstorePlaybackListViewFunction;
 
@@ -23,6 +25,12 @@ describe('eventstore-projection tests', () => {
         eventStorePlaybacklist.init.and.returnValue(Promise.resolve());
         EventStorePlaybackListFunction.and.returnValue(eventStorePlaybacklist);
         mockery.registerMock('./eventstore-playback-list', EventStorePlaybackListFunction);
+
+        EventStoreStateListFunction = jasmine.createSpy('EventStoreStateListFunction');
+        eventStoreStatelist = jasmine.createSpyObj('eventStoreStatelist', ['init']);
+        eventStoreStatelist.init.and.returnValue(Promise.resolve());
+        EventStoreStateListFunction.and.returnValue(eventStoreStatelist);
+        mockery.registerMock('./eventstore-state-list', EventStoreStateListFunction);
 
         distributedLock = jasmine.createSpyObj('distributedLock', ['lock', 'unlock']);
         distributedLock.lock.and.returnValue(Promise.resolve());
@@ -52,7 +60,7 @@ describe('eventstore-projection tests', () => {
             jobsManager: jobsManager,
             EventstorePlaybackList: EventStorePlaybackListFunction,
             EventstorePlaybackListView: EventstorePlaybackListViewFunction,
-            playbackListStore: {
+            listStore: {
                 host: 'host',
                 port: 'port',
                 database: 'database',
@@ -517,7 +525,7 @@ describe('eventstore-projection tests', () => {
 
         describe('creating playback lists', () => {
             describe('should validate some required options', () => {
-                it('should validate playbackListStore', (done) => {
+                it('should validate listStore', (done) => {
                     const query = {
                         context: 'the_context'
                     };
@@ -532,15 +540,15 @@ describe('eventstore-projection tests', () => {
                     };
     
                     // NOTE: just removing the option to test
-                    esWithProjection.options.playbackListStore = null;
+                    esWithProjection.options.listStore = null;
     
                     esWithProjection.project(projection, function(error) {
-                        expect(error.message).toEqual('playbackListStore must be provided in the options');
+                        expect(error.message).toEqual('listStore must be provided in the options');
                         done();
                     });
                 });
 
-                it('should validate playbackListStore.host', (done) => {
+                it('should validate listStore.host', (done) => {
                     const query = {
                         context: 'the_context'
                     };
@@ -555,7 +563,7 @@ describe('eventstore-projection tests', () => {
                     };
     
                     // NOTE: just removing the option to test
-                    esWithProjection.options.playbackListStore = {
+                    esWithProjection.options.listStore = {
                         port: 'port',
                         database: 'database',
                         user: 'user',
@@ -563,12 +571,12 @@ describe('eventstore-projection tests', () => {
                     };
     
                     esWithProjection.project(projection, function(error) {
-                        expect(error.message).toEqual('playbackListStore.host must be provided in the options');
+                        expect(error.message).toEqual('listStore.host must be provided in the options');
                         done();
                     });
                 });
 
-                it('should validate playbackListStore.port', (done) => {
+                it('should validate listStore.port', (done) => {
                     const query = {
                         context: 'the_context'
                     };
@@ -583,7 +591,7 @@ describe('eventstore-projection tests', () => {
                     };
     
                     // NOTE: just removing the option to test
-                    esWithProjection.options.playbackListStore = {
+                    esWithProjection.options.listStore = {
                         host: 'host',
                         database: 'database',
                         user: 'user',
@@ -591,12 +599,12 @@ describe('eventstore-projection tests', () => {
                     };
     
                     esWithProjection.project(projection, function(error) {
-                        expect(error.message).toEqual('playbackListStore.port must be provided in the options');
+                        expect(error.message).toEqual('listStore.port must be provided in the options');
                         done();
                     });
                 });
 
-                it('should validate playbackListStore.database', (done) => {
+                it('should validate listStore.database', (done) => {
                     const query = {
                         context: 'the_context'
                     };
@@ -611,7 +619,7 @@ describe('eventstore-projection tests', () => {
                     };
     
                     // NOTE: just removing the option to test
-                    esWithProjection.options.playbackListStore = {
+                    esWithProjection.options.listStore = {
                         host: 'host',
                         port: 'port',
                         user: 'user',
@@ -619,12 +627,12 @@ describe('eventstore-projection tests', () => {
                     };
     
                     esWithProjection.project(projection, function(error) {
-                        expect(error.message).toEqual('playbackListStore.database must be provided in the options');
+                        expect(error.message).toEqual('listStore.database must be provided in the options');
                         done();
                     });
                 });
 
-                it('should validate playbackListStore.user', (done) => {
+                it('should validate listStore.user', (done) => {
                     const query = {
                         context: 'the_context'
                     };
@@ -639,7 +647,7 @@ describe('eventstore-projection tests', () => {
                     };
     
                     // NOTE: just removing the option to test
-                    esWithProjection.options.playbackListStore = {
+                    esWithProjection.options.listStore = {
                         host: 'host',
                         port: 'port',
                         database: 'database',
@@ -647,12 +655,12 @@ describe('eventstore-projection tests', () => {
                     };
     
                     esWithProjection.project(projection, function(error) {
-                        expect(error.message).toEqual('playbackListStore.user must be provided in the options');
+                        expect(error.message).toEqual('listStore.user must be provided in the options');
                         done();
                     });
                 });
 
-                it('should validate playbackListStore.password', (done) => {
+                it('should validate listStore.password', (done) => {
                     const query = {
                         context: 'the_context'
                     };
@@ -667,7 +675,7 @@ describe('eventstore-projection tests', () => {
                     };
     
                     // NOTE: just removing the option to test
-                    esWithProjection.options.playbackListStore = {
+                    esWithProjection.options.listStore = {
                         host: 'host',
                         port: 'port',
                         database: 'database',
@@ -675,7 +683,7 @@ describe('eventstore-projection tests', () => {
                     };
     
                     esWithProjection.project(projection, function(error) {
-                        expect(error.message).toEqual('playbackListStore.password must be provided in the options');
+                        expect(error.message).toEqual('listStore.password must be provided in the options');
                         done();
                     });
                 });
@@ -709,14 +717,223 @@ describe('eventstore-projection tests', () => {
                     expect(error).toBeUndefined();
                     expect(eventStorePlaybacklist.init).toHaveBeenCalled();
                     expect(EventStorePlaybackListFunction).toHaveBeenCalledWith({
-                        host: esWithProjection.options.playbackListStore.host,
-                        port: esWithProjection.options.playbackListStore.port,
-                        database: esWithProjection.options.playbackListStore.database,
-                        user: esWithProjection.options.playbackListStore.user,
-                        password: esWithProjection.options.playbackListStore.password,
+                        host: esWithProjection.options.listStore.host,
+                        port: esWithProjection.options.listStore.port,
+                        database: esWithProjection.options.listStore.database,
+                        user: esWithProjection.options.listStore.user,
+                        password: esWithProjection.options.listStore.password,
                         listName: projection.playbackList.name,
                         fields: projection.playbackList.fields,
                         secondaryKeys: projection.playbackList.secondaryKeys
+                    });
+                    done();
+                });
+            });
+        })
+
+        describe('creating state lists', () => {
+            describe('should validate some required options', () => {
+                it('should validate listStore', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        stateList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.listStore = null;
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('listStore must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate listStore.host', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        stateList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.listStore = {
+                        port: 'port',
+                        database: 'database',
+                        user: 'user',
+                        password: 'password'
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('listStore.host must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate listStore.port', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        stateList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.listStore = {
+                        host: 'host',
+                        database: 'database',
+                        user: 'user',
+                        password: 'password'
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('listStore.port must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate listStore.database', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        stateList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.listStore = {
+                        host: 'host',
+                        port: 'port',
+                        user: 'user',
+                        password: 'password'
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('listStore.database must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate listStore.user', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        stateList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.listStore = {
+                        host: 'host',
+                        port: 'port',
+                        database: 'database',
+                        password: 'password'
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('listStore.user must be provided in the options');
+                        done();
+                    });
+                });
+
+                it('should validate listStore.password', (done) => {
+                    const query = {
+                        context: 'the_context'
+                    };
+    
+                    const projectionId = 'the_projection_id';
+    
+                    const projection = {
+                        projectionId: projectionId,
+                        query: query,
+                        stateList: {
+                        }
+                    };
+    
+                    // NOTE: just removing the option to test
+                    esWithProjection.options.listStore = {
+                        host: 'host',
+                        port: 'port',
+                        database: 'database',
+                        user: 'user',
+                    };
+    
+                    esWithProjection.project(projection, function(error) {
+                        expect(error.message).toEqual('listStore.password must be provided in the options');
+                        done();
+                    });
+                });
+            });
+            
+            it('should create and init the stateList list correctly', (done) => {
+                const query = {
+                    context: 'the_context'
+                };
+
+                const projectionId = 'the_projection_id';
+
+                const projection = {
+                    projectionId: projectionId,
+                    query: query,
+                    stateList: {
+                        name: 'state_list_name',
+                        fields: [{
+                            name: 'vehicleId',
+                            type: 'string'
+                        }],
+                        secondaryKeys: {
+                            idx_vehicleId: [{
+                                name: 'vehicleId',
+                                direction: 'asc'
+                            }]
+                        }
+                    }
+                };
+
+                esWithProjection.project(projection, function(error) {
+                    expect(error).toBeUndefined();
+                    expect(eventStoreStatelist.init).toHaveBeenCalled();
+                    expect(EventStoreStateListFunction).toHaveBeenCalledWith({
+                        host: esWithProjection.options.listStore.host,
+                        port: esWithProjection.options.listStore.port,
+                        database: esWithProjection.options.listStore.database,
+                        user: esWithProjection.options.listStore.user,
+                        password: esWithProjection.options.listStore.password,
+                        listName: projection.stateList.name,
+                        fields: projection.stateList.fields,
+                        secondaryKeys: projection.stateList.secondaryKeys
                     });
                     done();
                 });
@@ -2403,22 +2620,90 @@ describe('eventstore-projection tests', () => {
         })
     });
 
+    describe('getStateList', () => {
+        it('should return no statelist if it still does not exist', (done) => {
+            const query = {
+                context: 'the_context'
+            };
+
+            const projectionId = 'the_projection_id';
+
+            const projection = {
+                projectionId: projectionId,
+                query: query,
+                stateList: {
+                    name: 'statelist_name',
+                    fields: [{
+                        name: 'field_name',
+                        type: 'string'
+                    }],
+                    secondaryKeys: {
+                        idx_field_name: [
+                            { name: 'field_name', sort: 'ASC'}
+                        ]
+                    }
+                }
+            };
+
+            esWithProjection.project(projection, function(error) {
+                esWithProjection.getStateList('not_existing', (err, pb) => {
+                    expect(err).toBeFalsy();
+                    expect(pb).toBeFalsy();
+                    done();
+                });
+            });
+        })
+
+        it('should return the correct playback list', (done) => {
+            const query = {
+                context: 'the_context'
+            };
+
+            const projectionId = 'the_projection_id';
+
+            const projection = {
+                projectionId: projectionId,
+                query: query,
+                stateList: {
+                    name: 'statelist_name',
+                    fields: [{
+                        name: 'field_name',
+                        type: 'string'
+                    }],
+                    secondaryKeys: {
+                        idx_field_name: [
+                            { name: 'field_name', sort: 'ASC'}
+                        ]
+                    }
+                }
+            };
+
+            esWithProjection.project(projection, function(error) {
+                esWithProjection.getStateList('statelist_name', (err, pb) => {
+                    expect(err).toBeFalsy();
+                    expect(pb).toBeTruthy();
+                    done();
+                });
+            });
+        })
+    });
+
     describe('registerPlaybackListView', () => {
         describe('should validate some required options', () => {
 
-            it('should validate playbackListStore', (done) => {
+            it('should validate listStore', (done) => {
                 // NOTE: just removing the option to test
-                esWithProjection.options.playbackListStore = null;
+                esWithProjection.options.listStore = null;
 
                 esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
-                    expect(error.message).toEqual('playbackListStore must be provided in the options');
+                    expect(error.message).toEqual('listStore must be provided in the options');
                     done();
                 });
             });
 
-            it('should validate playbackListStore.host', (done) => {
+            it('should validate listStore.host', (done) => {
                 // NOTE: just removing the option to test
-                esWithProjection.options.playbackListStore = {
+                esWithProjection.options.listStore = {
                     port: 'port',
                     database: 'database',
                     user: 'user',
@@ -2426,15 +2711,15 @@ describe('eventstore-projection tests', () => {
                 };
 
                 esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
-                    expect(error.message).toEqual('playbackListStore.host must be provided in the options');
+                    expect(error.message).toEqual('listStore.host must be provided in the options');
                     done();
                 });
             });
 
-            it('should validate playbackListStore.port', (done) => {
+            it('should validate listStore.port', (done) => {
 
                 // NOTE: just removing the option to test
-                esWithProjection.options.playbackListStore = {
+                esWithProjection.options.listStore = {
                     host: 'host',
                     database: 'database',
                     user: 'user',
@@ -2442,15 +2727,15 @@ describe('eventstore-projection tests', () => {
                 };
 
                 esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
-                    expect(error.message).toEqual('playbackListStore.port must be provided in the options');
+                    expect(error.message).toEqual('listStore.port must be provided in the options');
                     done();
                 });
             });
 
-            it('should validate playbackListStore.database', (done) => {
+            it('should validate listStore.database', (done) => {
 
                 // NOTE: just removing the option to test
-                esWithProjection.options.playbackListStore = {
+                esWithProjection.options.listStore = {
                     host: 'host',
                     port: 'port',
                     user: 'user',
@@ -2458,14 +2743,14 @@ describe('eventstore-projection tests', () => {
                 };
 
                 esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
-                    expect(error.message).toEqual('playbackListStore.database must be provided in the options');
+                    expect(error.message).toEqual('listStore.database must be provided in the options');
                     done();
                 });
             });
 
-            it('should validate playbackListStore.user', (done) => {
+            it('should validate listStore.user', (done) => {
                 // NOTE: just removing the option to test
-                esWithProjection.options.playbackListStore = {
+                esWithProjection.options.listStore = {
                     host: 'host',
                     port: 'port',
                     database: 'database',
@@ -2473,14 +2758,14 @@ describe('eventstore-projection tests', () => {
                 };
 
                 esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
-                    expect(error.message).toEqual('playbackListStore.user must be provided in the options');
+                    expect(error.message).toEqual('listStore.user must be provided in the options');
                     done();
                 });
             });
 
-            it('should validate playbackListStore.password', (done) => {
+            it('should validate listStore.password', (done) => {
                 // NOTE: just removing the option to test
-                esWithProjection.options.playbackListStore = {
+                esWithProjection.options.listStore = {
                     host: 'host',
                     port: 'port',
                     database: 'database',
@@ -2488,7 +2773,7 @@ describe('eventstore-projection tests', () => {
                 };
 
                 esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
-                    expect(error.message).toEqual('playbackListStore.password must be provided in the options');
+                    expect(error.message).toEqual('listStore.password must be provided in the options');
                     done();
                 });
             });
@@ -2497,11 +2782,11 @@ describe('eventstore-projection tests', () => {
         it('should register the correct playback list view', (done) => {
             esWithProjection.registerPlaybackListView('list_name', 'select * from list_name', function(error) {
                 expect(EventstorePlaybackListViewFunction).toHaveBeenCalledWith({
-                    host: esWithProjection.options.playbackListStore.host,
-                    port: esWithProjection.options.playbackListStore.port,
-                    database: esWithProjection.options.playbackListStore.database,
-                    user: esWithProjection.options.playbackListStore.user,
-                    password: esWithProjection.options.playbackListStore.password,
+                    host: esWithProjection.options.listStore.host,
+                    port: esWithProjection.options.listStore.port,
+                    database: esWithProjection.options.listStore.database,
+                    user: esWithProjection.options.listStore.user,
+                    password: esWithProjection.options.listStore.password,
                     listName: 'list_name',
                     query: 'select * from list_name'
                 });
