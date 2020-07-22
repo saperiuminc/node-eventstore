@@ -32,7 +32,7 @@ describe('eventstore-playback-list-view tests', () => {
         eventstorePlaybackList = new EventstorePlaybackListView(options);
     });
 
-    fdescribe('init', () => {
+    describe('init', () => {
         describe('validating the options', () => {
             it('should validate for required parameter host', async (done) => {
                 try {
@@ -154,7 +154,7 @@ describe('eventstore-playback-list-view tests', () => {
         })
     });
 
-    fdescribe('query', () => {
+    describe('query', () => {
         describe('should do paging', () => {
             it('should pass the correct paging parameters to mysql', async (done) => {
                 // start, limit, filters, sort
