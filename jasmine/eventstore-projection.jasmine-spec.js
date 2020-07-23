@@ -8,6 +8,7 @@ describe('eventstore-projection tests', () => {
     let esWithProjection = new EventStoreWithProjection();
     let options;
     let defaultStream;
+    let getEventStreamResult;
     let distributedLock;
     let jobsManager;
     let redisSub;
@@ -40,16 +41,11 @@ describe('eventstore-projection tests', () => {
         jobsManager.queueJob.and.returnValue(Promise.resolve());
         jobsManager.processJobGroup.and.returnValue(Promise.resolve());
 
-        
-
-
         EventstorePlaybackListViewFunction = jasmine.createSpy('EventstorePlaybackListViewFunction');
         eventStorePlaybacklistView = jasmine.createSpyObj('eventStorePlaybacklistView', ['init']);
         eventStorePlaybacklistView.init.and.returnValue(Promise.resolve());
         EventstorePlaybackListViewFunction.and.returnValue(eventStorePlaybacklistView);
         mockery.registerMock('./eventstore-playback-list-view', EventstorePlaybackListViewFunction);
-
-
 
         options = {
             pollingMaxRevisions: 10,
@@ -75,19 +71,31 @@ describe('eventstore-projection tests', () => {
             cb();
         });
 
-        esWithProjection.getEventStream = jasmine.createSpy('getEventStream', esWithProjection.getEventStream);
-        esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-            // console.log('common getEventStream');
-            // by default we only poll/loop one time for the event stream
-            esWithProjection.deactivatePolling();
-            cb();
-        });
-
         defaultStream = jasmine.createSpyObj('default_stream', ['addEvent', 'commit']);
         defaultStream.events = [];
         defaultStream.commit.and.callFake((cb) => {
             cb();
         })
+
+        getEventStreamResult = jasmine.createSpyObj('getEventStreamResult', ['addEvent', 'commit']);
+        getEventStreamResult.events = [];
+        getEventStreamResult.commit.and.callFake((cb) => {
+            cb();
+        })
+
+        esWithProjection.getEventStream = jasmine.createSpy('getEventStream', esWithProjection.getEventStream);
+        esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
+            // console.log('common getEventStream');
+            // by default we only poll/loop one time for the event stream
+            esWithProjection.deactivatePolling();
+
+            // set the query to the stream
+            getEventStreamResult.aggregate = query.aggregate;
+            getEventStreamResult.aggregateId = query.aggregateId;
+            getEventStreamResult.context = query.context;
+            cb(null, getEventStreamResult);
+        });
+        
         esWithProjection.getLastEventAsStream = jasmine.createSpy('getLastEventAsStream', esWithProjection.getLastEventAsStream);
         esWithProjection.getLastEventAsStream.and.callFake((query, cb) => {
             // console.log('common getLastEventAsStream');
@@ -1188,6 +1196,132 @@ describe('eventstore-projection tests', () => {
                         }
                     }
                 };
+
+                jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                    return Promise.resolve();
+                });
+
+                esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                let firstLoop = 0;
+                esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
+                    if(firstLoop == 0) {
+                        firstLoop+= 1;
+                        cb(null, eventstoreEvents);
+                    }
+                    cb(null, []);
+                });
+
+                esWithProjection.project(projection);
+
+                const result = esWithProjection.startAllProjections();
+            })
+
+            it('should save the event to a projection-errors stream if playback throws an error', (done) => {
+                const eventstoreEvents = [{
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_added',
+                        payload: {
+                            someField: 'field1'
+                        }
+                    }
+                }]
+
+                const projection = {
+                    query: {
+                        aggregate: 'aggregate',
+                        context: 'context'
+                    },
+                    projectionId: 'projectionId',
+                    playbackInterface: {
+                        aggregate_added: function(state, event, funcs, playbackDone) {
+                            throw new Error('error in playing back aggregate_added event');;
+                        }
+                    }
+                };
+
+                let addEventForErrorStreamCalled = false;
+                getEventStreamResult.addEvent.and.callFake((event) => {
+                    if (getEventStreamResult.context == 'projection-errors' && 
+                    getEventStreamResult.aggregate == 'projectionId' && 
+                    getEventStreamResult.aggregateId == 'projectionId-errors') {
+                        addEventForErrorStreamCalled = true;
+                    }
+                });
+
+                getEventStreamResult.commit.and.callFake((cb) => {
+                    if (addEventForErrorStreamCalled) {
+                        done();
+                    }
+                });
+
+                jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                    return Promise.resolve();
+                });
+
+                esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                let firstLoop = 0;
+                esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
+                    if(firstLoop == 0) {
+                        firstLoop+= 1;
+                        cb(null, eventstoreEvents);
+                    }
+                    cb(null, []);
+                });
+
+                esWithProjection.project(projection);
+
+                const result = esWithProjection.startAllProjections();
+            })
+
+            it('should still continue with the playback even if there is an error saving to the errors stream', (done) => {
+                const eventstoreEvents = [{
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_added',
+                        payload: {
+                            someField: 'field1'
+                        }
+                    }
+                }, {
+                    id: 'some_es_id',
+                    payload: {
+                        name: 'aggregate_updated',
+                        payload: {
+                            someField: 'field2'
+                        }
+                    }
+                }];
+
+                const projection = {
+                    query: {
+                        aggregate: 'aggregate',
+                        context: 'context'
+                    },
+                    projectionId: 'projectionId',
+                    playbackInterface: {
+                        aggregate_added: function(state, event, funcs, playbackDone) {
+                            throw new Error('error in playing back aggregate_added event');;
+                        },
+                        aggregate_updated: function(state, event, funcs, playbackDone) {
+                            const expectedEventstoreEvent = eventstoreEvents[1];
+                            expect(event.payload).toEqual(expectedEventstoreEvent.payload);
+                            playbackDone();
+                            done();
+                        },
+                    }
+                };
+
+                let addEventForErrorStreamCalled = false;
+                getEventStreamResult.addEvent.and.callFake((event) => {
+                    if (getEventStreamResult.context == 'projection-errors' && 
+                    getEventStreamResult.aggregate == 'projectionId' && 
+                    getEventStreamResult.aggregateId == 'projectionId-errors') {
+                        throw new Error('saving in error stream');
+                    }
+                });
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
                     onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
