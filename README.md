@@ -47,7 +47,7 @@ var es = require('eventstore')({
   eventCallbackTimeout: 10000,                         // optional, by default 10000
   projectionGroup: 'default',                         // optional, by default 'default'
   eventNameFieldName: 'name',                         // optional, by default is 'name'. it will get the event name from event.payload.name field
-  playbackListStore: {
+  listStore: {
     host: 'localhost',                                // optional, by default is localhost
     port: 3306,                                       // optional, by default is 3306
     user: 'root',                                     // optional, by default is root
