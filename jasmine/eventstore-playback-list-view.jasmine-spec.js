@@ -222,6 +222,7 @@ describe('eventstore-playback-list-view tests', () => {
                 });
             });
         });
+        
         describe('should do filtering', () => {
             it('should filter using "is" filter type', async (done) => {
                 // start, limit, filters, sort
@@ -236,7 +237,7 @@ describe('eventstore-playback-list-view tests', () => {
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
                     expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
-                    expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND field_1 = 'value_1'   LIMIT ?,?`, [
+                    expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 = 'value_1' )   LIMIT ?,?`, [
                         start,
                         limit
                     ], jasmine.any(Function));
@@ -257,7 +258,7 @@ describe('eventstore-playback-list-view tests', () => {
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
                     expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
-                    expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND field_1 IN ('value_1','value_2')  LIMIT ?,?`, [
+                    expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 IN ('value_1','value_2') )  LIMIT ?,?`, [
                         start,
                         limit
                     ], jasmine.any(Function));
@@ -279,12 +280,79 @@ describe('eventstore-playback-list-view tests', () => {
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
                     expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
-                    expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND field_1 >= value_1  AND field_1 <= value_1   LIMIT ?,?`, [
+                    expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 >= value_1  AND field_1 <= value_1 )   LIMIT ?,?`, [
                         start,
                         limit
                     ], jasmine.any(Function));
                     done();
                 });
+            });
+
+            it('should filter using "contains" filter type', async (done) => {
+              // start, limit, filters, sort
+              const start = 1;
+              const limit = 10;
+              const filters = [{
+                  field: 'field_1',
+                  operator: 'contains',
+                  value: 'Fols'
+              }];
+              const sort = null;
+              await eventstorePlaybackList.init();
+              eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 LIKE '%Fols%' )   LIMIT ?,?`, [
+                      start,
+                      limit
+                  ], jasmine.any(Function));
+                  done();
+              });
+            });
+
+            it('should filter using filter group', async(done) => {
+              // start, limit, filters, sort
+              const start = 1;
+              const limit = 10;
+              const filters = [
+                {
+                  field: 'field_1',
+                  operator: 'is',
+                  group: 'group_1',
+                  groupBooleanOperator: 'or',
+                  value: 'First'
+                },
+                {
+                  field: 'field_2',
+                  operator: 'is',
+                  group: 'group_1',
+                  groupBooleanOperator: 'or',
+                  value: 'Second'
+                },
+                {
+                  field: 'field_3',
+                  operator: 'is',
+                  group: 'group_2',
+                  groupBooleanOperator: 'and',
+                  value: 'Third'
+                },
+                {
+                  field: 'field_4',
+                  operator: 'is',
+                  group: 'group_2',
+                  groupBooleanOperator: 'and',
+                  value: 'Fourth'
+                },
+              ];
+              const sort = null;
+              await eventstorePlaybackList.init();
+              eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 = 'First'   OR field_2 = 'Second' )  AND  ( field_3 = 'Third'   AND field_4 = 'Fourth' )   LIMIT ?,?`, [
+                      start,
+                      limit
+                  ], jasmine.any(Function));
+                  done();
+              });
             });
         })
 
