@@ -7,7 +7,8 @@
     "Gabby Sanchez <gabby@saperium.com>",
     "Mark Aldecimo <mark.aldecimo@saperium.com>",
     "Jerome Davadilla <jerome@saperium.com>",
-    "Lobertson Ranin <lobert@saperium.com>"
+    "Lobertson Ranin <lobert@saperium.com>",
+    "Carlo De Guzman <carlo@saperium.com>"
   ],
   "private": false,
   "repository": {
@@ -73,7 +74,8 @@
     "test:adrai": "mocha",
     "test:extensions": "jasmine jasmine/*.jasmine-spec.js",
     "test:extensions:coverage": "nyc --reporter=lcov npm run test:extensions",
-    "test:extensions:integration": "jasmine jasmine/*/*.jasmine-integration-spec.js"
+    "test:extensions:integration": "jasmine jasmine/*/*.jasmine-integration-spec.js",
+    "lint": "node node_modules/eslint/bin/eslint ./lib/eventstore-projections/*"
   },
   "bugs": {
     "url": "https://github.com/adrai/node-eventstore/issues"
