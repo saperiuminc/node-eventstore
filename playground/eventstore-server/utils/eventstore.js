@@ -1,72 +1,43 @@
-const _projectAsync = function(eventstore, projection) {
-    return new Promise((resolve, reject) => {
-        try {
-            eventstore.project(projection, (error, result) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(result);
-                }
-            })
-        } catch (error) {
-            reject(error);
-        }
-    })
-}
+const bluebird = require('bluebird');
 
-const _registerPlaybackListViewAsync = function(eventstore, listname, query) {
-    return new Promise((resolve, reject) => {
-        try {
-            eventstore.registerPlaybackListView(listname, query, (error, result) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(result);
-                }
-            })
-        } catch (error) {
-            reject(error);
-        }
-    })
-}
-
-const eventstore = require('@saperiuminc/eventstore')({
-    type: 'mysql',
-    host: process.env.EVENTSTORE_MYSQL_HOST,
-    port: process.env.EVENTSTORE_MYSQL_PORT,
-    user: process.env.EVENTSTORE_MYSQL_USERNAME,
-    password: process.env.EVENTSTORE_MYSQL_PASSWORD,
-    database: process.env.EVENTSTORE_MYSQL_DATABASE,
-    redisConfig: {
-        host: process.env.REDIS_HOST,
-        port: process.env.REDIS_PORT
-    },
-    playbackListStore: {
+module.exports = (async function() {
+    const eventstore = require('@saperiuminc/eventstore')({
+        type: 'mysql',
         host: process.env.EVENTSTORE_MYSQL_HOST,
         port: process.env.EVENTSTORE_MYSQL_PORT,
         user: process.env.EVENTSTORE_MYSQL_USERNAME,
         password: process.env.EVENTSTORE_MYSQL_PASSWORD,
-        database: process.env.EVENTSTORE_MYSQL_DATABASE
-    },
-    pollingTimeout: 10000
-});
+        database: process.env.EVENTSTORE_MYSQL_DATABASE,
+        // projections-specific configuration below
+        redisConfig: {
+            host: process.env.REDIS_HOST,
+            port: process.env.REDIS_PORT
+        }, // required
+        listStore: {
+            host: process.env.EVENTSTORE_MYSQL_HOST,
+            port: process.env.EVENTSTORE_MYSQL_PORT,
+            user: process.env.EVENTSTORE_MYSQL_USERNAME,
+            password: process.env.EVENTSTORE_MYSQL_PASSWORD,
+            database: process.env.EVENTSTORE_MYSQL_DATABASE
+        }, // required
 
-eventstore.init(async function(err) {
-    if (err) {
-        console.error(err);
-        console.error('error in init');
-    } else {
-        console.log('es initialized');
+        pollingTimeout: 10000 // optional
+    });
+
+    bluebird.promisifyAll(eventstore);
+
+    try {
+        await eventstore.initAsync();
+
+        console.log('eventstore initialized');
 
         // some dummy calls for testing
         eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event) => {
             console.log('received event', event);
         });
 
-        
-        
         // neeed to await the project call to initalize the playback list
-        await _projectAsync(eventstore, {
+        await eventstore.projectAsync({
             projectionId: 'vehicle-list',
             playbackInterface: {
                 $init: function() {
@@ -74,6 +45,13 @@ eventstore.init(async function(err) {
                         count: 0
                     }
                 },
+                /**
+                 * @param {import('./types').VehicleListState} state the name of the playback list
+                 * @param {import('./types').VehicleCreatedEvent} event the name of the playback list
+                 * @param {Object} funcs the last event that built this projection state
+                 * @param {Function} done the last event that built this projection state
+                 * @returns {void} Returns void. Use the callback to the get playbacklist
+                 */
                 VEHICLE_CREATED: function(state, event, funcs, done) {
                     funcs.getPlaybackList('vehicle_list', function(err, playbackList) {
                         console.log('got vehicle_created event', event);
@@ -100,12 +78,23 @@ eventstore.init(async function(err) {
             outputState: 'true',
             playbackList: {
                 name: 'vehicle_list',
-                fields: [
-                    {
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }],
+                secondaryKeys: {
+                    idx_vehicleId: [{
                         name: 'vehicleId',
-                        type: 'string'
-                    }
-                ],
+                        sort: 'ASC'
+                    }]
+                }
+            },
+            stateList: {
+                name: 'vehicle_state_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }],
                 secondaryKeys: {
                     idx_vehicleId: [{
                         name: 'vehicleId',
@@ -115,23 +104,19 @@ eventstore.init(async function(err) {
             }
         });
 
-        await _registerPlaybackListViewAsync(eventstore, 'vehicle_list_view', 
-        `
-                SELECT
-                    *
-                FROM vehicle_list v;
-        `)
+        await eventstore.registerPlaybackListViewAsync(
+            'vehicle_list_view',
+            `
+            SELECT
+                *
+            FROM vehicle_list v;`);
 
 
-        eventstore.startAllProjections((err) => {
-            if (err) {
-                console.error('error in startAllProjections');
-            } else {
-                console.log('startAllProjections done');
-            }
-        })
-        
+        await eventstore.startAllProjectionsAsync();
+    } catch (error) {
+        console.error('error in setting up the projection', error);
     }
-});
 
-module.exports = eventstore;
+
+    return eventstore;
+})();

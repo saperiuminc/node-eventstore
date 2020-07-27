@@ -1,39 +1,57 @@
 var eventstore = require('../..'),
     uuid = require('uuid').v4;
 
-var es = eventstore({
-    pollingMaxRevisions: 5,
-    pollingTimeout: 1000,
-    eventCallbackTimeout: 10000,
-    type: 'mysql',
+const mysql = require('mysql');
+const bluebird = require('bluebird');
+
+const mysqlConnection = mysql.createConnection({
     host: 'dbserver',
     port: 3306,
     user: 'root',
     password: 'root',
     database: 'eventstore',
-    eventsTableName: 'events',
-    undispatchedEventsTableName: 'undispatched_events',
-    snapshotsTableName: 'snapshots',
-    connectionPoolLimit: 1,
-    redisConfig: {
-        host: 'redis',
-        port: 6379
-    }
 });
 
+
+
+bluebird.promisifyAll(mysqlConnection);
+
 describe('eventstore-projection.jasmine-integration-spec', () => {
-    beforeAll((done) => {
-        es.init(function(err) {
-            done();
-        });
-    })
+    let es;
 
     beforeEach((done) => {
-        done();
+        es = eventstore({
+            pollingMaxRevisions: 5,
+            pollingTimeout: 1000,
+            eventCallbackTimeout: 10000,
+            type: 'mysql',
+            host: 'dbserver',
+            port: 3306,
+            user: 'root',
+            password: 'root',
+            database: 'eventstore',
+            eventsTableName: 'events',
+            undispatchedEventsTableName: 'undispatched_events',
+            snapshotsTableName: 'snapshots',
+            connectionPoolLimit: 1,
+            redisConfig: {
+                host: 'redis',
+                port: 6379
+            },
+            listStore: {
+                host: 'dbserver',
+                port: 3306,
+                user: 'root',
+                password: 'root',
+                database: 'eventstore'
+            }, // required
+        });
+        bluebird.promisifyAll(es);
+        es.init(done);
     });
 
     describe('project', () => {
-        it('should be able to receive an event based on a query', (done) => {
+        it('should be able to receive an event based on a query', async (done) => {
             var projectionId = uuid().toString();
             const dummyId = uuid().toString();
             const dummyContext = uuid().toString();
@@ -52,7 +70,7 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
             }
 
             // do a projectioon
-            es.project({
+            await es.projectAsync({
                 projectionId: projectionId,
                 playbackInterface: {
                     DUMMY_CREATED: (state, event, funcs, donePlayback) => {
@@ -66,7 +84,7 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
                 partitionBy: 'instance'
             });
 
-            es.startAllProjections();
+            await es.startAllProjectionsAsync();
 
             // add an event to the stream
             es.getEventStream({
@@ -78,6 +96,101 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
                 // stream.commit();
                 stream.commit(function(err, stream) {});
             });
+        });
+
+        it('should be able to create a playback list', async (done) => {
+            var projectionId = uuid().toString();
+            const dummyId = uuid().toString();
+            const dummyContext = uuid().toString();
+            const dummyAggregate = uuid().toString();
+
+            var expectedEvent = {
+                name: 'DUMMY_CREATED',
+                payload: {
+                    dummyId: dummyId
+                }
+            };
+
+            const query = {
+                context: dummyContext,
+                aggregate: dummyAggregate
+            }
+
+            // do a projection
+            await es.projectAsync({
+                projectionId: projectionId,
+                playbackInterface: {
+                    DUMMY_CREATED: (state, event, funcs, donePlayback) => {
+                        // check that we get the event in the playbackFunction
+                        expect(event.payload).toEqual(expectedEvent);
+                        donePlayback();
+                        done();
+                    }
+                },
+                playbackList: {
+                    name: 'dummy_list',
+                    fields: [{
+                        name: 'dummyId',
+                        type: 'string'
+                    }],
+                    secondaryKeys: {
+                        idx_vehicleId: [{
+                            name: 'dummyId',
+                            sort: 'ASC'
+                        }]
+                    }
+                },
+                query: query,
+                partitionBy: 'instance'
+            });
+
+            await es.startAllProjectionsAsync();
+
+            const results = await mysqlConnection.queryAsync('select count(1) as the_count from dummy_list;', {});
+
+            expect(results[0]['the_count']).toEqual(0);
+            done();
+
+        });
+
+        it('should be able to create a playback list', async (done) => {
+            var projectionId = uuid().toString();
+            const dummyId = uuid().toString();
+            const dummyContext = uuid().toString();
+            const dummyAggregate = uuid().toString();
+
+            const query = {
+                context: dummyContext,
+                aggregate: dummyAggregate
+            }
+
+            // do a projection
+            await es.projectAsync({
+                projectionId: projectionId,
+                stateList: {
+                    name: 'dummy_state_list',
+                    fields: [{
+                        name: 'dummyId',
+                        type: 'string'
+                    }],
+                    secondaryKeys: {
+                        idx_vehicleId: [{
+                            name: 'dummyId',
+                            sort: 'ASC'
+                        }]
+                    }
+                },
+                query: query,
+                partitionBy: 'instance'
+            });
+
+            await es.startAllProjectionsAsync();
+
+            const results = await mysqlConnection.queryAsync('select count(1) as the_count from dummy_state_list;', {});
+
+            expect(results[0]['the_count']).toEqual(0);
+            done();
+
         });
     });
 });

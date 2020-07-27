@@ -1,13 +1,14 @@
 {
   "author": "adrai",
   "name": "@saperiuminc/eventstore",
-  "version": "1.15.12-alpha.22",
+  "version": "1.15.12-alpha.29",
   "contributors": [
     "Ryan Goce <ryan@saperium.com>",
     "Gabby Sanchez <gabby@saperium.com>",
     "Mark Aldecimo <mark.aldecimo@saperium.com>",
     "Jerome Davadilla <jerome@saperium.com>",
-    "Lobertson Ranin <lobert@saperium.com>"
+    "Lobertson Ranin <lobert@saperium.com>",
+    "Carlo De Guzman <carlo@saperium.com>"
   ],
   "private": false,
   "repository": {
@@ -39,6 +40,7 @@
   },
   "dependencies": {
     "async": "2.6.2",
+    "bluebird": "^3.7.2",
     "bull": "^3.14.0",
     "debug": "3.1.0",
     "dotty": "0.0.2",
@@ -60,10 +62,11 @@
     "expect.js": ">=0.1.2",
     "jasmine": "^3.5.0",
     "mocha": "3.x.x",
+    "mockery": "^2.1.0",
     "mongodb": "3.5.8",
     "nyc": "^15.0.1",
-    "shortid": "^2.2.15",
     "redis": ">=0.10.1",
+    "shortid": "^2.2.15",
     "tingodb": ">=0.0.1"
   },
   "scripts": {
@@ -71,7 +74,9 @@
     "test:adrai": "mocha",
     "test:extensions": "jasmine jasmine/*.jasmine-spec.js",
     "test:extensions:coverage": "nyc --reporter=lcov npm run test:extensions",
-    "test:extensions:integration": "jasmine jasmine/*/*.jasmine-integration-spec.js"
+    "test:extensions:integration": "jasmine jasmine/*/*.jasmine-integration-spec.js",
+    "lint": "node node_modules/eslint/bin/eslint ./lib/*",
+    "lint:fix": "node node_modules/eslint/bin/eslint ./lib/* --fix"
   },
   "bugs": {
     "url": "https://github.com/adrai/node-eventstore/issues"
