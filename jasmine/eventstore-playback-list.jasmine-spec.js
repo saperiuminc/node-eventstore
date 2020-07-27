@@ -103,7 +103,7 @@ describe('eventstore-playback-list tests', () => {
             })
 
             it('should handle and just rethrow error if an error in creating a connection in mysql', async (done) => {
-                const expectedError = new Error('error in creating a connection');;
+                const expectedError = new Error('error in creating a connection');
                 mysql.createConnection.and.callFake(() => {
                     throw expectedError;
                 })
@@ -230,7 +230,7 @@ describe('eventstore-playback-list tests', () => {
                 });
             });
         });
-        
+
         describe('should do filtering', () => {
           it('should filter using "is" filter type', async (done) => {
               // start, limit, filters, sort

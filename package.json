@@ -75,7 +75,8 @@
     "test:extensions": "jasmine jasmine/*.jasmine-spec.js",
     "test:extensions:coverage": "nyc --reporter=lcov npm run test:extensions",
     "test:extensions:integration": "jasmine jasmine/*/*.jasmine-integration-spec.js",
-    "lint": "node node_modules/eslint/bin/eslint ./lib/eventstore-projections/*"
+    "lint": "node node_modules/eslint/bin/eslint ./lib/*",
+    "lint:fix": "node node_modules/eslint/bin/eslint ./lib/* --fix"
   },
   "bugs": {
     "url": "https://github.com/adrai/node-eventstore/issues"
