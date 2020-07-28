@@ -72,11 +72,12 @@
   "scripts": {
     "test": "npm run test:adrai && npm run test:extensions",
     "test:adrai": "mocha",
-    "test:extensions": "jasmine jasmine/*.jasmine-spec.js",
-    "test:extensions:coverage": "nyc --reporter=lcov npm run test:extensions",
+    "test:extensions": "npm run test:extensions:lint && npm run test:extensions:unit",
+    "test:extensions:unit": "jasmine jasmine/*.jasmine-spec.js",
+    "test:extensions:coverage": "nyc --reporter=lcov npm run test:extensions:unit",
     "test:extensions:integration": "jasmine jasmine/*/*.jasmine-integration-spec.js",
-    "lint": "node node_modules/eslint/bin/eslint ./lib/*",
-    "lint:fix": "node node_modules/eslint/bin/eslint ./lib/* --fix"
+    "test:extensions:lint": "node node_modules/eslint/bin/eslint ./lib/*",
+    "test:extensions:lintfix": "node node_modules/eslint/bin/eslint ./lib/* --fix"
   },
   "bugs": {
     "url": "https://github.com/adrai/node-eventstore/issues"
