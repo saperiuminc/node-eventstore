@@ -309,6 +309,59 @@ describe('eventstore-playback-list-view tests', () => {
               });
             });
 
+            it('should filter using "arrayContains" filter type - using non-array value', async (done) => {
+              // start, limit, filters, sort
+              const start = 1;
+              const limit = 10;
+              const filters = [{
+                  field: 'field_1',
+                  operator: 'arrayContains',
+                  value: 'Fols'
+              }];
+              const sort = null;
+              await eventstorePlaybackList.init();
+              eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  (  JSON_CONTAINS(field_1, '"Fols"') )   LIMIT ?,?`, [
+                      start,
+                      limit
+                  ], jasmine.any(Function));
+                  done();
+              });
+            });
+            
+            it('should filter using "arrayContains" filter type - using array value', async (done) => {
+              // start, limit, filters, sort
+              const start = 1;
+              const limit = 10;
+              const filters = [
+                {
+                  field: 'field_1',
+                  group: 'group',
+                  groupBooleanOperator: 'or',
+                  operator: 'arrayContains',
+                  value: [1, 2, 3]
+                },
+                {
+                  field: 'field_2',
+                  group: 'group',
+                  groupBooleanOperator: 'or',
+                  operator: 'arrayContains',
+                  value: [1, 2, 3]
+                }
+              ];
+              const sort = null;
+              await eventstorePlaybackList.init();
+              eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  (  JSON_CONTAINS(field_1, '"1"') OR  JSON_CONTAINS(field_1, '"2"') OR  JSON_CONTAINS(field_1, '"3"')   OR  JSON_CONTAINS(field_2, '"1"') OR  JSON_CONTAINS(field_2, '"2"') OR  JSON_CONTAINS(field_2, '"3"') )   LIMIT ?,?`, [
+                      start,
+                      limit
+                  ], jasmine.any(Function));
+                  done();
+              });
+            });
+
             it('should filter using filter group', async(done) => {
               // start, limit, filters, sort
               const start = 1;
