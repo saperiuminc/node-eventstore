@@ -44,7 +44,20 @@ simply run your process with
 var es = require('eventstore')({
   pollingMaxRevisions: 5,                             // optional, by default 5
   pollingTimeout: 1000,                               // optional, by default 1000
-  eventCallbackTimeout: 10000                         // optional, by default 10000
+  eventCallbackTimeout: 10000,                         // optional, by default 10000
+  projectionGroup: 'default',                         // optional, by default 'default'
+  eventNameFieldName: 'name',                         // optional, by default is 'name'. it will get the event name from event.payload.name field
+  listStore: {
+    host: 'localhost',                                // optional, by default is localhost
+    port: 3306,                                       // optional, by default is 3306
+    user: 'root',                                     // optional, by default is root
+    password: 'root',                                 // optional, by default is root
+    database: 'eventstore'                            // optional, by default is eventstore
+  },                                                  // optional, but is required if your projection is using a playbacklist or playbacklist view. the project call will throw an error if playbackListStore is not defined and its options
+  redisConfig: {
+    host: 'localhost',                                // optional, by default is localhost
+    port: 6379                                        // optional, by default is 6379
+  }                                                   // optional but is required if your projection is using a playbacklist or playbacklist view
 });
 ```
 
@@ -737,6 +750,95 @@ es.on('after-commit', function({milliseconds, arguments: [eventstream]}) {});
 es.on('before-get-last-event-as-stream', function({milliseconds, arguments: [query]}) {});
 es.on('after-get-last-event-as-stream', function({milliseconds, arguments: [query]}) {});
 ```
+
+## working with subscriptions
+the inspiration of the subscription is for us to be able to subscribe to a stream and get live events whenever an event is added to the stream
+
+### by aggregateId/streamId
+```javascript
+es.subscribe('aggregateId',   // the aggregateId
+  0,                          // revision start of the subscription
+  (err, event) => {           // the callback to call whenever a new event is added to the stream aggregateId
+      console.log('received event', event);
+  });
+```
+
+### or by any combination of context, aggregate or aggregateId
+```javascript
+const query = {
+  context: 'hr',
+  aggregate:'user'
+};
+
+es.subscribe(query,         // the query
+  0,                        // revision start of the subscription
+  (err, event) => {         // the callback to call whenever a new event is added to the stream aggregateId
+      console.log('received event', event);
+  });
+```
+## working with projections
+
+```javascript
+const projection = {
+            projectionId: 'vehicle-list', // the unique id of your projection
+            playbackInterface: { // the interface for your playback logic
+                $init: function() { // will be called once when there are still no events in the stream
+                    return {
+                        count: 0
+                    }
+                },
+                VEHICLE_CREATED: function(state, event, funcs, done) { // the property name is the field name
+                    funcs.getPlaybackList('vehicle_list', function(err, playbackList) {
+                        console.log('got vehicle_created event', event);
+                        const eventPayload = event.payload.payload;
+                        const data = {
+                            vehicleId: eventPayload.vehicleId,
+                            year: eventPayload.year,
+                            make: eventPayload.make,
+                            model: eventPayload.model,
+                            mileage: eventPayload.mileage
+                        };
+                        playbackList.add(event.aggregateId, event.streamRevision, data, {}, function(err) {
+                            state.count++;
+                            done();
+                        })
+                    });
+                },
+                $any: function(state, event, funcs, done) { // any events will go here if there is no explicity event handler specified
+                    
+                },
+            },
+            query: { // the query of the projection. can be just context or just aggregate or just aggregateId or combination
+                context: 'vehicle',
+                aggregate: 'vehicle'
+            },
+            partitionBy: "''|stream|function(event)", // possible values are '' (no partitioning), 'stream' (partitioned by streamId/aggregateId), or a function
+            outputState: 'true', // tells the projection that it will save a stream of states. the resulting stream name will be appended with result. the name will depend on how the projection is partitioned.
+            playbackList: { // define a playback list for this projection. the playbacklist is used to store lists of streams in a flat collectioon. it is built for querying
+                name: 'vehicle_list', // the unique name of the playback list
+                fields: [
+                    {
+                        name: 'vehicleId',  // the name of the field
+                        type: 'string'      // the type of the field
+                    }
+                ],
+                secondaryKeys: {
+                    idx_vehicleId: [{       // any secondary keys that you may need for filtering and sorting
+                        name: 'vehicleId',
+                        sort: 'ASC'
+                    }]
+                }
+            }
+        }
+
+// call the project function of the eventstore
+es.project(projection, function(err) {
+  // need to wait for all project calls to finish befoore calling es.startAllProjections
+  es.startAllProjections();
+});
+
+```
+
 
 # Sample Integration
 

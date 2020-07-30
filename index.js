@@ -79,7 +79,7 @@ function getSpecificStore(options) {
 
 /**
  * @param {EventstoreOptions} options - The options
- * @returns {EventstoreWithProjection} - eventstore with Projection
+ * @returns {Eventstore} - eventstore with Projection
  */
 const esFunction = function(options) {
     options = options || {};
@@ -122,10 +122,6 @@ const esFunction = function(options) {
         options.jobsManager = jobsManager;
         options.distributedLock = distributedLock;
     }
-
-    // inject the playback list library
-    options.EventstorePlaybackList = require('./lib/eventstore-projections/eventstore-playback-list');
-    options.EventstorePlaybackListView = require('./lib/eventstore-projections/eventstore-playback-list-view');
 
     var eventstore = new Eventstore(options, new Store(options));
 
