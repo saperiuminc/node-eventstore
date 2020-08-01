@@ -288,7 +288,7 @@ describe('eventstore-playback-list-view tests', () => {
                 });
             });
 
-            it('should filter using "contains" filter type', async (done) => {
+            it('should filter using "contains" filter type - case sensitive', async (done) => {
               // start, limit, filters, sort
               const start = 1;
               const limit = 10;
@@ -301,7 +301,29 @@ describe('eventstore-playback-list-view tests', () => {
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
                   expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
-                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 LIKE '%Fols%' )   LIMIT ?,?`, [
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1  LIKE '%Fols%' )   LIMIT ?,?`, [
+                      start,
+                      limit
+                  ], jasmine.any(Function));
+                  done();
+              });
+            });
+
+            it('should filter using "contains" filter type - case insensitive', async (done) => {
+              // start, limit, filters, sort
+              const start = 1;
+              const limit = 10;
+              const filters = [{
+                  field: 'field_1',
+                  operator: 'contains',
+                  value: 'Fols',
+                  caseInsensitive: true
+              }];
+              const sort = null;
+              await eventstorePlaybackList.init();
+              eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 COLLATE UTF8_GENERAL_CI LIKE '%Fols%' )   LIMIT ?,?`, [
                       start,
                       limit
                   ], jasmine.any(Function));
@@ -355,6 +377,92 @@ describe('eventstore-playback-list-view tests', () => {
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
                   expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  (  JSON_CONTAINS(field_1, '"1"') OR  JSON_CONTAINS(field_1, '"2"') OR  JSON_CONTAINS(field_1, '"3"')   OR  JSON_CONTAINS(field_2, '"1"') OR  JSON_CONTAINS(field_2, '"2"') OR  JSON_CONTAINS(field_2, '"3"') )   LIMIT ?,?`, [
+                      start,
+                      limit
+                  ], jasmine.any(Function));
+                  done();
+              });
+            });
+
+            it('should filter using "startsWith" filter type - case sensitive', async (done) => {
+              // start, limit, filters, sort
+              const start = 1;
+              const limit = 10;
+              const filters = [{
+                  field: 'field_1',
+                  operator: 'startsWith',
+                  value: 'Fols'
+              }];
+              const sort = null;
+              await eventstorePlaybackList.init();
+              eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1  LIKE 'Fols%' )   LIMIT ?,?`, [
+                      start,
+                      limit
+                  ], jasmine.any(Function));
+                  done();
+              });
+            });
+
+            it('should filter using "startsWith" filter type - case insensitive', async (done) => {
+              // start, limit, filters, sort
+              const start = 1;
+              const limit = 10;
+              const filters = [{
+                  field: 'field_1',
+                  operator: 'startsWith',
+                  value: 'Fols',
+                  caseInsensitive: true
+              }];
+              const sort = null;
+              await eventstorePlaybackList.init();
+              eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 COLLATE UTF8_GENERAL_CI LIKE 'Fols%' )   LIMIT ?,?`, [
+                      start,
+                      limit
+                  ], jasmine.any(Function));
+                  done();
+              });
+            });
+  
+            it('should filter using "endsWith" filter type - case insensitive', async (done) => {
+              // start, limit, filters, sort
+              const start = 1;
+              const limit = 10;
+              const filters = [{
+                  field: 'field_1',
+                  operator: 'endsWith',
+                  value: 'ring'
+              }];
+              const sort = null;
+              await eventstorePlaybackList.init();
+              eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1  LIKE '%ring' )   LIMIT ?,?`, [
+                      start,
+                      limit
+                  ], jasmine.any(Function));
+                  done();
+              });
+            });
+
+            it('should filter using "endsWith" filter type - case insensitive', async (done) => {
+              // start, limit, filters, sort
+              const start = 1;
+              const limit = 10;
+              const filters = [{
+                  field: 'field_1',
+                  operator: 'endsWith',
+                  value: 'ing',
+                  caseInsensitive: true
+              }];
+              const sort = null;
+              await eventstorePlaybackList.init();
+              eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 COLLATE UTF8_GENERAL_CI LIKE '%ing' )   LIMIT ?,?`, [
                       start,
                       limit
                   ], jasmine.any(Function));
