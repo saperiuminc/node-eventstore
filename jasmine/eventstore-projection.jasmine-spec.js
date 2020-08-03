@@ -2,6 +2,8 @@
 let EventStoreWithProjection = require('../lib/eventstore-projections/eventstore-projection');
 const mockery = require('mockery');
 mockery.enable();
+const StreamBuffer = require('../lib/eventStreamBuffer');
+
 
 describe('eventstore-projection tests', () => {
     // just instantiating for vscode jsdoc intellisense
@@ -2406,6 +2408,10 @@ describe('eventstore-projection tests', () => {
         });
 
         describe('polling the event stream', () => {
+            beforeEach(() => {
+                spyOn(esWithProjection, '_onStreamBufferEventOffered');
+            });
+
             it('should call getEventStream 5 times (poll)', (done) => {
                 let getEventStreamCallCounter = 0;
                 // do spyOn again to override default one time call for getEventStream
@@ -2633,6 +2639,99 @@ describe('eventstore-projection tests', () => {
                     eventCounter++;
                 });
             })
+        });
+
+        describe('stream buffer', () => {
+            beforeEach(() => {
+                spyOn(esWithProjection, '_getHeapPercentage');
+            });
+
+            it('should initialize stream buffer, bucket and subscription', () => {
+                const mockChannel = 'mockChannel';
+                const mockBucket = 'mockBucket';
+                const mockQuery = 'mockQuery';
+
+                spyOn(esWithProjection, '_onStreamBufferEventOffered');
+                spyOn(esWithProjection, '_getChannel').and.returnValue(mockChannel);
+                spyOn(esWithProjection, '_getCurrentStreamBufferBucket').and.returnValue(mockBucket);
+                esWithProjection.subscribe(mockQuery, 0);
+
+                const streamBuffer = esWithProjection._streamBuffers[mockChannel];
+                expect(streamBuffer.es).toEqual(esWithProjection);
+                expect(streamBuffer.query).toEqual(mockQuery);
+                expect(streamBuffer.channel).toEqual(mockChannel);
+                expect(streamBuffer.bucket).toEqual(mockBucket);
+                expect(streamBuffer.bufferCapacity).toEqual(10);
+                expect(streamBuffer.ttl).toEqual((1000 * 60 * 60 * 24));
+
+                expect(esWithProjection._streamBufferBuckets[mockBucket][mockChannel]).toBeTruthy();
+                expect(esWithProjection._streamBuffers[mockChannel]).toBeTruthy();
+            });
+
+            it('should call _onStreamBufferEventOffered with channel and bucket for the stream buffer onOfferEvent function', (done) => {
+                const mockChannel = 'mockChannel';
+                const mockBucket = 'mockBucket';
+                const mockQuery = 'mockQuery';
+
+                spyOn(esWithProjection, '_getChannel').and.returnValue(mockChannel);
+                spyOn(esWithProjection, '_getCurrentStreamBufferBucket').and.returnValue(mockBucket);
+                spyOn(esWithProjection, '_onStreamBufferEventOffered').and.callFake((bucket, channel) => {
+                    expect(bucket).toEqual(mockBucket);
+                    expect(channel).toEqual(mockChannel);
+                    done();
+                });
+
+                esWithProjection.subscribe(mockQuery, 0);
+
+                const streamBuffer = esWithProjection._streamBuffers[mockChannel];
+                streamBuffer.onOfferEvent(mockBucket, mockChannel);
+            });
+
+            it('should delete stream buffer when stream buffer onCleanUp is called', () => {
+                const mockChannel = 'mockChannel';
+                const mockBucket = 'mockBucket';
+                const mockQuery = 'mockQuery';
+
+                spyOn(esWithProjection, '_onStreamBufferEventOffered');
+                spyOn(esWithProjection, '_getChannel').and.returnValue(mockChannel);
+                spyOn(esWithProjection, '_getCurrentStreamBufferBucket').and.returnValue(mockBucket);
+                esWithProjection.subscribe(mockQuery, 0);
+
+                
+                expect(esWithProjection._streamBuffers[mockChannel]).toBeTruthy();
+                expect(esWithProjection._streamBufferBuckets[mockBucket][mockChannel]).toBeTruthy();
+                expect(esWithProjection._streamBuffers[mockChannel]).toBeTruthy();
+
+                const streamBuffer = esWithProjection._streamBuffers[mockChannel];
+                streamBuffer.onCleanUp(mockBucket, mockChannel);
+
+                expect(esWithProjection._streamBuffers[mockChannel]).toBeFalsy();
+                expect(esWithProjection._streamBufferBuckets[mockBucket][mockChannel]).toBeFalsy();
+                expect(esWithProjection._streamBuffers[mockChannel]).toBeFalsy();
+            });
+
+            it('should call stream buffer offerEvent function when PubSub message is received', (done) => {
+                const mockChannel = 'mockChannel';
+                const mockBucket = 'mockBucket';
+                const mockQuery = 'mockQuery';
+                const mockData = {
+                    query: {
+                        channel: mockChannel
+                    }
+                };
+
+                spyOn(esWithProjection, '_onStreamBufferEventOffered');
+                spyOn(esWithProjection, '_getChannel').and.returnValue(mockChannel);
+                spyOn(esWithProjection, '_getCurrentStreamBufferBucket').and.returnValue(mockBucket);
+
+                esWithProjection.subscribe(mockQuery, 0);
+                spyOn(esWithProjection._streamBuffers[mockChannel], 'offerEvent').and.callFake((data) => {
+                    expect(data).toEqual(mockData);
+                    done();
+                });
+
+                esWithProjection._processReceivedRedisMessage(esWithProjection.options.notifyCommitRedisChannel, JSON.stringify(mockData));
+            });
         });
     });
 
@@ -2950,5 +3049,139 @@ describe('eventstore-projection tests', () => {
                 });
             });
         })
+    });
+
+    describe('_streamBufferLRUCleaner queue', () => {
+        describe('task', () => {
+            it('should delete streamBuffer cleanup', (done) => {
+                const mockStreamBuffer = jasmine.createSpyObj('mockStreamBuffer', ['cleanUp']);
+                const mockChannel = 'mockChannel';
+                esWithProjection._streamBuffers[mockChannel] = mockStreamBuffer;
+
+                esWithProjection._streamBufferLRUCleaner.drain = () => {
+                    expect(mockStreamBuffer.cleanUp).toHaveBeenCalled();
+                    done();
+                };
+
+                esWithProjection._streamBufferLRUCleaner.push({
+                    channel: mockChannel,
+                });
+            });
+        });
+
+        describe('drain', () => {
+            it('should explicitly call garbage collection', () => {
+                global.gc = jasmine.createSpy('global.gc');
+                esWithProjection._streamBufferLRUCleaner.drain();
+                expect(global.gc).toHaveBeenCalled();
+            });
+
+            it('should call _cleanOldestStreamBufferBucket if heap percentage is above threshold', () => {
+                spyOn(esWithProjection, '_getHeapPercentage').and.returnValue(0.8);
+                const spy = spyOn(esWithProjection, '_cleanOldestStreamBufferBucket');
+                esWithProjection._streamBufferLRUCleaner.drain();
+                expect(spy).toHaveBeenCalled();
+            });
+
+            it('should set _streamBufferLRULocked to false if heap percentage is less than threshold', () => {
+                esWithProjection._streamBufferLRULocked = true;
+                spyOn(esWithProjection, '_getHeapPercentage').and.returnValue(0.79999999);
+                esWithProjection._streamBufferLRUCleaner.drain();
+                expect(esWithProjection._streamBufferLRULocked).toBeFalsy();
+            });
+        });
+    });
+    
+    describe('_onStreamBufferEventOffered', () => {
+        let mockBucket;
+        let mockChannel;
+        let mockStreamBuffer;
+
+        beforeEach(() => {
+            mockBucket = 'mockBucket';
+            mockChannel = 'mockChannel';
+
+            mockStreamBuffer = new StreamBuffer({
+                es: esWithProjection,
+                query: 'mockQuery',
+                channel: mockChannel,
+                bucket: mockBucket,
+                bufferCapacity: 10,
+                poolCapacity: 5,
+                ttl: (1000 * 60 * 60 * 24)
+            });
+
+            esWithProjection._streamBuffers[mockChannel] = mockStreamBuffer;
+            esWithProjection._streamBufferBuckets[mockBucket] = {};
+            esWithProjection._streamBufferBuckets[mockBucket][mockChannel] = new Date().getTime();
+        });
+
+        it('should call _cleanOldestStreamBufferBucket if _streamBufferLRULocked is false and heapPercentage is over the threshold', () => {
+            esWithProjection._streamBufferLRULocked = false;
+            spyOn(esWithProjection, '_getHeapPercentage').and.returnValue(0.8);
+            spyOn(esWithProjection, '_cleanOldestStreamBufferBucket');
+            esWithProjection._onStreamBufferEventOffered(mockBucket, mockChannel);
+            expect(esWithProjection._cleanOldestStreamBufferBucket).toHaveBeenCalled();
+        });
+
+        it('should not call _cleanOldestStreamBufferBucket _streamBufferLRULocked is false and heapPercentage is not over the threshold', () => {
+            esWithProjection._streamBufferLRULocked = false;
+            spyOn(esWithProjection, '_getHeapPercentage').and.returnValue(0.79999);
+            spyOn(esWithProjection, '_cleanOldestStreamBufferBucket');
+            esWithProjection._onStreamBufferEventOffered(mockBucket, mockChannel);
+            expect(esWithProjection._cleanOldestStreamBufferBucket).not.toHaveBeenCalled();
+        });
+
+        it('should not check for heapPercentage if _streamBufferLRULocked is true', () => {
+            esWithProjection._streamBufferLRULocked = true;
+            spyOn(esWithProjection, '_getHeapPercentage');
+            esWithProjection._onStreamBufferEventOffered(mockBucket, mockChannel);
+            expect(esWithProjection._getHeapPercentage).not.toHaveBeenCalled();
+        });
+
+        it('should transfer stream buffer from current bucket to new bucket', () => {
+            const newMockBucket = 'newMockBucket';
+            esWithProjection._streamBufferLRULocked = true;
+            spyOn(esWithProjection, '_getCurrentStreamBufferBucket').and.returnValue(newMockBucket);
+            esWithProjection._onStreamBufferEventOffered(mockBucket, mockChannel);
+            expect(esWithProjection._streamBufferBuckets[mockBucket][mockChannel]).toBeFalsy();
+            expect(esWithProjection._streamBufferBuckets[newMockBucket][mockChannel]).toBeTruthy();
+            expect(mockStreamBuffer.bucket).toEqual(newMockBucket);
+        });
+    });
+
+
+    describe('_cleanOldestStreamBufferBucket', () => {
+        it('should lock LRU execution', () => {
+            esWithProjection._streamBufferLRULocked = false;
+            esWithProjection._cleanOldestStreamBufferBucket();
+            expect(esWithProjection._streamBufferLRULocked).toBeTruthy();
+        });
+
+        it('should delete oldest bucket and push all items inside bucket to _streamBufferLRUCleaner', () => {
+            spyOn(esWithProjection._streamBufferLRUCleaner, 'push');
+            esWithProjection._streamBufferBuckets = {
+                '2020-07-29T11': {
+                    channel1: 1,
+                    channel2: 1,
+                },
+                '2020-07-28T15': {
+                    channel3: 1,
+                    channel4: 1
+                },
+                '2020-07-28T12': {
+                    channel0: 1,
+                    channel5: 1
+                },
+                '2020-07-28T13': {
+                    channel8: 1
+                }
+            };
+
+            esWithProjection._cleanOldestStreamBufferBucket();
+            expect(esWithProjection._streamBufferLRUCleaner.push).toHaveBeenCalledWith({ channel: 'channel0' });
+            expect(esWithProjection._streamBufferLRUCleaner.push).toHaveBeenCalledWith({ channel: 'channel5' });
+            expect(esWithProjection._streamBufferBuckets['2020-07-28T12']).toBeFalsy();
+        });
     });
 })
