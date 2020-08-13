@@ -1353,21 +1353,29 @@ describe('eventstore-projection tests', () => {
                     playbackInterface: {}
                 };
 
+                
+                spyOn(esWithProjection, '_waitUntilNotifyProject').and.callFake(async (jobId, query, delay) => {
+                    return "token";
+                });
+
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
                     onProcessCompletedJob.call(owner, 'jobId', projection);
+                });
 
-                    const projectionKey = `projection-group:${options.projectionGroup}:projection:${projection.projectionId}`;
-
-                    const job = {
-                        id: projectionKey,
-                        group: jobGroup,
-                        payload: projection
-                    };
-
-                    expect(jobsManager.queueJob).toHaveBeenCalledWith(job, {
-                        delay: options.pollingTimeout
-                    });
-                    done();
+                // Note: need to add counter since code passes jobsManager.queueJob twice
+                let counter = 0;
+                jobsManager.queueJob.and.callFake((job, opts) => {
+                    counter += 1;
+                    if(counter == 2) {
+                        const jobExpected = {
+                            id: "projection-group:test:projection:projectionId",
+                            group: "projection-group:test",
+                            payload: projection,
+                            token: "token"
+                        };
+                        expect(job).toEqual(jobExpected);
+                        done();
+                    }
                 });
 
                 esWithProjection.project(projection);
