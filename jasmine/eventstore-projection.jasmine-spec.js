@@ -1370,8 +1370,7 @@ describe('eventstore-projection tests', () => {
                         const jobExpected = {
                             id: "projection-group:test:projection:projectionId",
                             group: "projection-group:test",
-                            payload: projection,
-                            token: "token"
+                            payload: projection
                         };
                         expect(job).toEqual(jobExpected);
                         done();
