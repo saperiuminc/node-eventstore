@@ -14,4 +14,4 @@ do
   wait_for $host $port
 done
 
-node_modules/.bin/nodemon -e js,yaml --inspect=0.0.0.0:5858 --ignore 'spec/*/*.spec.js' ./src/app/servers/start.js
+node_modules/.bin/nodemon -e js,yaml --inspect=0.0.0.0:5858 --ignore 'spec/*/*.spec.js' ./bin/www
