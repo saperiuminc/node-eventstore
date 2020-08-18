@@ -122,9 +122,11 @@ describe('eventstore-projection tests', () => {
                     cb('NOTIFY_COMMIT_REDIS_CHANNEL', JSON.stringify(job))
                 }
             });
-
             redisPub = jasmine.createSpyObj('redisPub', ['on', 'publish']);
-            esWithProjection.setupNotifyPubSub(redisSub,redisPub);
+
+            esWithProjection.redisSub = redisSub;
+            esWithProjection.redisPub = redisPub;
+            esWithProjection._setupNotifyPubSub();
         });
     });
 
@@ -974,10 +976,18 @@ describe('eventstore-projection tests', () => {
         });
 
         describe('processing jobs from jobs manager', () => {
+            beforeEach(() => {
+                spyOn(esWithProjection, '_setupNotifyPubSub').and.callFake(async () => {
+                    return Promise.resolve({});
+                });
+            });
+
             it('should call processJobGroup of jobsmanager', (done) => {
-                const result = esWithProjection.startAllProjections(() => {
-                    const jobGroup = `projection-group:${options.projectionGroup}`;
-                    expect(jobsManager.processJobGroup).toHaveBeenCalledWith(jasmine.any(Object), jobGroup, jasmine.any(Function), jasmine.any(Function));
+                jobsManager.processJobGroup.and.callFake(() => {
+                    expect(jobsManager.processJobGroup).toHaveBeenCalled();
+                    return Promise.resolve({});
+                });
+                esWithProjection.startAllProjections(() => {
                     done();
                 });
             })
@@ -985,7 +995,7 @@ describe('eventstore-projection tests', () => {
             it('should call the callback with error if jobsmanager throws an error', (done) => {
                 const expectedError = new Error('error in jobsmanager.processJobGroup');
                 jobsManager.processJobGroup.and.callFake(() => {
-                    throw expectedError;
+                    return Promise.reject(expectedError);
                 });
                 const result = esWithProjection.startAllProjections((error) => {
                     expect(error).toEqual(expectedError);
@@ -1355,25 +1365,33 @@ describe('eventstore-projection tests', () => {
                     playbackInterface: {}
                 };
 
+                
+                spyOn(esWithProjection, '_waitUntilNotifyProject').and.callFake(async (jobId, query, delay) => {
+                    return "token";
+                });
+
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                    console.log('test 456');
                     onProcessCompletedJob.call(owner, 'jobId', projection);
+                    return Promise.resolve({});
+                });
 
-                    const projectionKey = `projection-group:${options.projectionGroup}:projection:${projection.projectionId}`;
-
-                    const job = {
-                        id: projectionKey,
-                        group: jobGroup,
-                        payload: projection
-                    };
-
-                    expect(jobsManager.queueJob).toHaveBeenCalledWith(job, {
-                        delay: options.pollingTimeout
-                    });
-                    done();
+                // Note: need to add counter since code passes jobsManager.queueJob twice
+                let counter = 0;
+                jobsManager.queueJob.and.callFake((job, opts) => {
+                    counter += 1;
+                    if(counter == 2) {
+                        const jobExpected = {
+                            id: "projection-group:test:projection:projectionId",
+                            group: "projection-group:test",
+                            payload: projection
+                        };
+                        expect(job).toEqual(jobExpected);
+                        done();
+                    }
                 });
 
                 esWithProjection.project(projection);
-
                 const result = esWithProjection.startAllProjections();
             })
 
@@ -2013,7 +2031,88 @@ describe('eventstore-projection tests', () => {
                     const projectionStream = jasmine.createSpyObj('projectionStream', ['addEvent', 'commit']);
                     projectionStream.commit.and.callFake((cb) => {
                         expect(projectionStream.addEvent).toHaveBeenCalledWith({
-                            count: expectedProjectionState.state.count + 1
+                            count: expectedProjectionState.state.count + 1,
+                            _meta: {
+                                fromEvent: expectedEventstoreEvent
+                            }
+                        });
+                        done();
+                    })
+
+                    esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
+                        cb(null, projectionStream);
+                    });
+
+                    esWithProjection.project(projection);
+
+                    const result = esWithProjection.startAllProjections();
+                })
+
+                it('should save the projection metadata on state changes', (done) => {
+                    const projection = {
+                        query: {
+                            aggregate: 'aggregate',
+                            context: 'context'
+                        },
+                        projectionId: 'projectionId',
+                        playbackInterface: {
+                            $init: function() {
+
+                            },
+                            aggregate_added: function(state, event, funcs, playbackDone) {
+                                state.count++;
+                                playbackDone();
+                            }
+                        },
+                        outputState: 'true'
+                    };
+
+                    const expectedEventstoreEvent = {
+                        id: 'some_es_id',
+                        payload: {
+                            name: 'aggregate_added',
+                            payload: {
+                                someField: 'field1'
+                            }
+                        }
+                    }
+
+                    const expectedProjectionState = {
+                        id: `${projection.projectionId}-result`,
+                        state: {
+                            count: 10
+                        }
+                    }
+
+                    jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        return Promise.resolve();
+
+                    });
+
+                    esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
+                    let firstLoop = 0;
+                    esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
+                        if(firstLoop == 0) {
+                            firstLoop+= 1;
+                            cb(null, [expectedEventstoreEvent]);
+                        }
+                        cb(null, []);
+                    });
+
+                    esWithProjection.getLastEvent.and.callFake((query, cb) => {
+                        cb(null, {
+                            payload: expectedProjectionState.state
+                        });
+                    });
+
+                    const projectionStream = jasmine.createSpyObj('projectionStream', ['addEvent', 'commit']);
+                    projectionStream.commit.and.callFake((cb) => {
+                        expect(projectionStream.addEvent).toHaveBeenCalledWith({
+                            count: expectedProjectionState.state.count + 1,
+                            _meta: {
+                                fromEvent: expectedEventstoreEvent
+                            }
                         });
                         done();
                     })
@@ -2099,7 +2198,10 @@ describe('eventstore-projection tests', () => {
                     const projectionStream = jasmine.createSpyObj('projectionStream', ['addEvent', 'commit']);
                     projectionStream.commit.and.callFake((cb) => {
                         expect(projectionStream.addEvent).toHaveBeenCalledWith({
-                            aggregates: [{ aggregateId: expectedEventstoreEvent.aggregateId }]
+                            aggregates: [{ aggregateId: expectedEventstoreEvent.aggregateId }],
+                            _meta: {
+                                fromEvent: expectedEventstoreEvent
+                            }
                         });
                         done();
                     })

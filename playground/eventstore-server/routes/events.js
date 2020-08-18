@@ -2,6 +2,8 @@ var express = require('express');
 var router = express.Router();
 const utils = require('../utils/index');
 const shortid = require('shortid');
+const { conforms } = require('lodash');
+const Bluebird = require('bluebird');
 
 const _getPlaybackListAsync = function(listName) {
     return new Promise((resolve, reject) => {
@@ -40,10 +42,10 @@ const _queryPlaybackListAsync = function(playbackList, start, limit) {
 }
 /* Add event */
 router.post('/', async function(req, res) {
-    // NOTE: used private async interface just for tests
     const query = req.body.query
-    const stream = await utils.eventstore._getEventStreamAsync(query, 0, 100);
-
+    const stream = await utils.eventstore.getLastEventAsStreamAsync(query);
+    Bluebird.promisifyAll(stream);
+    
     // const event = {
     //     name: 'DUMMY_CREATED',
     //     payload: {
@@ -52,9 +54,8 @@ router.post('/', async function(req, res) {
     // };
 
     const event = req.body.event;
-
-    await utils.eventstore._addEventToStream(stream, event);
-    await utils.eventstore._commitStream(stream);
+    stream.addEvent(event)
+    await stream.commitAsync();
 
     res.json({
         result: 'OK'

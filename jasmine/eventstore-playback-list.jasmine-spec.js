@@ -372,6 +372,48 @@ describe('eventstore-playback-list tests', () => {
             });
           });
 
+          it('should filter using "startsWith" filter type', async (done) => {
+            // start, limit, filters, sort
+            const start = 1;
+            const limit = 10;
+            const filters = [{
+                field: 'field_1',
+                operator: 'startsWith',
+                value: 'Fols'
+            }];
+            const sort = null;
+            await eventstorePlaybackList.init();
+            eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 LIKE 'Fols%' )   LIMIT ?,?`, [
+                    start,
+                    limit
+                ], jasmine.any(Function));
+                done();
+            });
+          });
+
+          it('should filter using "endsWith" filter type', async (done) => {
+            // start, limit, filters, sort
+            const start = 1;
+            const limit = 10;
+            const filters = [{
+                field: 'field_1',
+                operator: 'startsWith',
+                value: 'ring'
+            }];
+            const sort = null;
+            await eventstorePlaybackList.init();
+            eventstorePlaybackList.query(start, limit, filters, sort, function() {
+                expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 LIKE 'ring%' )   LIMIT ?,?`, [
+                    start,
+                    limit
+                ], jasmine.any(Function));
+                done();
+            });
+          });
+
           it('should filter using filter group', async(done) => {
             // start, limit, filters, sort
             const start = 1;
