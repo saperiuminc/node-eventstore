@@ -42,7 +42,7 @@ const _queryPlaybackListAsync = function(playbackList, start, limit) {
 router.post('/', async function(req, res) {
     // NOTE: used private async interface just for tests
     const query = req.body.query
-    const stream = await utils.eventstore._getEventStreamAsync(query, 0, 10);
+    const stream = await utils.eventstore._getEventStreamAsync(query, 0, 100);
 
     // const event = {
     //     name: 'DUMMY_CREATED',
@@ -60,6 +60,23 @@ router.post('/', async function(req, res) {
         result: 'OK'
     });
 
+});
+
+/* Add event */
+router.post('/subscribe', async function(req, res) {
+    // NOTE: used private async interface just for tests
+    const query = req.body.query;
+
+    await utils.eventstore.subscribe(query, 0, (err, event, callback) => {
+        console.log('onEventCallback on', query, event);
+        callback();
+    }, (error) => {
+        console.error('onErrorCallback on', query, error);
+    });
+
+    res.json({
+        result: 'OK'
+    });
 });
 
 // GET playback list

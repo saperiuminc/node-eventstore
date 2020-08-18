@@ -19,7 +19,8 @@ describe('eventStreamBuffer', () => {
             ttl: 864000,
             onOfferEvent: function() {},
             onOfferEventError: function() {},
-            onCleanUp: function() {}
+            onInactive: function() {},
+            onClose: function() {}
         };
     });
 
@@ -45,7 +46,8 @@ describe('eventStreamBuffer', () => {
 
             expect(eventStreamBuffer.onOfferEvent).toEqual(mockOptions.onOfferEvent);
             expect(eventStreamBuffer.onOfferEventError).toEqual(mockOptions.onOfferEventError);
-            expect(eventStreamBuffer.onCleanUp).toEqual(mockOptions.onCleanUp);
+            expect(eventStreamBuffer.onInactive).toEqual(mockOptions.onInactive);
+            expect(eventStreamBuffer.onClose).toEqual(mockOptions.onClose);
         });
     });
 
@@ -327,7 +329,7 @@ describe('eventStreamBuffer', () => {
                 poolCapacity: 5,
                 ttl: 864000,
                 onOfferEvent: function() {},
-                onCleanUp: function() {}
+                onClose: function() {}
             };
             spyOn(mockOptionsWithLowBufferCapacity, 'onOfferEvent').and.callThrough();
 
@@ -502,7 +504,7 @@ describe('eventStreamBuffer', () => {
             expect(mockOptions.onOfferEvent).not.toHaveBeenCalled();
         });
 
-        it('should trigger onCleanup callback once the ttl threshold has been reached if an event was added to the buffer and no further changes were made', (done) => {
+        it('should trigger onInactive callback once the ttl threshold has been reached if an event was added to the buffer and no further changes were made', (done) => {
             const mockEvents = [{
                 streamId: 'mockEventStreamId1',
                 streamRevision: 0
@@ -521,19 +523,20 @@ describe('eventStreamBuffer', () => {
                 poolCapacity: 5,
                 ttl: 50,
                 onOfferEvent: function() {},
-                onCleanUp: function() {}
+                onInactive: function() {},
+                onClose: function() {}
             };
-            spyOn(mockOptionsWithTestTTL, 'onCleanUp').and.callThrough();
+            spyOn(mockOptionsWithTestTTL, 'onInactive').and.callThrough();
 
             const eventStreamBuffer = new EventStreamBuffer(mockOptionsWithTestTTL);
 
             eventStreamBuffer.offerEvent(mockEvents[0]);
 
-            expect(mockOptionsWithTestTTL.onCleanUp).not.toHaveBeenCalled();
+            expect(mockOptionsWithTestTTL.onInactive).not.toHaveBeenCalled();
 
             setTimeout(() => {
-                expect(mockOptionsWithTestTTL.onCleanUp).toHaveBeenCalledTimes(1);
-                expect(mockOptionsWithTestTTL.onCleanUp).toHaveBeenCalledWith(mockOptions.bucket, mockOptions.channel);
+                expect(mockOptionsWithTestTTL.onInactive).toHaveBeenCalledTimes(1);
+                expect(mockOptionsWithTestTTL.onInactive).toHaveBeenCalledWith(mockOptions.bucket, mockOptions.channel);
                 done();
             }, 100);
         }, 150);
@@ -589,7 +592,7 @@ describe('eventStreamBuffer', () => {
         it('should return -1 if the buffer has been cleaned up', () => {
             const eventStreamBuffer = new EventStreamBuffer(mockOptions);
 
-            eventStreamBuffer.cleanUp();
+            eventStreamBuffer.close();
 
             expect(eventStreamBuffer.getLatestRevision()).toEqual(-1);
         });
@@ -645,7 +648,7 @@ describe('eventStreamBuffer', () => {
         it('should return -1 if the buffer has been cleaned up', () => {
             const eventStreamBuffer = new EventStreamBuffer(mockOptions);
 
-            eventStreamBuffer.cleanUp();
+            eventStreamBuffer.close();
 
             expect(eventStreamBuffer.getOldestRevision()).toEqual(-1);
         });
@@ -685,7 +688,7 @@ describe('eventStreamBuffer', () => {
         it('should return an empty array if the buffer has been cleaned up', () => {
             const eventStreamBuffer = new EventStreamBuffer(mockOptions);
 
-            eventStreamBuffer.cleanUp();
+            eventStreamBuffer.close();
 
             expect(eventStreamBuffer.getAllEventsInBuffer()).toEqual([]);
         });
@@ -984,7 +987,7 @@ describe('eventStreamBuffer', () => {
         });
     });
 
-    describe('cleanUp', () => {
+    describe('close', () => {
         it('should clear the buffer and the pool', () => {
             const mockEvents = [{
                 streamId: 'mockEventStreamId1',
@@ -1006,22 +1009,22 @@ describe('eventStreamBuffer', () => {
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[2]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[3]);
 
-            eventStreamBuffer.cleanUp();
+            eventStreamBuffer.close();
 
             expect(eventStreamBuffer._streamBuffer).toEqual(null);
             expect(eventStreamBuffer._offeredEventsPool).toEqual(null);
         });
 
-        it('should trigger onCleanup callback if it is defined in the options', () => {
-            spyOn(mockOptions, 'onCleanUp').and.callThrough();
+        it('should trigger onClose callback if it is defined in the options', () => {
+            spyOn(mockOptions, 'onClose').and.callThrough();
             const eventStreamBuffer = new EventStreamBuffer(mockOptions);
 
-            eventStreamBuffer.cleanUp();
+            eventStreamBuffer.close();
 
-            expect(mockOptions.onCleanUp).toHaveBeenCalledWith(mockOptions.bucket, mockOptions.channel);
+            expect(mockOptions.onClose).toHaveBeenCalledWith(mockOptions.bucket, mockOptions.channel);
         });
 
-        it('should clear the cleanUp ttl timer and trigger onCleanup callback only once if both onCleanup and ttl are defined in the options', (done) => {
+        it('should clear the close ttl timer and trigger onClose callback only once if both onClose and ttl are defined in the options', (done) => {
             const mockEvents = [{
                 streamId: 'mockEventStreamId1',
                 streamRevision: 0
@@ -1040,18 +1043,18 @@ describe('eventStreamBuffer', () => {
                 poolCapacity: 5,
                 ttl: 50,
                 onOfferEvent: function() {},
-                onCleanUp: function() {}
+                onClose: function() {}
             };
-            spyOn(mockOptionsWithTestTTL, 'onCleanUp').and.callThrough();
+            spyOn(mockOptionsWithTestTTL, 'onClose').and.callThrough();
 
             const eventStreamBuffer = new EventStreamBuffer(mockOptionsWithTestTTL);
 
             eventStreamBuffer.offerEvent(mockEvents[0]);
-            eventStreamBuffer.cleanUp();
+            eventStreamBuffer.close();
 
             setTimeout(() => {
-                expect(mockOptionsWithTestTTL.onCleanUp).toHaveBeenCalledTimes(1);
-                expect(mockOptionsWithTestTTL.onCleanUp).toHaveBeenCalledWith(mockOptions.bucket, mockOptions.channel);
+                expect(mockOptionsWithTestTTL.onClose).toHaveBeenCalledTimes(1);
+                expect(mockOptionsWithTestTTL.onClose).toHaveBeenCalledWith(mockOptions.bucket, mockOptions.channel);
                 done();
             }, 100);
         }, 150);
