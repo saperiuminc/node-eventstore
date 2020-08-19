@@ -58,6 +58,7 @@ describe('eventstore-projection tests', () => {
             jobsManager: jobsManager,
             EventstorePlaybackList: EventStorePlaybackListFunction,
             EventstorePlaybackListView: EventstorePlaybackListViewFunction,
+            enableProjectionSubscribe: true,
             listStore: {
                 host: 'host',
                 port: 'port',
@@ -106,7 +107,7 @@ describe('eventstore-projection tests', () => {
     });
 
     describe('setupNotifyPubSub', () => {
-        it('should setup pub sub', () => {
+        it('should setup notify publish', () => {
             redisSub = jasmine.createSpyObj('redisSub', ['on', 'subscribe']);
             redisSub.on.and.callFake((event, cb) => {
                 if(event === 'ready') {
@@ -126,7 +127,30 @@ describe('eventstore-projection tests', () => {
 
             esWithProjection.redisSub = redisSub;
             esWithProjection.redisPub = redisPub;
-            esWithProjection._setupNotifyPubSub();
+            esWithProjection.setupNotifyPublish();
+        });
+
+        it('should setup notify subscribe', () => {
+            redisSub = jasmine.createSpyObj('redisSub', ['on', 'subscribe']);
+            redisSub.on.and.callFake((event, cb) => {
+                if(event === 'ready') {
+                    cb();
+                } else {
+                    const job = {
+                        query: {
+                            aggregateId: 'aggregateId',
+                            aggregate: 'aggregate',
+                            context: 'context'
+                        }
+                    }
+                    cb('NOTIFY_COMMIT_REDIS_CHANNEL', JSON.stringify(job))
+                }
+            });
+            redisPub = jasmine.createSpyObj('redisPub', ['on', 'publish']);
+
+            esWithProjection.redisSub = redisSub;
+            esWithProjection.redisPub = redisPub;
+            esWithProjection._setupNotifySubscribe();
         });
     });
 
@@ -977,7 +1001,7 @@ describe('eventstore-projection tests', () => {
 
         describe('processing jobs from jobs manager', () => {
             beforeEach(() => {
-                spyOn(esWithProjection, '_setupNotifyPubSub').and.callFake(async () => {
+                spyOn(esWithProjection, '_setupNotifySubscribe').and.callFake(async () => {
                     return Promise.resolve({});
                 });
             });

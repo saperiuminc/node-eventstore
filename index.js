@@ -12,7 +12,6 @@
  * @property {PlaybackListStoreConfig} playbackListStore
  */
 
-// const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
 var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),
     Base = require('./lib/base'),
     _ = require('lodash'),
@@ -119,11 +118,16 @@ const esFunction = function(options) {
             redis: redis
         });
 
+        options.redis = redis;
         options.jobsManager = jobsManager;
         options.distributedLock = distributedLock;
     }
 
     var eventstore = new Eventstore(options, new Store(options));
+
+    if (options.enableProjectionPublish === true) {
+        eventstore.setupNotifyPublish();
+    }
 
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
