@@ -1,12 +1,12 @@
-const EventPollingSubscription = require('../lib/eventPollingSubscription');
+const BufferedEventSubscription = require('../lib/bufferedEventSubscription');
 const PubSub = require('pubsub-js');
 
-describe('eventPollingSubscription', () => {
+describe('bufferedEventSubscription', () => {
     let mockOptions;
     let mockES;
     let mockStreamBuffer;
     let mockCallback;
-    let eventPollingSubscription;
+    let bufferedEventSubscription;
 
     beforeEach(() => {
         mockES = jasmine.createSpyObj('mockES', ['getLastEvent', 'getEventStream']);
@@ -34,8 +34,8 @@ describe('eventPollingSubscription', () => {
     });
 
     afterEach(() => {
-        if (eventPollingSubscription) {
-            eventPollingSubscription.deactivate();
+        if (bufferedEventSubscription) {
+            bufferedEventSubscription.deactivate();
         }
     });
 
@@ -56,8 +56,8 @@ describe('eventPollingSubscription', () => {
             spyOn(mockCallback, 'onEventCallback').and.callThrough();
             spyOn(mockCallback, 'onErrorCallback').and.callThrough();
 
-            eventPollingSubscription = new EventPollingSubscription(mockOptions);
-            const result = eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+            const result = bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
 
             expect(result).toEqual(mockToken);
             expect(mockCallback.onEventCallback).not.toHaveBeenCalled();
@@ -81,8 +81,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
     
                 setTimeout(() => {
                     expect(mockES.getLastEvent).toHaveBeenCalledWith(mockOptions.query, jasmine.any(Function));
@@ -109,8 +109,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
     
                 setTimeout(() => {
                     expect(mockStreamBuffer.getEventsInBufferAsStream).toHaveBeenCalledWith(mockRevision, mockRevision + mockOptions.pollingMaxRevisions);
@@ -137,8 +137,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
     
                 const expectedMinRev = mockLastEvent.streamRevision + 1;
                 const expectedMaxRev = expectedMinRev + mockOptions.pollingMaxRevisions;
@@ -168,8 +168,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
     
                 const expectedMinRev = mockRevision;
                 const expectedMaxRev = expectedMinRev + mockOptions.pollingMaxRevisions;
@@ -199,8 +199,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
     
                 const expectedMinRev = mockRevision;
                 const expectedMaxRev = expectedMinRev + mockOptions.pollingMaxRevisions;
@@ -227,8 +227,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
     
                 const expectedMinRev = 0;
                 const expectedMaxRev = expectedMinRev + mockOptions.pollingMaxRevisions;
@@ -282,8 +282,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
 
                 setTimeout(() => {
                     // First Catch-Up loop: Buffer Hit
@@ -352,8 +352,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
 
                 setTimeout(() => {
                     // First Catch-Up loop: Buffer Miss, ES Hit
@@ -397,8 +397,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
 
                 setTimeout(() => {
                     // First Catch-Up loop: Buffer Miss, ES Miss
@@ -419,8 +419,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
     
                 setTimeout(() => {
                     expect(mockES.getLastEvent).toHaveBeenCalledWith(mockOptions.query, jasmine.any(Function));
@@ -447,8 +447,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
 
                 setTimeout(() => {
                     // First Catch-Up loop: Buffer Miss, ES Miss
@@ -502,8 +502,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
 
                 setTimeout(() => {
                     // First Catch-Up loop: Buffer Miss, ES Hit
@@ -533,8 +533,8 @@ describe('eventPollingSubscription', () => {
             }, 50);
         });
 
-        describe('internal eventPollingSubscription', () => {
-            it('should start an internal eventPollingSubscription that calls es.getEventStream per loop iteration', (done) => {
+        describe('internal bufferedEventSubscription', () => {
+            it('should start an internal bufferedEventSubscription that calls es.getEventStream per loop iteration', (done) => {
                 let numExecutions = 0;
                 const mockEmptyEventStream = {
                     events: []
@@ -568,11 +568,11 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
             }, 300);
 
-            it('should start an internal eventPollingSubscription that calls es.getEventStream and streambuffer.offerEvents once per poll whenever a new event is retrieved from the ES, and then pass the correct revision range to getEventStream after processing a set of events from a stream', (done) => {
+            it('should start an internal bufferedEventSubscription that calls es.getEventStream and streambuffer.offerEvents once per poll whenever a new event is retrieved from the ES, and then pass the correct revision range to getEventStream after processing a set of events from a stream', (done) => {
                 let numExecutions = 0;
                 const mockEmptyEventStream = {
                     events: []
@@ -638,8 +638,8 @@ describe('eventPollingSubscription', () => {
                 spyOn(mockCallback, 'onEventCallback').and.callThrough();
                 spyOn(mockCallback, 'onErrorCallback').and.callThrough();
     
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe(mockToken, mockRevision, mockCallback.onEventCallback, mockCallback.onErrorCallback);
             }, 300);
 
             it('should emit to multiple subscribers whenever an event is retrieved from the eventstore during polling', (done) => {
@@ -713,12 +713,12 @@ describe('eventPollingSubscription', () => {
                 mockStreamBuffer.offerEvents.and.callThrough();
                 const mockRevision = 0;
 
-                eventPollingSubscription = new EventPollingSubscription(mockOptions);
-                eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-                eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+                bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+                bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
             }, 300);
 
-            it('should support incoming subscribers even if the eventPollingSubscription is already active, and emit to multiple subscribers immediately after an event is published via PubSub', (done) => {
+            it('should support incoming subscribers even if the bufferedEventSubscription is already active, and emit to multiple subscribers immediately after an event is published via PubSub', (done) => {
                 let numExecutions = 0;
                 const mockOptionsWithHighTimeout = {
                     es: mockES,
@@ -791,7 +791,7 @@ describe('eventPollingSubscription', () => {
                             PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
 
                             // Add an additional subscriber
-                            eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+                            bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
                         }, 25);
                     } else if (numExecutions === 2) {
                         callback(null, mockNewEventStreams[0]);
@@ -823,8 +823,8 @@ describe('eventPollingSubscription', () => {
                 mockStreamBuffer.offerEvents.and.callThrough();
                 const mockRevision = 0;
 
-                eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-                eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+                bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
             }, 100);
 
             it('should not throw an error and continue with the polling loop even if at least one of the event callbacks threw an error', (done) => {
@@ -929,9 +929,9 @@ describe('eventPollingSubscription', () => {
                 mockStreamBuffer.offerEvents.and.callThrough();
                 const mockRevision = 0;
 
-                eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-                eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-                eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+                bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+                bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
             }, 100);
 
             it('should not throw an error and continue with the polling loop even if at least one of the event callbacks exceeded the callback timeout', (done) => {
@@ -1034,9 +1034,9 @@ describe('eventPollingSubscription', () => {
                 mockStreamBuffer.offerEvents.and.callThrough();
                 const mockRevision = 0;
 
-                eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-                eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-                eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+                bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+                bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
             }, 100);
 
             it('should not throw an error and continue with the polling loop even if at least one of the event callbacks is undefined', (done) => {
@@ -1130,9 +1130,9 @@ describe('eventPollingSubscription', () => {
                 mockStreamBuffer.offerEvents.and.callThrough();
                 const mockRevision = 0;
 
-                eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-                eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-                eventPollingSubscription.subscribe('mockToken2', mockRevision, undefined);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+                bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+                bufferedEventSubscription.subscribe('mockToken2', mockRevision, undefined);
             }, 100);
 
             it('should call all error callbacks of the subscribers with the proper error if es.getEventStream threw an error during the polling phase', (done) => {
@@ -1239,15 +1239,15 @@ describe('eventPollingSubscription', () => {
                 mockStreamBuffer.offerEvents.and.callThrough();
                 const mockRevision = 0;
 
-                eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-                eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-                eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+                bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+                bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+                bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
             }, 100);
         });
     });
 
     describe('unsubscribe', () => {
-        it('should unsubscribe from the eventPollingSubscription, no longer invoke the unsubcribed callback, and still invoke the callbacks of the active subscribers when an event is emitted', (done) => {
+        it('should unsubscribe from the bufferedEventSubscription, no longer invoke the unsubcribed callback, and still invoke the callbacks of the active subscribers when an event is emitted', (done) => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
@@ -1322,7 +1322,7 @@ describe('eventPollingSubscription', () => {
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
-                        eventPollingSubscription.unsubscribe('mockToken2');
+                        bufferedEventSubscription.unsubscribe('mockToken2');
                         PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
                     }, 25);
                 } else if (numExecutions === 4) {
@@ -1348,9 +1348,9 @@ describe('eventPollingSubscription', () => {
             mockStreamBuffer.offerEvents.and.callThrough();
             const mockRevision = 0;
 
-            eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-            eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-            eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+            bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+            bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
         }, 100);
 
         it('should stop calling the ES and the streamBuffer if there are no more active subscribers', (done) => {
@@ -1429,8 +1429,8 @@ describe('eventPollingSubscription', () => {
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
-                        eventPollingSubscription.unsubscribe('mockToken');
-                        eventPollingSubscription.unsubscribe('mockToken2');
+                        bufferedEventSubscription.unsubscribe('mockToken');
+                        bufferedEventSubscription.unsubscribe('mockToken2');
                         PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
                     }, 25);
 
@@ -1455,14 +1455,14 @@ describe('eventPollingSubscription', () => {
             mockStreamBuffer.offerEvents.and.callThrough();
             const mockRevision = 0;
 
-            eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-            eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-            eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+            bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+            bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
         }, 100);
     });
 
     describe('deactivate', () => {
-        it('should stop the internal eventPollingSubscription if it is running regardless if there are any active subscribers', (done) => {
+        it('should stop the internal bufferedEventSubscription if it is running regardless if there are any active subscribers', (done) => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
@@ -1537,7 +1537,7 @@ describe('eventPollingSubscription', () => {
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
-                        eventPollingSubscription.deactivate();
+                        bufferedEventSubscription.deactivate();
                         PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
                     }, 25);
 
@@ -1562,14 +1562,14 @@ describe('eventPollingSubscription', () => {
             mockStreamBuffer.offerEvents.and.callThrough();
             const mockRevision = 0;
 
-            eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-            eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-            eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+            bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+            bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
         }, 100);
     });
 
     describe('activate', () => {
-        it('should restart the internal eventPollingSubscription if the eventPollingSubscription was deactivated before, and there are active subscribers', (done) => {
+        it('should restart the internal bufferedEventSubscription if the bufferedEventSubscription was deactivated before, and there are active subscribers', (done) => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
@@ -1644,8 +1644,8 @@ describe('eventPollingSubscription', () => {
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
-                        eventPollingSubscription.deactivate();
-                        eventPollingSubscription.activate();
+                        bufferedEventSubscription.deactivate();
+                        bufferedEventSubscription.activate();
                         PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
                     }, 25);
                 } else if (numExecutions === 4) {
@@ -1671,12 +1671,12 @@ describe('eventPollingSubscription', () => {
             mockStreamBuffer.offerEvents.and.callThrough();
             const mockRevision = 0;
 
-            eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-            eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-            eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+            bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+            bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
         }, 150);
 
-        it('should not start a eventPollingSubscription if the internal eventPollingSubscription has not been started', (done) => {
+        it('should not start a bufferedEventSubscription if the internal bufferedEventSubscription has not been started', (done) => {
             const mockEmptyEventStream = {
                 events: []
             };
@@ -1688,8 +1688,8 @@ describe('eventPollingSubscription', () => {
             mockStreamBuffer.getEventsInBufferAsStream.and.returnValue(mockEmptyEventStream);
             mockStreamBuffer.offerEvents.and.callThrough();
 
-            eventPollingSubscription = new EventPollingSubscription(mockOptions);
-            eventPollingSubscription.activate();
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+            bufferedEventSubscription.activate();
 
             setTimeout(() => {
                 expect(mockES.getEventStream).not.toHaveBeenCalled();
@@ -1699,7 +1699,7 @@ describe('eventPollingSubscription', () => {
             }, 50);
         }, 100);
 
-        it('should not start a eventPollingSubscription if there are no longer any active subscribers', (done) => {
+        it('should not start a bufferedEventSubscription if there are no longer any active subscribers', (done) => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
@@ -1774,9 +1774,9 @@ describe('eventPollingSubscription', () => {
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
-                        eventPollingSubscription.unsubscribe('mockToken');
-                        eventPollingSubscription.unsubscribe('mockToken2');
-                        eventPollingSubscription.activate();
+                        bufferedEventSubscription.unsubscribe('mockToken');
+                        bufferedEventSubscription.unsubscribe('mockToken2');
+                        bufferedEventSubscription.activate();
                         PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
                     }, 25);
                     setTimeout(() => {
@@ -1800,9 +1800,9 @@ describe('eventPollingSubscription', () => {
             mockStreamBuffer.offerEvents.and.callThrough();
             const mockRevision = 0;
 
-            eventPollingSubscription = new EventPollingSubscription(mockOptionsWithHighTimeout);
-            eventPollingSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
-            eventPollingSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+            bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+            bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
         }, 100);
     });
 });
