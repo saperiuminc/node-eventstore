@@ -2314,6 +2314,7 @@ describe('eventstore-projection tests', () => {
         });
     })
 
+    // TODO: Review tests - equivalent tests are placed on BufferedEventSubscription
     xdescribe('activatePolling', () => {
         it('should activate the polling', (done) => {
             esWithProjection.activatePolling(function(error) {
@@ -2323,6 +2324,7 @@ describe('eventstore-projection tests', () => {
         })
     });
 
+    // TODO: Review tests - equivalent tests are placed on BufferedEventSubscription
     xdescribe('deactivatePolling', () => {
         it('should deactivate the polling', (done) => {
             esWithProjection.activatePolling(function(error) {
@@ -2332,7 +2334,7 @@ describe('eventstore-projection tests', () => {
         })
     });
 
-    xdescribe('subscribe', () => {
+    describe('subscribe', () => {
         describe('validating params and output', () => {
             it('should validate required param query as object', (done) => {
                 try {
@@ -2382,7 +2384,7 @@ describe('eventstore-projection tests', () => {
                 try {
                     const token = esWithProjection.subscribe({
                         streamId: 'stream_id'
-                    }, 0);
+                    }, 0, function(){}, function(){});
                     expect(token).toBeInstanceOf(String);
                     done();
                 } catch (error) {
@@ -2424,326 +2426,8 @@ describe('eventstore-projection tests', () => {
             });
         });
 
-        describe('getting streams using offset and its logical boundaries', () => {
-            it('should call Eventstore.getLastEvent with correct params', (done) => {
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                esWithProjection.getLastEvent.and.callFake((query, cb) => {
-                    expect(esWithProjection.getLastEvent).toHaveBeenCalledWith(query, jasmine.any(Function));
-                    done();
-                });
-
-                esWithProjection.subscribe(query, 0);
-            });
-
-            it('should call Eventstore.getEventStream with revMin as zero when there are no events yet for that stream. revMax should just add pollingMaxRevisions to revMin', (done) => {
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                esWithProjection.getLastEvent.and.callFake((query, cb) => {
-                    // no events yet for this stream
-                    cb();
-                });
-
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    const exptectedRevMin = 0;
-                    const expectedRevMax = exptectedRevMin + options.pollingMaxRevisions;
-                    expect(esWithProjection.getEventStream).toHaveBeenCalledWith(query, exptectedRevMin, expectedRevMax, jasmine.any(Function));
-                    esWithProjection.deactivatePolling();
-                    cb();
-                    done();
-                });
-
-                esWithProjection.subscribe(query, 0);
-
-
-            });
-
-            it('should call Eventstore.getEventStream with revMin as minimum revision (last streamRrevision + 1) when the passed offset is later than the minimum revision (last streamRrevision + 1). revMax should just add pollingMaxRevisions to revMin', (done) => {
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                const offset = 15;
-                esWithProjection.getLastEvent.and.callFake((query, cb) => {
-                    // no events yet for this stream
-                    cb(null, {
-                        streamRevision: 10
-                    });
-                });
-
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    const exptectedRevMin = 11;
-                    const expectedRevMax = exptectedRevMin + options.pollingMaxRevisions;
-                    expect(esWithProjection.getEventStream).toHaveBeenCalledWith(query, exptectedRevMin, expectedRevMax, jasmine.any(Function));
-                    esWithProjection.deactivatePolling();
-                    cb();
-                    done();
-                });
-
-                esWithProjection.subscribe(query, offset);
-            });
-
-            it('should call Eventstore.getEventStream with correct revMin when passed an offset', (done) => {
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                const offset = 6;
-                esWithProjection.getLastEvent.and.callFake((query, cb) => {
-                    // no events yet for this stream
-                    cb(null, {
-                        streamRevision: 10
-                    });
-                });
-
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    const exptectedRevMin = 6;
-                    const expectedRevMax = exptectedRevMin + options.pollingMaxRevisions;
-                    expect(esWithProjection.getEventStream).toHaveBeenCalledWith(query, exptectedRevMin, expectedRevMax, jasmine.any(Function));
-                    esWithProjection.deactivatePolling();
-                    cb();
-                    done();
-                });
-
-                esWithProjection.subscribe(query, offset);
-            });
-        });
-
-        describe('polling the event stream', () => {
-            beforeEach(() => {
-                spyOn(esWithProjection, '_onStreamBufferEventOffered');
-            });
-
-            it('should call getEventStream 5 times (poll)', (done) => {
-                let getEventStreamCallCounter = 0;
-                // do spyOn again to override default one time call for getEventStream
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    getEventStreamCallCounter++;
-                    if (getEventStreamCallCounter == 5) {
-                        esWithProjection.deactivatePolling();
-                        expect(getEventStreamCallCounter).toEqual(5);
-                        done();
-                    }
-                    cb();
-                });
-
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                const offset = 15;
-
-                esWithProjection.subscribe(query, offset);
-            })
-
-            it('should call onEventCallback when there is a new event', (done) => {
-                // do spyOn again to override default one time call for getEventStream
-                const eventStream = {
-                    events: [{
-                            streamRevision: 1
-                        },
-                        {
-                            streamRevision: 2
-                        },
-                        {
-                            streamRevision: 3
-                        },
-                        {
-                            streamRevision: 4
-                        },
-                        {
-                            streamRevision: 5
-                        }
-                    ]
-                }
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    cb(null, eventStream);
-                });
-
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                const offset = 15;
-
-                let onEventCounter = 0;
-                esWithProjection.subscribe(query, offset, (error, event, next) => {
-                    expect(eventStream.events[onEventCounter]) == event;
-                    onEventCounter++;
-                    next();
-
-                    if (onEventCounter == 5) {
-                        esWithProjection.deactivatePolling();
-                        done();
-                    }
-                });
-            })
-
-            it('should continue with the loop even if first getEventStream call throws an error', (done) => {
-                // do spyOn again to override default one time call for getEventStream
-                const eventStream = {
-                    events: [{
-                            streamRevision: 1
-                        },
-                        {
-                            streamRevision: 2
-                        },
-                        {
-                            streamRevision: 3
-                        },
-                        {
-                            streamRevision: 4
-                        },
-                        {
-                            streamRevision: 5
-                        }
-                    ]
-                };
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    if (esWithProjection.getEventStream.calls.count() == 1) {
-
-                        throw new Error('unhandled error!');
-                    } else if (esWithProjection.getEventStream.calls.count() == 2) {
-                        cb(null, eventStream);
-                        esWithProjection.deactivatePolling();
-                        done();
-                    }
-                });
-
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                const offset = 0;
-                esWithProjection.subscribe(query, offset, (error, event, next) => {
-                    next();
-                });
-            })
-
-            it('should continue with the loop even if onEventCallback throws an error', (done) => {
-                // do spyOn again to override default one time call for getEventStream
-                const eventStream = {
-                    events: [{
-                            streamRevision: 1
-                        },
-                        {
-                            streamRevision: 2
-                        },
-                        {
-                            streamRevision: 3
-                        }
-                    ]
-                };
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    if (esWithProjection.getEventStream.calls.count() == 1) {
-                        cb(null, eventStream);
-                    } else if (esWithProjection.getEventStream.calls.count() == 2) {
-                        esWithProjection.deactivatePolling();
-                        done();
-                    }
-                });
-
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                const offset = 0;
-                esWithProjection.subscribe(query, offset, (error, event, next) => {
-                    throw new Error('unhandled error on event callback');
-                });
-            })
-
-            it('should pass the correct revMin to getEventStream after processing a set of events from a stream', (done) => {
-                // do spyOn again to override default one time call for getEventStream
-                const numOfEventsPerStream = 3;
-                const streams = [{
-                        events: [{
-                                streamRevision: 1
-                            },
-                            {
-                                streamRevision: 2
-                            },
-                            {
-                                streamRevision: 3
-                            }
-                        ]
-                    },
-                    {
-                        events: [{
-                                streamRevision: 4
-                            },
-                            {
-                                streamRevision: 5
-                            },
-                            {
-                                streamRevision: 6
-                            }
-                        ]
-                    }
-                ];
-
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    const callIndex = esWithProjection.getEventStream.calls.count() - 1;
-                    if (streams.length < callIndex) {
-                        cb(null, streams[callIndex]);
-                    } else {
-                        esWithProjection.deactivatePolling();
-                        done();
-                    }
-                });
-
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                const offset = 0;
-                let eventCounter = 0;
-                esWithProjection.subscribe(query, offset, (error, event, next) => {
-
-                    const streamIndex = Math.floor(eventCounter / numOfEventsPerStream);
-                    const stream = streams[streamIndex];
-
-                    const eventIndex = streamIndex * numOfEventsPerStream + (eventCounter % numOfEventsPerStream);
-                    expect(stream.events[eventIndex]).toEqual(event);
-                    eventCounter++;
-                    next();
-                });
-            })
-
-            it('should still continue if next iterator is not called within the timeout period or timedout', (done) => {
-                // do spyOn again to override default one time call for getEventStream
-                const stream = {
-                    events: [{
-                            streamRevision: 1
-                        },
-                        {
-                            streamRevision: 2
-                        },
-                        {
-                            streamRevision: 3
-                        }
-                    ]
-                };
-
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    cb(null, stream);
-                });
-
-                const query = {
-                    aggregateId: 'aggregate_id'
-                };
-                const offset = 0;
-                let eventCounter = 0;
-                esWithProjection.subscribe(query, offset, (error, event, next) => {
-                    if (eventCounter == 0) {
-                        // explicitly do not call next on the first event
-                    } else {
-                        // i should still be able to get the next event
-                        esWithProjection.deactivatePolling();
-                        expect(event).toEqual(stream.events[eventCounter]);
-                        done();
-                    }
-                    eventCounter++;
-                });
-            })
-        });
-
-        describe('stream buffer', () => {
+        // TODO: Review tests - should not access private methods and variables.
+        xdescribe('stream buffer', () => {
             beforeEach(() => {
                 spyOn(esWithProjection, '_getHeapPercentage');
             });
@@ -2753,14 +2437,14 @@ describe('eventstore-projection tests', () => {
                 const mockBucket = 'mockBucket';
                 const mockQuery = 'mockQuery';
 
-                spyOn(esWithProjection, '_onStreamBufferEventOffered');
+                // spyOn(esWithProjection, '_onStreamBufferEventOffered');
                 spyOn(esWithProjection, '_getChannel').and.returnValue(mockChannel);
                 spyOn(esWithProjection, '_getCurrentStreamBufferBucket').and.returnValue(mockBucket);
-                esWithProjection.subscribe(mockQuery, 0);
+                esWithProjection.subscribe(mockQuery, 0, function(){}, function(){});
 
                 const streamBuffer = esWithProjection._streamBuffers[mockChannel];
                 expect(streamBuffer.es).toEqual(esWithProjection);
-                expect(streamBuffer.query).toEqual(mockQuery);
+                expect(streamBuffer.query).toEqual({ aggregateId: mockQuery });
                 expect(streamBuffer.channel).toEqual(mockChannel);
                 expect(streamBuffer.bucket).toEqual(mockBucket);
                 expect(streamBuffer.bufferCapacity).toEqual(10);
@@ -2854,40 +2538,7 @@ describe('eventstore-projection tests', () => {
                 done();
             });
         })
-
-        xdescribe('breaking the poll loop', () => {
-            it('should stop getting the events if unsubscribed', (done) => {
-                let token = null;
-                const stream = {
-                    events: [{
-                            streamRevision: 1
-                        },
-                        {
-                            streamRevision: 2
-                        },
-                        {
-                            streamRevision: 3
-                        }
-                    ]
-                };
-
-                esWithProjection.getEventStream.and.callFake((query, revMin, revMax, cb) => {
-                    esWithProjection.unsubscribe(token);
-                    cb(null, stream);
-                });
-
-                token = esWithProjection.subscribe('aggregate_id', 0);
-
-                // TODO: in order to test if the loop stopped i did a simple set timeout to check later on. need to find a better way without
-                // doing a setTimeout
-                setTimeout(() => {
-                    expect(esWithProjection.getEventStream.calls.count()).toEqual(1);
-                    done();
-                }, 10);
-            });
-        })
-
-    })
+    });
 
     describe('getPlaybackList', () => {
         it('should return no playbacklist if it still does not exist', (done) => {
@@ -3196,6 +2847,7 @@ describe('eventstore-projection tests', () => {
         });
     });
     
+    // TODO: Review tests - should not access private methods and variables.
     xdescribe('_onStreamBufferEventOffered', () => {
         let mockBucket;
         let mockChannel;
@@ -3254,7 +2906,7 @@ describe('eventstore-projection tests', () => {
         });
     });
 
-
+    // TODO: Review tests - should not access private methods and variables.
     describe('_cleanOldestStreamBufferBucket', () => {
         it('should lock LRU execution', () => {
             esWithProjection._streamBufferLRULocked = false;

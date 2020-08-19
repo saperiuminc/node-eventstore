@@ -1805,4 +1805,216 @@ describe('bufferedEventSubscription', () => {
             bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
         }, 100);
     });
+
+    describe('isActive', () => {
+        it('should return true if the bufferedEventSubscription is active', (done) => {
+            let numExecutions = 0;
+            const mockOptionsWithHighTimeout = {
+                es: mockES,
+                streamBuffer: mockStreamBuffer,
+                query: {
+                    aggregate: 'mockAggregate',
+                    aggregateId: 'mockAggregateId',
+                    context: 'mockContext'
+                },
+                channel: 'mockContext.mockAggregate.mockAggregateId',
+                eventCallbackTimeout: 250,
+                pollingTimeout: 1000,
+                pollingMaxRevisions: 2
+            };
+            const mockEmptyEventStream = {
+                events: []
+            };
+            mockES.getLastEvent.and.callFake((query, callback) => {
+                callback(null, null);
+            });
+            const mockNewEventStreams = [
+                {
+                    events: [
+                        {
+                            streamRevision: 0,
+                            payload: 'testNewEvent0'
+                        }
+                    ]
+                }, {
+                    events: [
+                        {
+                            streamRevision: 1,
+                            payload: 'testNewEvent1'
+                        }
+                    ]
+                }
+            ];
+            const mockPublishedEvents = [
+                {
+                    revision: 0,
+                    payload: 'testNewEvent0'
+                },
+                {
+                    revision: 1,
+                    payload: 'testNewEvent1'
+                }
+            ];
+            const mockCallbacks = [
+                {
+                    onEventCallback: function(error, event, callback) {
+                        callback();
+                    },
+                    onErrorCallback: function() {}
+                },
+                {
+                    onEventCallback: function(error, event, callback) {
+                        callback();
+                    },
+                    onErrorCallback: function() {}
+                }
+            ];
+            spyOn(mockCallbacks[0], 'onEventCallback').and.callThrough();
+            spyOn(mockCallbacks[1], 'onEventCallback').and.callThrough();
+
+            mockES.getEventStream.and.callFake((query, revMin, revMax, callback) => {
+                numExecutions++;
+                if (numExecutions === 2) {
+                    callback(null, mockEmptyEventStream);
+                    setTimeout(() => {
+                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                    }, 25);
+                } else if (numExecutions === 3) {
+                    callback(null, mockNewEventStreams[0]);
+
+                    setTimeout(() => {
+                        // Assert bufferedEventSubscription is active
+                        expect(bufferedEventSubscription.isActive()).toEqual(true);
+                        done();
+                    }, 25);
+                } else {
+                    callback(null, mockEmptyEventStream);
+                }
+            });
+            mockStreamBuffer.getEventsInBufferAsStream.and.returnValue(mockEmptyEventStream);
+            mockStreamBuffer.offerEvents.and.callThrough();
+            const mockRevision = 0;
+
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+            bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+            bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+        }, 100);
+
+        it('should return false if the bufferedEventSubscription is deactivated', (done) => {
+            let numExecutions = 0;
+            const mockOptionsWithHighTimeout = {
+                es: mockES,
+                streamBuffer: mockStreamBuffer,
+                query: {
+                    aggregate: 'mockAggregate',
+                    aggregateId: 'mockAggregateId',
+                    context: 'mockContext'
+                },
+                channel: 'mockContext.mockAggregate.mockAggregateId',
+                eventCallbackTimeout: 250,
+                pollingTimeout: 1000,
+                pollingMaxRevisions: 2
+            };
+            const mockEmptyEventStream = {
+                events: []
+            };
+            mockES.getLastEvent.and.callFake((query, callback) => {
+                callback(null, null);
+            });
+            const mockNewEventStreams = [
+                {
+                    events: [
+                        {
+                            streamRevision: 0,
+                            payload: 'testNewEvent0'
+                        }
+                    ]
+                }, {
+                    events: [
+                        {
+                            streamRevision: 1,
+                            payload: 'testNewEvent1'
+                        }
+                    ]
+                }
+            ];
+            const mockPublishedEvents = [
+                {
+                    revision: 0,
+                    payload: 'testNewEvent0'
+                },
+                {
+                    revision: 1,
+                    payload: 'testNewEvent1'
+                }
+            ];
+            const mockCallbacks = [
+                {
+                    onEventCallback: function(error, event, callback) {
+                        callback();
+                    },
+                    onErrorCallback: function() {}
+                },
+                {
+                    onEventCallback: function(error, event, callback) {
+                        callback();
+                    },
+                    onErrorCallback: function() {}
+                }
+            ];
+            spyOn(mockCallbacks[0], 'onEventCallback').and.callThrough();
+            spyOn(mockCallbacks[1], 'onEventCallback').and.callThrough();
+
+            mockES.getEventStream.and.callFake((query, revMin, revMax, callback) => {
+                numExecutions++;
+                if (numExecutions === 2) {
+                    callback(null, mockEmptyEventStream);
+                    setTimeout(() => {
+                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                    }, 25);
+                } else if (numExecutions === 3) {
+                    callback(null, mockNewEventStreams[0]);
+                    setTimeout(() => {
+                        bufferedEventSubscription.deactivate();
+                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                    }, 25);
+
+                    setTimeout(() => {
+                        // Assert bufferedEventSubscription is no longer active
+                        expect(bufferedEventSubscription.isActive()).toEqual(false);
+                        done();
+                    }, 50);
+                } else {
+                    callback(null, mockEmptyEventStream);
+                }
+            });
+            mockStreamBuffer.getEventsInBufferAsStream.and.returnValue(mockEmptyEventStream);
+            mockStreamBuffer.offerEvents.and.callThrough();
+            const mockRevision = 0;
+
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
+            bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
+            bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
+        }, 100);
+
+        it('should return false if the internal bufferedEventSubscription has not been started', (done) => {
+            const mockEmptyEventStream = {
+                events: []
+            };
+            mockES.getLastEvent.and.callFake((query, callback) => {
+                callback(null, null);
+            });
+            
+            mockES.getEventStream.and.returnValue(mockEmptyEventStream);
+            mockStreamBuffer.getEventsInBufferAsStream.and.returnValue(mockEmptyEventStream);
+            mockStreamBuffer.offerEvents.and.callThrough();
+
+            bufferedEventSubscription = new BufferedEventSubscription(mockOptions);
+
+            setTimeout(() => {
+                expect(bufferedEventSubscription.isActive()).toEqual(false);
+                done();
+            }, 50);
+        }, 100);
+    });
 });
