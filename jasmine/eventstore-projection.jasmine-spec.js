@@ -56,7 +56,7 @@ describe('eventstore-projection tests', () => {
             jobsManager: jobsManager,
             EventstorePlaybackList: EventStorePlaybackListFunction,
             EventstorePlaybackListView: EventstorePlaybackListViewFunction,
-            enableProjectionSubscribe: true,
+            enableProjection: true,
             listStore: {
                 host: 'host',
                 port: 'port',
