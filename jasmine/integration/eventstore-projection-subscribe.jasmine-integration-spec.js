@@ -15,6 +15,7 @@ var es = eventstore({
     undispatchedEventsTableName: 'undispatched_events',
     snapshotsTableName: 'snapshots',
     connectionPoolLimit: 1,
+    enableProjection: true,
     redisConfig: {
         host: 'redis',
         port: 6379
