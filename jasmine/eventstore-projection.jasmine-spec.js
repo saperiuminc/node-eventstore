@@ -56,6 +56,7 @@ describe('eventstore-projection tests', () => {
             jobsManager: jobsManager,
             EventstorePlaybackList: EventStorePlaybackListFunction,
             EventstorePlaybackListView: EventstorePlaybackListViewFunction,
+            enableProjection: true,
             listStore: {
                 host: 'host',
                 port: 'port',
@@ -104,7 +105,7 @@ describe('eventstore-projection tests', () => {
     });
 
     describe('setupNotifyPubSub', () => {
-        it('should setup pub sub', () => {
+        it('should setup notify publish', () => {
             redisSub = jasmine.createSpyObj('redisSub', ['on', 'subscribe']);
             redisSub.on.and.callFake((event, cb) => {
                 if(event === 'ready') {
@@ -120,9 +121,34 @@ describe('eventstore-projection tests', () => {
                     cb('NOTIFY_COMMIT_REDIS_CHANNEL', JSON.stringify(job))
                 }
             });
-
             redisPub = jasmine.createSpyObj('redisPub', ['on', 'publish']);
-            esWithProjection.setupNotifyPubSub(redisSub,redisPub);
+
+            esWithProjection.redisSub = redisSub;
+            esWithProjection.redisPub = redisPub;
+            esWithProjection.setupNotifyPublish();
+        });
+
+        it('should setup notify subscribe', () => {
+            redisSub = jasmine.createSpyObj('redisSub', ['on', 'subscribe']);
+            redisSub.on.and.callFake((event, cb) => {
+                if(event === 'ready') {
+                    cb();
+                } else {
+                    const job = {
+                        query: {
+                            aggregateId: 'aggregateId',
+                            aggregate: 'aggregate',
+                            context: 'context'
+                        }
+                    }
+                    cb('NOTIFY_COMMIT_REDIS_CHANNEL', JSON.stringify(job))
+                }
+            });
+            redisPub = jasmine.createSpyObj('redisPub', ['on', 'publish']);
+
+            esWithProjection.redisSub = redisSub;
+            esWithProjection.redisPub = redisPub;
+            esWithProjection._setupNotifySubscribe();
         });
     });
 
@@ -972,10 +998,18 @@ describe('eventstore-projection tests', () => {
         });
 
         describe('processing jobs from jobs manager', () => {
+            beforeEach(() => {
+                spyOn(esWithProjection, '_setupNotifySubscribe').and.callFake(async () => {
+                    return Promise.resolve({});
+                });
+            });
+
             it('should call processJobGroup of jobsmanager', (done) => {
-                const result = esWithProjection.startAllProjections(() => {
-                    const jobGroup = `projection-group:${options.projectionGroup}`;
-                    expect(jobsManager.processJobGroup).toHaveBeenCalledWith(jasmine.any(Object), jobGroup, jasmine.any(Function), jasmine.any(Function));
+                jobsManager.processJobGroup.and.callFake(() => {
+                    expect(jobsManager.processJobGroup).toHaveBeenCalled();
+                    return Promise.resolve({});
+                });
+                esWithProjection.startAllProjections(() => {
                     done();
                 });
             })
@@ -983,7 +1017,7 @@ describe('eventstore-projection tests', () => {
             it('should call the callback with error if jobsmanager throws an error', (done) => {
                 const expectedError = new Error('error in jobsmanager.processJobGroup');
                 jobsManager.processJobGroup.and.callFake(() => {
-                    throw expectedError;
+                    return Promise.reject(expectedError);
                 });
                 const result = esWithProjection.startAllProjections((error) => {
                     expect(error).toEqual(expectedError);
@@ -1359,7 +1393,9 @@ describe('eventstore-projection tests', () => {
                 });
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
+                    console.log('test 456');
                     onProcessCompletedJob.call(owner, 'jobId', projection);
+                    return Promise.resolve({});
                 });
 
                 // Note: need to add counter since code passes jobsManager.queueJob twice
@@ -1378,7 +1414,6 @@ describe('eventstore-projection tests', () => {
                 });
 
                 esWithProjection.project(projection);
-
                 const result = esWithProjection.startAllProjections();
             })
 

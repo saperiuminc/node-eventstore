@@ -34,8 +34,14 @@ module.exports = (function() {
             console.log('eventstore initialized');
 
             // some dummy calls for testing
-            eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event) => {
+            eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event, callback) => {
                 console.log('received event', event);
+                callback();
+            });
+
+            eventstore.subscribe('vehicle_6', 0, (err, event, callback) => {
+                console.log('received event', event);
+                callback();
             });
 
             // neeed to await the project call to initalize the playback list

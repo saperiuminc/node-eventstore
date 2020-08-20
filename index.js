@@ -12,7 +12,6 @@
  * @property {PlaybackListStoreConfig} playbackListStore
  */
 
-// const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
 var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),
     Base = require('./lib/base'),
     _ = require('lodash'),
@@ -119,25 +118,16 @@ const esFunction = function(options) {
             redis: redis
         });
 
+        options.redis = redis;
         options.jobsManager = jobsManager;
         options.distributedLock = distributedLock;
     }
 
     var eventstore = new Eventstore(options, new Store(options));
 
-    // NOTE: temporarily use redisConfig as flag to enable notification pubsub
-    if (options.redisConfig) {
-        const redisSub = new Redis({
-            host: options.redisConfig.host,
-            password: options.redisConfig.password,
-            port: options.redisConfig.port
-        });
-        const redisPub = new Redis({
-            host: options.redisConfig.host,
-            password: options.redisConfig.password,
-            port: options.redisConfig.port
-        });
-        eventstore.setupNotifyPubSub(redisSub, redisPub);
+    console.log('will setupNotifyPublish enableProjection: ' + options.enableProjection);
+    if (options.enableProjection === true) {
+        eventstore.setupNotifyPublish();
     }
 
     if (options.emitStoreEvents) {
