@@ -525,7 +525,7 @@ describe('eventstore-playback-list-view tests', () => {
                 const filters = [];
                 const sort = [{
                     field: 'field_1',
-                    sort: 'asc'
+                    sortDirection: 'asc'
                 }];
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
@@ -545,7 +545,7 @@ describe('eventstore-playback-list-view tests', () => {
                 const filters = [];
                 const sort = [{
                     field: 'field_1',
-                    sort: 'desc'
+                    sortDirection: 'desc'
                 }];
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
@@ -581,7 +581,7 @@ describe('eventstore-playback-list-view tests', () => {
                 const filters = [];
                 const sort = [{
                     field: 'field_1',
-                    sort: 'asc'
+                    sortDirection: 'asc'
                 }];
                 await eventstorePlaybackList.init();
                 mysqlConnection.query.and.callFake(function(query, queryParams, cb) {
