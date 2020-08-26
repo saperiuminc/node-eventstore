@@ -125,7 +125,8 @@ const esFunction = function(options) {
 
     var eventstore = new Eventstore(options, new Store(options));
 
-    if (options.enableProjectionPublish === true) {
+    console.log('will setupNotifyPublish enableProjection: ' + options.enableProjection);
+    if (options.enableProjection === true) {
         eventstore.setupNotifyPublish();
     }
 
