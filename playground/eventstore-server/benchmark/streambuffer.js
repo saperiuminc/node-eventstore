@@ -47,8 +47,7 @@ suite('Test suite', () => {
             pollingMaxRevisions: 5,
             errorMaxRetryCount: 2,
             errorRetryExponent: 2,
-            enableProjectionSubscribe: true,
-            enableProjectionPublish: true
+            enableProjection: true
         });
         bluebird.promisifyAll(eventstore);
         await eventstore.initAsync();
