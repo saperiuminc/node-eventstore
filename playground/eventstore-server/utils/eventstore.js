@@ -20,7 +20,7 @@ module.exports = (function() {
             password: process.env.EVENTSTORE_MYSQL_PASSWORD,
             database: process.env.EVENTSTORE_MYSQL_DATABASE
         }, // required
-        enableProjectionSubscribe: true,
+        enableProjection: true,
         eventCallbackTimeout: 1000,
         pollingTimeout: 1000, // optional,
         pollingMaxRevisions: 5,
