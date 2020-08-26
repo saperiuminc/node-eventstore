@@ -1,4 +1,4 @@
-FROM node:12-slim as builder
+FROM node:10-slim as builder
 
 ARG NODE_ENV=development
 ENV NODE_ENV=${NODE_ENV}
@@ -9,7 +9,7 @@ RUN npm install -g npm-cli-login
 RUN npm-cli-login -u saperium -p MakeItHappen2016 -e saperium.rocks@gmail.com
 RUN npm install
 
-FROM node:12-slim
+FROM node:10-slim
 
 # NOTE: install runtime apks here
 RUN apt-get update && apt-get install -y netcat
