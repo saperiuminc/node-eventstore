@@ -38,15 +38,15 @@ module.exports = (function() {
             console.log('eventstore initialized');
 
             // some dummy calls for testing
-            eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event, callback) => {
-                console.log('received event', event);
-                callback();
-            });
+            // eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event, callback) => {
+            //     console.log('received event', event);
+            //     callback();
+            // });
 
-            eventstore.subscribe('vehicle_6', 0, (err, event, callback) => {
-                console.log('received event', event);
-                callback();
-            });
+            // eventstore.subscribe('vehicle_6', 0, (err, event, callback) => {
+            //     console.log('received event', event);
+            //     callback();
+            // });
 
             // neeed to await the project call to initalize the playback list
             await eventstore.projectAsync({
@@ -153,7 +153,6 @@ module.exports = (function() {
             console.error('error in setting up the projection', error);
         }
     }
-
 
     initialize();
 
