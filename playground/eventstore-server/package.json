@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www"
+    "start": "node ./bin/www",
+    "bench": "node_modules/matcha/bin/matcha",
+    "bench-emit": "node_modules/matcha/bin/matcha benchmark/streambuffer-emit-all.js",
+    "bench-growing": "node_modules/matcha/bin/matcha benchmark/streambuffer-growing-sub.js"
   },
   "dependencies": {
     "@saperiuminc/eventstore": "^1.15.12-alpha.8",

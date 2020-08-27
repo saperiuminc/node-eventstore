@@ -37,19 +37,19 @@ module.exports = (function() {
             console.log('eventstore initialized');
 
             // some dummy calls for testing
-            eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event, callback) => {
-                console.log('dummy onEventCallback received event', event);
-                callback();
-            }, (error) => {
-                console.error('onErrorCallback received error', error);
-            });
+            // eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event, callback) => {
+            //     console.log('dummy onEventCallback received event', event);
+            //     callback();
+            // }, (error) => {
+            //     console.error('onErrorCallback received error', error);
+            // });
 
-            eventstore.subscribe('vehicle_6', 0, (err, event, callback) => {
-                console.log('vehicle_6 onEventCallback event', event);
-                callback();
-            }, (error) => {
-                console.error('onErrorCallback received error', error);
-            });
+            // eventstore.subscribe('vehicle_6', 0, (err, event, callback) => {
+            //     console.log('vehicle_6 onEventCallback event', event);
+            //     callback();
+            // }, (error) => {
+            //     console.error('onErrorCallback received error', error);
+            // });
 
             // neeed to await the project call to initalize the playback list
             await eventstore.projectAsync({
@@ -156,7 +156,6 @@ module.exports = (function() {
             console.error('error in setting up the projection', error);
         }
     }
-
 
     initialize();
 
