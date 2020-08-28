@@ -164,7 +164,7 @@ describe('eventstore-playback-list-view tests', () => {
                 const sort = null;
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                    expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                    expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1 ', undefined, jasmine.any(Function));
                     expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT * FROM list_name WHERE 1 = 1   LIMIT ?,?', [
                         start,
                         limit
@@ -236,7 +236,7 @@ describe('eventstore-playback-list-view tests', () => {
                 const sort = null;
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                    expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                    expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1 = 'value_1' ) `, undefined, jasmine.any(Function));
                     expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 = 'value_1' )   LIMIT ?,?`, [
                         start,
                         limit
@@ -257,7 +257,7 @@ describe('eventstore-playback-list-view tests', () => {
                 const sort = null;
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                    expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                    expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1 IN ('value_1','value_2') )`, undefined, jasmine.any(Function));
                     expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 IN ('value_1','value_2') )  LIMIT ?,?`, [
                         start,
                         limit
@@ -279,7 +279,7 @@ describe('eventstore-playback-list-view tests', () => {
                 const sort = null;
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                    expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                    expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1 >= value_1  AND field_1 <= value_1 ) `, undefined, jasmine.any(Function));
                     expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 >= value_1  AND field_1 <= value_1 )   LIMIT ?,?`, [
                         start,
                         limit
@@ -300,7 +300,7 @@ describe('eventstore-playback-list-view tests', () => {
               const sort = null;
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1  LIKE '%Fols%' ) `, undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1  LIKE '%Fols%' )   LIMIT ?,?`, [
                       start,
                       limit
@@ -322,7 +322,7 @@ describe('eventstore-playback-list-view tests', () => {
               const sort = null;
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1 COLLATE UTF8_GENERAL_CI LIKE '%Fols%' ) `, undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 COLLATE UTF8_GENERAL_CI LIKE '%Fols%' )   LIMIT ?,?`, [
                       start,
                       limit
@@ -343,7 +343,7 @@ describe('eventstore-playback-list-view tests', () => {
               const sort = null;
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  (  JSON_CONTAINS(field_1, '"Fols"') ) `, undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  (  JSON_CONTAINS(field_1, '"Fols"') )   LIMIT ?,?`, [
                       start,
                       limit
@@ -375,7 +375,7 @@ describe('eventstore-playback-list-view tests', () => {
               const sort = null;
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  (  JSON_CONTAINS(field_1, '"1"') OR  JSON_CONTAINS(field_1, '"2"') OR  JSON_CONTAINS(field_1, '"3"')   OR  JSON_CONTAINS(field_2, '"1"') OR  JSON_CONTAINS(field_2, '"2"') OR  JSON_CONTAINS(field_2, '"3"') ) `, undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  (  JSON_CONTAINS(field_1, '"1"') OR  JSON_CONTAINS(field_1, '"2"') OR  JSON_CONTAINS(field_1, '"3"')   OR  JSON_CONTAINS(field_2, '"1"') OR  JSON_CONTAINS(field_2, '"2"') OR  JSON_CONTAINS(field_2, '"3"') )   LIMIT ?,?`, [
                       start,
                       limit
@@ -396,7 +396,7 @@ describe('eventstore-playback-list-view tests', () => {
               const sort = null;
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1  LIKE 'Fols%' ) `, undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1  LIKE 'Fols%' )   LIMIT ?,?`, [
                       start,
                       limit
@@ -418,7 +418,7 @@ describe('eventstore-playback-list-view tests', () => {
               const sort = null;
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1 COLLATE UTF8_GENERAL_CI LIKE 'Fols%' ) `, undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 COLLATE UTF8_GENERAL_CI LIKE 'Fols%' )   LIMIT ?,?`, [
                       start,
                       limit
@@ -439,7 +439,7 @@ describe('eventstore-playback-list-view tests', () => {
               const sort = null;
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1  LIKE '%ring' ) `, undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1  LIKE '%ring' )   LIMIT ?,?`, [
                       start,
                       limit
@@ -461,7 +461,7 @@ describe('eventstore-playback-list-view tests', () => {
               const sort = null;
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1 COLLATE UTF8_GENERAL_CI LIKE '%ing' ) `, undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 COLLATE UTF8_GENERAL_CI LIKE '%ing' )   LIMIT ?,?`, [
                       start,
                       limit
@@ -507,7 +507,7 @@ describe('eventstore-playback-list-view tests', () => {
               const sort = null;
               await eventstorePlaybackList.init();
               eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                  expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                  expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1  AND  ( field_1 = 'First'   OR field_2 = 'Second' )  AND  ( field_3 = 'Third'   AND field_4 = 'Fourth' ) `, undefined, jasmine.any(Function));
                   expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  AND  ( field_1 = 'First'   OR field_2 = 'Second' )  AND  ( field_3 = 'Third'   AND field_4 = 'Fourth' )   LIMIT ?,?`, [
                       start,
                       limit
@@ -529,7 +529,7 @@ describe('eventstore-playback-list-view tests', () => {
                 }];
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                    expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                    expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1 ', undefined, jasmine.any(Function));
                     expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  ORDER BY field_1 asc LIMIT ?,?`, [
                         start,
                         limit
@@ -549,7 +549,7 @@ describe('eventstore-playback-list-view tests', () => {
                 }];
                 await eventstorePlaybackList.init();
                 eventstorePlaybackList.query(start, limit, filters, sort, function() {
-                    expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name', undefined, jasmine.any(Function));
+                    expect(mysqlConnection.query).toHaveBeenCalledWith('SELECT COUNT(1) as total_count FROM list_name WHERE 1 = 1 ', undefined, jasmine.any(Function));
                     expect(mysqlConnection.query).toHaveBeenCalledWith(`SELECT * FROM list_name WHERE 1 = 1  ORDER BY field_1 desc LIMIT ?,?`, [
                         start,
                         limit
