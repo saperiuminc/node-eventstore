@@ -1461,7 +1461,7 @@ describe('eventstore-projection tests', () => {
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-result`
                         }
                         expect(query).toEqual(expectedQuery);
@@ -1699,7 +1699,7 @@ describe('eventstore-projection tests', () => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-${projection.query.context}-${projection.query.aggregate}-${expectedEventstoreEvent.aggregateId}-result`
                         }
                         expect(query).toEqual(expectedQuery)
@@ -1764,7 +1764,7 @@ describe('eventstore-projection tests', () => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-${expectedEventstoreEvent.payload.payload.someField}-result`
                         }
                         expect(query).toEqual(expectedQuery)
@@ -1830,7 +1830,7 @@ describe('eventstore-projection tests', () => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-result`
                         }
                         expect(query).toEqual(expectedQuery)
@@ -1906,7 +1906,7 @@ describe('eventstore-projection tests', () => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-result`
                         }
                         expect(query).toEqual(expectedQuery)
