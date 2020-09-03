@@ -6,7 +6,10 @@
     "start": "node ./bin/www",
     "bench": "node_modules/matcha/bin/matcha",
     "bench-emit": "node_modules/matcha/bin/matcha benchmark/streambuffer-emit-all.js",
-    "bench-growing": "node_modules/matcha/bin/matcha benchmark/streambuffer-growing-sub.js"
+    "bench-growing": "node_modules/matcha/bin/matcha benchmark/streambuffer-growing-sub.js",
+    "bench-stream-emit": "node_modules/matcha/bin/matcha benchmark/streambuffer-stream-emit-all.js",
+    "bench-stream-growing": "node_modules/matcha/bin/matcha benchmark/streambuffer-stream-growing-sub.js",
+    "bench-2k": "node_modules/matcha/bin/matcha benchmark/streambuffer-2k.js"
   },
   "dependencies": {
     "@saperiuminc/eventstore": "^1.15.12-alpha.8",
