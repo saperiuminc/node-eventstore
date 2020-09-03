@@ -96,6 +96,7 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
                 stream.addEvent(expectedEvent);
                 // stream.commit();
                 stream.commit(function(err, stream) {});
+                done();
             });
         });
 
@@ -148,10 +149,8 @@ describe('eventstore-projection.jasmine-integration-spec', () => {
             await es.startAllProjectionsAsync();
 
             const results = await mysqlConnection.queryAsync('select count(1) as the_count from dummy_list;', {});
-
             expect(results[0]['the_count']).toEqual(0);
             done();
-
         });
 
         it('should be able to create a playback list', async (done) => {

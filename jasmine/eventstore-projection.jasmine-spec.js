@@ -471,7 +471,7 @@ describe('eventstore-projection tests', () => {
                 const jobParams = {
                     id: projectionKey,
                     group: `projection-group:${options.projectionGroup}`,
-                    payload: projection
+                    payload: { projection: projection }
                 };
 
                 const jobOptions = {
@@ -524,7 +524,7 @@ describe('eventstore-projection tests', () => {
                 const jobParams = {
                     id: projectionKey,
                     group: `projection-group:${options.projectionGroup}`,
-                    payload: projection
+                    payload: { projection: projection }
                 };
 
                 const jobOptions = {
@@ -1054,7 +1054,7 @@ describe('eventstore-projection tests', () => {
                 };
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
@@ -1112,7 +1112,7 @@ describe('eventstore-projection tests', () => {
                 };
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
@@ -1171,7 +1171,7 @@ describe('eventstore-projection tests', () => {
                 };
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
@@ -1234,7 +1234,7 @@ describe('eventstore-projection tests', () => {
                 };
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
@@ -1293,7 +1293,7 @@ describe('eventstore-projection tests', () => {
                 });
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
@@ -1360,7 +1360,7 @@ describe('eventstore-projection tests', () => {
                 });
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
@@ -1396,7 +1396,7 @@ describe('eventstore-projection tests', () => {
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
                     console.log('test 456');
-                    onProcessCompletedJob.call(owner, 'jobId', projection);
+                    onProcessCompletedJob.call(owner, 'jobId', { projection: projection });
                     return Promise.resolve({});
                 });
 
@@ -1408,7 +1408,7 @@ describe('eventstore-projection tests', () => {
                         const jobExpected = {
                             id: "projection-group:test:projection:projectionId",
                             group: "projection-group:test",
-                            payload: projection
+                            payload: { projection: projection, _meta: { token: "token" } }
                         };
                         expect(job).toEqual(jobExpected);
                         done();
@@ -1446,7 +1446,7 @@ describe('eventstore-projection tests', () => {
                     };
 
                     jobsManager.processJobGroup.and.callFake(async (owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
@@ -1463,7 +1463,7 @@ describe('eventstore-projection tests', () => {
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-result`
                         }
                         expect(query).toEqual(expectedQuery);
@@ -1504,7 +1504,7 @@ describe('eventstore-projection tests', () => {
                     };
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
@@ -1564,7 +1564,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
@@ -1622,7 +1622,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
@@ -1683,7 +1683,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
@@ -1701,7 +1701,7 @@ describe('eventstore-projection tests', () => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-${projection.query.context}-${projection.query.aggregate}-${expectedEventstoreEvent.aggregateId}-result`
                         }
                         expect(query).toEqual(expectedQuery)
@@ -1748,7 +1748,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
@@ -1766,7 +1766,7 @@ describe('eventstore-projection tests', () => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-${expectedEventstoreEvent.payload.payload.someField}-result`
                         }
                         expect(query).toEqual(expectedQuery)
@@ -1814,7 +1814,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
@@ -1832,7 +1832,7 @@ describe('eventstore-projection tests', () => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-result`
                         }
                         expect(query).toEqual(expectedQuery)
@@ -1890,7 +1890,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
@@ -1908,7 +1908,7 @@ describe('eventstore-projection tests', () => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
                             aggregate: projection.projectionId,
-                            context: 'states',
+                            context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-result`
                         }
                         expect(query).toEqual(expectedQuery)
@@ -1959,7 +1959,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
@@ -2026,7 +2026,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
 
                     });
@@ -2109,7 +2109,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
 
                     });
@@ -2193,7 +2193,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
 
                     });
@@ -2283,7 +2283,7 @@ describe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', projection, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 

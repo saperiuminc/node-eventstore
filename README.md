@@ -47,6 +47,7 @@ var es = require('eventstore')({
   eventCallbackTimeout: 10000,                         // optional, by default 10000
   projectionGroup: 'default',                         // optional, by default 'default'
   eventNameFieldName: 'name',                         // optional, by default is 'name'. it will get the event name from event.payload.name field
+  stateContextName: 'default',                         // optional, by default is 'default'. the name of the context when a state is created by a projection. 
   listStore: {
     host: 'localhost',                                // optional, by default is localhost
     port: 3306,                                       // optional, by default is 3306
