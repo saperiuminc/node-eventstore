@@ -32,7 +32,7 @@ services:
       EVENTSTORE_MYSQL_USERNAME: root
       EVENTSTORE_MYSQL_PASSWORD: root
       EVENTSTORE_MYSQL_DATABASE: eventstore
-      DEBUG: 'eventstore'
+      DEBUG: 'eventstore,eventstore:eventPollingSubscription'
     links:
       - redis
       - db

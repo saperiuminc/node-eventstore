@@ -1,7 +1,7 @@
 {
   "author": "adrai",
   "name": "@saperiuminc/eventstore",
-  "version": "1.15.12-alpha.66",
+  "version": "1.15.12-alpha.67",
   "contributors": [
     "Ryan Goce <ryan@saperium.com>",
     "Gabby Sanchez <gabby@saperium.com>",
@@ -44,6 +44,7 @@
     "bull": "^3.14.0",
     "debug": "3.1.0",
     "dotty": "0.0.2",
+    "js-priority-queue": "^0.1.5",
     "jsondate": "0.0.1",
     "lodash": "4.17.15",
     "mysql": "^2.18.1",

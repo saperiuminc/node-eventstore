@@ -14,4 +14,4 @@ do
   wait_for $host $port
 done
 
-node_modules/.bin/nodemon -e js,yaml --inspect=0.0.0.0:5858 --ignore 'spec/*/*.spec.js' ./bin/www
+node_modules/.bin/nodemon -e js,yaml --inspect=0.0.0.0:5858 --ignore 'spec/*/*.spec.js' --max-old-space-size=20 --expose-gc ./bin/www

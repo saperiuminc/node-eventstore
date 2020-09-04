@@ -30,7 +30,6 @@ module.exports = (function() {
 
     bluebird.promisifyAll(eventstore);
 
-
     const initialize = async function() {
         try {
             await eventstore.initAsync();
@@ -39,13 +38,17 @@ module.exports = (function() {
 
             // some dummy calls for testing
             // eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event, callback) => {
-            //     console.log('received event', event);
+            //     console.log('dummy onEventCallback received event', event);
             //     callback();
+            // }, (error) => {
+            //     console.error('onErrorCallback received error', error);
             // });
 
             // eventstore.subscribe('vehicle_6', 0, (err, event, callback) => {
-            //     console.log('received event', event);
+            //     console.log('vehicle_6 onEventCallback event', event);
             //     callback();
+            // }, (error) => {
+            //     console.error('onErrorCallback received error', error);
             // });
 
             // neeed to await the project call to initalize the playback list
