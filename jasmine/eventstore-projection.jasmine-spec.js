@@ -1462,7 +1462,7 @@ describe('eventstore-projection tests', () => {
 
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
                         const expectedQuery = {
-                            aggregate: projection.projectionId,
+                            aggregate: 'states',
                             context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-result`
                         }
@@ -1700,7 +1700,7 @@ describe('eventstore-projection tests', () => {
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
-                            aggregate: projection.projectionId,
+                            aggregate: 'states',
                             context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-${projection.query.context}-${projection.query.aggregate}-${expectedEventstoreEvent.aggregateId}-result`
                         }
@@ -1765,7 +1765,7 @@ describe('eventstore-projection tests', () => {
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
-                            aggregate: projection.projectionId,
+                            aggregate: 'states',
                             context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-${expectedEventstoreEvent.payload.payload.someField}-result`
                         }
@@ -1831,7 +1831,7 @@ describe('eventstore-projection tests', () => {
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
-                            aggregate: projection.projectionId,
+                            aggregate: 'states',
                             context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-result`
                         }
@@ -1907,7 +1907,7 @@ describe('eventstore-projection tests', () => {
                     esWithProjection.getLastEvent.and.callFake((query, cb) => {
                         // <projectionid>[-<context>][-<aggregate>]-<aggregateId></aggregateId>-result
                         const expectedQuery = {
-                            aggregate: projection.projectionId,
+                            aggregate: 'states',
                             context: options.stateContextName,
                             aggregateId: `${projection.projectionId}-result`
                         }
