@@ -48,13 +48,12 @@ function getSpecificStore(options) {
 
     if (!exists(dbPath)) {
         var errMsg = 'Implementation for db "' + options.type + '" does not exist!';
-        console.log(errMsg);
         debug(errMsg);
         throw new Error(errMsg);
     }
 
     try {
-        console.log('dbPath:', dbPath);
+        debug('dbPath:', dbPath);
         var db = require(dbPath);
         return db;
     } catch (err) {
@@ -68,7 +67,6 @@ function getSpecificStore(options) {
             var moduleName = err.message.substring(err.message.indexOf("'") + 1, err.message.lastIndexOf("'"));
             var msg = 'Please install module "' + moduleName +
                 '" to work with db implementation "' + options.type + '"!';
-            console.log(msg);
             debug(msg);
         }
 
@@ -125,7 +123,6 @@ const esFunction = function(options) {
 
     var eventstore = new Eventstore(options, new Store(options));
 
-    console.log('will setupNotifyPublish enableProjection: ' + options.enableProjection);
     if (options.enableProjection === true) {
         eventstore.setupNotifyPublish();
     }
