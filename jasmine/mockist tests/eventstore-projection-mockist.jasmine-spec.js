@@ -1,8 +1,8 @@
 
-let EventStoreWithProjection = require('../lib/eventstore-projections/eventstore-projection');
+let EventStoreWithProjection = require('../../lib/eventstore-projections/eventstore-projection');
 const mockery = require('mockery');
 mockery.enable();
-const StreamBuffer = require('../lib/eventStreamBuffer');
+const StreamBuffer = require('../../lib/eventStreamBuffer');
 
 
 xdescribe('eventstore-projection tests', () => {
