@@ -48,8 +48,4 @@ JobsManagerFake.prototype = {
     }
 };
 
-
-// await jobsManager.queueJob(job, {
-//     delay: delay
-// });
 module.exports = JobsManagerFake;

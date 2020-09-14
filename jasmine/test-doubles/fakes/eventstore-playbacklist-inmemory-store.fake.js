@@ -47,7 +47,6 @@ EventstorePlaybackListInMemoryStore.prototype = {
     },
 
     pollingGet: async function(listName, rowId, timeout) {
-
         const startTime = Date.now();
         let result = null;
         do {
