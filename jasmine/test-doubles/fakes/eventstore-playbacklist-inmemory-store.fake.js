@@ -9,6 +9,7 @@ EventstorePlaybackListInMemoryStore.prototype = {
     },
 
     add: async function(listName, rowId, revision, data, meta) {
+
         if (this._lists[listName].items[rowId]) {
             throw new Error('cannot add. rowId already exists');
         }
@@ -22,6 +23,7 @@ EventstorePlaybackListInMemoryStore.prototype = {
     },
 
     update: async function(listName, rowId, revision, data, meta) {
+        
         if (!this._lists[listName].items[rowId]) {
             throw new Error('cannot update. rowId does not exist');
         }
@@ -46,20 +48,29 @@ EventstorePlaybackListInMemoryStore.prototype = {
         return this._lists[listName].items[rowId];
     },
 
-    pollingGet: async function(listName, rowId, timeout) {
+    pollingGet: async function(listName, rowId, comparer, timeout) {
+        if (!comparer) {
+            comparer = () => false;
+        }
+
+        let delay = parseInt(timeout);
+        if (isNaN(delay)) {
+            delay = 1000;
+        }
+
         const startTime = Date.now();
         let result = null;
         do {
             result = this._lists[listName].items[rowId];
 
-            if (!result) {
+            if (!comparer(result)) {
                 // sleep every 10ms
                 await this._sleep(10);
             } else {
                 break;
             }
             
-        } while (Date.now() - startTime < timeout);
+        } while (Date.now() - startTime < delay);
 
         return result;
     },

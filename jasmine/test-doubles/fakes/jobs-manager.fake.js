@@ -41,7 +41,7 @@ JobsManagerFake.prototype = {
             });
         }
     },
-    destroy: function() {
+    reset: function() {
         // NOTE: simple destroy function just nullifies the private fields
         this._subscribers = null;
         this._jobs = null;

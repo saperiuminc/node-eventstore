@@ -1,5 +1,5 @@
 const Bluebird = require('bluebird');
-const EventstorePlaybackListStore = require('../lib/eventstore-projections/eventstore-playbacklist-mysql-store');
+const EventstorePlaybackListStore = require('../../lib/eventstore-projections/eventstore-playbacklist-mysql-store');
 const shortid = require('shortid');
 
 const mysqlOptions = {
@@ -23,8 +23,16 @@ const mysqlServer = (function() {
 
     return {
         up: async function() {
+            const command = `docker run --name eventstore_playbacklist_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.password} -e MYSQL_DATABASE=${mysqlOptions.database} -p ${mysqlOptions.port}:3306 -d mysql:5.7`;
+            const process = exec(command);
 
-            exec(`docker run --name eventstore_playbacklist_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.password} -e MYSQL_DATABASE=${mysqlOptions.database} -p ${mysqlOptions.port}:3306 -d mysql:5.7`);
+            // wait until process has exited
+            console.log('downloading mysql image or creating a container. waiting for child process to return an exit code');
+            do {
+                await sleepAsync(1000);
+            } while (process.exitCode == null);
+
+            console.log('child process exited with exit code: ', process.exitCode);
 
             console.info('waiting for mysql database to start...');
             let retries = 0;
@@ -72,7 +80,7 @@ describe('eventstore-playback-list-mysql-store tests', () => {
 
         await eventstorePlaybackListStore.init();
         done();
-    }, 20000);
+    }, 60000);
 
     beforeEach(async (done) => {
         let randomString = 'list_' + shortid.generate();
