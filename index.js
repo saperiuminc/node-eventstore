@@ -122,8 +122,6 @@ const esFunction = function(options) {
         });
 
         options.redis = redis;
-        options.jobsManager = jobsManager;
-        options.distributedLock = distributedLock;
     }
 
     if (options.listStore) {

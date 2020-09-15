@@ -1,8 +1,7 @@
-
-let EventStoreWithProjection = require('../../lib/eventstore-projections/eventstore-projection');
+let EventStoreWithProjection = require('../../../lib/eventstore-projections/eventstore-projection');
 const mockery = require('mockery');
 mockery.enable();
-const StreamBuffer = require('../../lib/eventStreamBuffer');
+const StreamBuffer = require('../../../lib/eventStreamBuffer');
 
 
 xdescribe('eventstore-projection tests', () => {
@@ -98,7 +97,7 @@ xdescribe('eventstore-projection tests', () => {
             getEventStreamResult.context = query.context;
             cb(null, getEventStreamResult);
         });
-        
+
         esWithProjection.getLastEventAsStream = jasmine.createSpy('getLastEventAsStream', esWithProjection.getLastEventAsStream);
         esWithProjection.getLastEventAsStream.and.callFake((query, cb) => {
             // console.log('common getLastEventAsStream');
@@ -106,11 +105,11 @@ xdescribe('eventstore-projection tests', () => {
         });
     });
 
-    describe('setupNotifyPubSub', () => {
+    xdescribe('setupNotifyPubSub', () => {
         it('should setup notify publish', () => {
             redisSub = jasmine.createSpyObj('redisSub', ['on', 'subscribe']);
             redisSub.on.and.callFake((event, cb) => {
-                if(event === 'ready') {
+                if (event === 'ready') {
                     cb();
                 } else {
                     const job = {
@@ -133,7 +132,7 @@ xdescribe('eventstore-projection tests', () => {
         it('should setup notify subscribe', () => {
             redisSub = jasmine.createSpyObj('redisSub', ['on', 'subscribe']);
             redisSub.on.and.callFake((event, cb) => {
-                if(event === 'ready') {
+                if (event === 'ready') {
                     cb();
                 } else {
                     const job = {
@@ -155,7 +154,7 @@ xdescribe('eventstore-projection tests', () => {
     });
 
     describe('project', () => {
-        describe('validating params and output', () => {
+        xdescribe('validating params and output', () => {
             it('should validate the required param projection', (done) => {
                 esWithProjection.project(null, function(error) {
                     expect(error.message).toEqual('projection is required');
@@ -263,7 +262,7 @@ xdescribe('eventstore-projection tests', () => {
             });
         })
 
-        describe('adding the projection to the projection stream storage', () => {
+        xdescribe('adding the projection to the projection stream storage', () => {
             it('should call Eventstore.getLastEventAsStream to get the latest stream storage of the projection', (done) => {
                 const query = {
                     context: 'the_context'
@@ -377,7 +376,7 @@ xdescribe('eventstore-projection tests', () => {
             });
         })
 
-        describe('ensuring that only one projection event is created if multiple instances are created', () => {
+        xdescribe('ensuring that only one projection event is created if multiple instances are created', () => {
             it('should call lock of the distributedLock', (done) => {
                 const query = {
                     context: 'the_context'
@@ -454,7 +453,7 @@ xdescribe('eventstore-projection tests', () => {
         })
 
         describe('queue a job for the projection', () => {
-            it('should call jobsManager.queueJob if jobsManager is passed as an option', (done) => {
+            xit('should call jobsManager.queueJob if jobsManager is passed as an option', (done) => {
                 const query = {
                     context: 'the_context'
                 };
@@ -471,7 +470,9 @@ xdescribe('eventstore-projection tests', () => {
                 const jobParams = {
                     id: projectionKey,
                     group: `projection-group:${options.projectionGroup}`,
-                    payload: { projection: projection }
+                    payload: {
+                        projection: projection
+                    }
                 };
 
                 const jobOptions = {
@@ -524,7 +525,9 @@ xdescribe('eventstore-projection tests', () => {
                 const jobParams = {
                     id: projectionKey,
                     group: `projection-group:${options.projectionGroup}`,
-                    payload: { projection: projection }
+                    payload: {
+                        projection: projection
+                    }
                 };
 
                 const jobOptions = {
@@ -565,19 +568,18 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        playbackList: {
-                        }
+                        playbackList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = null;
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore must be provided in the options');
                         done();
@@ -588,16 +590,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        playbackList: {
-                        }
+                        playbackList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         port: 'port',
@@ -605,7 +606,7 @@ xdescribe('eventstore-projection tests', () => {
                         user: 'user',
                         password: 'password'
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.host must be provided in the options');
                         done();
@@ -616,16 +617,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        playbackList: {
-                        }
+                        playbackList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         host: 'host',
@@ -633,7 +633,7 @@ xdescribe('eventstore-projection tests', () => {
                         user: 'user',
                         password: 'password'
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.port must be provided in the options');
                         done();
@@ -644,16 +644,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        playbackList: {
-                        }
+                        playbackList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         host: 'host',
@@ -661,7 +660,7 @@ xdescribe('eventstore-projection tests', () => {
                         user: 'user',
                         password: 'password'
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.database must be provided in the options');
                         done();
@@ -672,16 +671,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        playbackList: {
-                        }
+                        playbackList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         host: 'host',
@@ -689,7 +687,7 @@ xdescribe('eventstore-projection tests', () => {
                         database: 'database',
                         password: 'password'
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.user must be provided in the options');
                         done();
@@ -700,16 +698,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        playbackList: {
-                        }
+                        playbackList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         host: 'host',
@@ -717,14 +714,14 @@ xdescribe('eventstore-projection tests', () => {
                         database: 'database',
                         user: 'user',
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.password must be provided in the options');
                         done();
                     });
                 });
             });
-            
+
             it('should create and init the playback list correctly', (done) => {
                 const query = {
                     context: 'the_context'
@@ -742,9 +739,10 @@ xdescribe('eventstore-projection tests', () => {
                             type: 'string'
                         }],
                         secondaryKeys: {
-                            idx_field_name: [
-                                { name: 'field_name', sort: 'ASC'}
-                            ]
+                            idx_field_name: [{
+                                name: 'field_name',
+                                sort: 'ASC'
+                            }]
                         }
                     }
                 };
@@ -773,19 +771,18 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        stateList: {
-                        }
+                        stateList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = null;
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore must be provided in the options');
                         done();
@@ -796,16 +793,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        stateList: {
-                        }
+                        stateList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         port: 'port',
@@ -813,7 +809,7 @@ xdescribe('eventstore-projection tests', () => {
                         user: 'user',
                         password: 'password'
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.host must be provided in the options');
                         done();
@@ -824,16 +820,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        stateList: {
-                        }
+                        stateList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         host: 'host',
@@ -841,7 +836,7 @@ xdescribe('eventstore-projection tests', () => {
                         user: 'user',
                         password: 'password'
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.port must be provided in the options');
                         done();
@@ -852,16 +847,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        stateList: {
-                        }
+                        stateList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         host: 'host',
@@ -869,7 +863,7 @@ xdescribe('eventstore-projection tests', () => {
                         user: 'user',
                         password: 'password'
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.database must be provided in the options');
                         done();
@@ -880,16 +874,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        stateList: {
-                        }
+                        stateList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         host: 'host',
@@ -897,7 +890,7 @@ xdescribe('eventstore-projection tests', () => {
                         database: 'database',
                         password: 'password'
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.user must be provided in the options');
                         done();
@@ -908,16 +901,15 @@ xdescribe('eventstore-projection tests', () => {
                     const query = {
                         context: 'the_context'
                     };
-    
+
                     const projectionId = 'the_projection_id';
-    
+
                     const projection = {
                         projectionId: projectionId,
                         query: query,
-                        stateList: {
-                        }
+                        stateList: {}
                     };
-    
+
                     // NOTE: just removing the option to test
                     esWithProjection.options.listStore = {
                         host: 'host',
@@ -925,14 +917,14 @@ xdescribe('eventstore-projection tests', () => {
                         database: 'database',
                         user: 'user',
                     };
-    
+
                     esWithProjection.project(projection, function(error) {
                         expect(error.message).toEqual('listStore.password must be provided in the options');
                         done();
                     });
                 });
             });
-            
+
             it('should create and init the stateList list correctly', (done) => {
                 const query = {
                     context: 'the_context'
@@ -1054,15 +1046,17 @@ xdescribe('eventstore-projection tests', () => {
                 };
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', {
+                        projection: projection
+                    }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                 let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    if(firstLoop == 0) {
-                        firstLoop+= 1;
+                    if (firstLoop == 0) {
+                        firstLoop += 1;
                         cb(null, [expectedEventstoreEvent]);
                     }
                     cb(null, []);
@@ -1112,15 +1106,17 @@ xdescribe('eventstore-projection tests', () => {
                 };
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', {
+                        projection: projection
+                    }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                 let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    if(firstLoop == 0) {
-                        firstLoop+= 1;
+                    if (firstLoop == 0) {
+                        firstLoop += 1;
                         cb(null, eventstoreEvents);
                     }
                     cb(null, []);
@@ -1171,15 +1167,17 @@ xdescribe('eventstore-projection tests', () => {
                 };
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', {
+                        projection: projection
+                    }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                 let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    if(firstLoop == 0) {
-                        firstLoop+= 1;
+                    if (firstLoop == 0) {
+                        firstLoop += 1;
                         cb(null, eventstoreEvents);
                     }
                     cb(null, []);
@@ -1234,15 +1232,17 @@ xdescribe('eventstore-projection tests', () => {
                 };
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', {
+                        projection: projection
+                    }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                 let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    if(firstLoop == 0) {
-                        firstLoop+= 1;
+                    if (firstLoop == 0) {
+                        firstLoop += 1;
                         cb(null, eventstoreEvents);
                     }
                     cb(null, []);
@@ -1279,9 +1279,9 @@ xdescribe('eventstore-projection tests', () => {
 
                 let addEventForErrorStreamCalled = false;
                 getEventStreamResult.addEvent.and.callFake((event) => {
-                    if (getEventStreamResult.context == 'projection-errors' && 
-                    getEventStreamResult.aggregate == 'projectionId' && 
-                    getEventStreamResult.aggregateId == 'projectionId-errors') {
+                    if (getEventStreamResult.context == 'projection-errors' &&
+                        getEventStreamResult.aggregate == 'projectionId' &&
+                        getEventStreamResult.aggregateId == 'projectionId-errors') {
                         addEventForErrorStreamCalled = true;
                     }
                 });
@@ -1293,15 +1293,17 @@ xdescribe('eventstore-projection tests', () => {
                 });
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', {
+                        projection: projection
+                    }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                 let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    if(firstLoop == 0) {
-                        firstLoop+= 1;
+                    if (firstLoop == 0) {
+                        firstLoop += 1;
                         cb(null, eventstoreEvents);
                     }
                     cb(null, []);
@@ -1352,23 +1354,25 @@ xdescribe('eventstore-projection tests', () => {
 
                 let addEventForErrorStreamCalled = false;
                 getEventStreamResult.addEvent.and.callFake((event) => {
-                    if (getEventStreamResult.context == 'projection-errors' && 
-                    getEventStreamResult.aggregate == 'projectionId' && 
-                    getEventStreamResult.aggregateId == 'projectionId-errors') {
+                    if (getEventStreamResult.context == 'projection-errors' &&
+                        getEventStreamResult.aggregate == 'projectionId' &&
+                        getEventStreamResult.aggregateId == 'projectionId-errors') {
                         throw new Error('saving in error stream');
                     }
                 });
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                    onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                    onProcessJob.call(owner, 'jobId', {
+                        projection: projection
+                    }, {}, (error, result) => {});
                     return Promise.resolve();
                 });
 
                 esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                 let firstLoop = 0;
                 esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                    if(firstLoop == 0) {
-                        firstLoop+= 1;
+                    if (firstLoop == 0) {
+                        firstLoop += 1;
                         cb(null, eventstoreEvents);
                     }
                     cb(null, []);
@@ -1389,14 +1393,16 @@ xdescribe('eventstore-projection tests', () => {
                     playbackInterface: {}
                 };
 
-                
+
                 spyOn(esWithProjection, '_waitUntilNotifyProject').and.callFake(async (jobId, query, delay) => {
                     return "token";
                 });
 
                 jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
                     console.log('test 456');
-                    onProcessCompletedJob.call(owner, 'jobId', { projection: projection });
+                    onProcessCompletedJob.call(owner, 'jobId', {
+                        projection: projection
+                    });
                     return Promise.resolve({});
                 });
 
@@ -1404,11 +1410,16 @@ xdescribe('eventstore-projection tests', () => {
                 let counter = 0;
                 jobsManager.queueJob.and.callFake((job, opts) => {
                     counter += 1;
-                    if(counter == 2) {
+                    if (counter == 2) {
                         const jobExpected = {
                             id: "projection-group:test:projection:projectionId",
                             group: "projection-group:test",
-                            payload: { projection: projection, _meta: { token: "token" } }
+                            payload: {
+                                projection: projection,
+                                _meta: {
+                                    token: "token"
+                                }
+                            }
                         };
                         expect(job).toEqual(jobExpected);
                         done();
@@ -1446,15 +1457,17 @@ xdescribe('eventstore-projection tests', () => {
                     };
 
                     jobsManager.processJobGroup.and.callFake(async (owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -1504,15 +1517,17 @@ xdescribe('eventstore-projection tests', () => {
                     };
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -1564,15 +1579,17 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -1622,15 +1639,17 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -1683,15 +1702,17 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -1748,15 +1769,17 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -1814,15 +1837,17 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -1890,15 +1915,17 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent, expectedEventstoreEvent2]);
                         }
                         cb(null, []);
@@ -1959,15 +1986,17 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -2026,7 +2055,9 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
 
                     });
@@ -2034,8 +2065,8 @@ xdescribe('eventstore-projection tests', () => {
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -2109,7 +2140,9 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
 
                     });
@@ -2117,8 +2150,8 @@ xdescribe('eventstore-projection tests', () => {
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -2193,7 +2226,9 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
 
                     });
@@ -2201,8 +2236,8 @@ xdescribe('eventstore-projection tests', () => {
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -2222,7 +2257,9 @@ xdescribe('eventstore-projection tests', () => {
                     const projectionStream = jasmine.createSpyObj('projectionStream', ['addEvent', 'commit']);
                     projectionStream.commit.and.callFake((cb) => {
                         expect(projectionStream.addEvent).toHaveBeenCalledWith({
-                            aggregates: [{ aggregateId: expectedEventstoreEvent.aggregateId }],
+                            aggregates: [{
+                                aggregateId: expectedEventstoreEvent.aggregateId
+                            }],
                             _meta: {
                                 fromEvent: expectedEventstoreEvent
                             }
@@ -2283,15 +2320,17 @@ xdescribe('eventstore-projection tests', () => {
                     }
 
                     jobsManager.processJobGroup.and.callFake((owner, jobGroup, onProcessJob, onProcessCompletedJob) => {
-                        onProcessJob.call(owner, 'jobId', { projection: projection }, {}, (error, result) => {});
+                        onProcessJob.call(owner, 'jobId', {
+                            projection: projection
+                        }, {}, (error, result) => {});
                         return Promise.resolve();
                     });
 
                     esWithProjection.getEvents = jasmine.createSpy('getEvents', esWithProjection.getEvents);
                     let firstLoop = 0;
                     esWithProjection.getEvents.and.callFake((query, offset, limit, cb) => {
-                        if(firstLoop == 0) {
-                            firstLoop+= 1;
+                        if (firstLoop == 0) {
+                            firstLoop += 1;
                             cb(null, [expectedEventstoreEvent]);
                         }
                         cb(null, []);
@@ -2408,7 +2447,7 @@ xdescribe('eventstore-projection tests', () => {
                 try {
                     const token = esWithProjection.subscribe({
                         streamId: 'stream_id'
-                    }, 0, function(){}, function(){});
+                    }, 0, function() {}, function() {});
                     expect(token).toBeInstanceOf(String);
                     done();
                 } catch (error) {
@@ -2464,11 +2503,13 @@ xdescribe('eventstore-projection tests', () => {
                 // spyOn(esWithProjection, '_onStreamBufferEventOffered');
                 spyOn(esWithProjection, '_getChannel').and.returnValue(mockChannel);
                 spyOn(esWithProjection, '_getCurrentStreamBufferBucket').and.returnValue(mockBucket);
-                esWithProjection.subscribe(mockQuery, 0, function(){}, function(){});
+                esWithProjection.subscribe(mockQuery, 0, function() {}, function() {});
 
                 const streamBuffer = esWithProjection._streamBuffers[mockChannel];
                 expect(streamBuffer.es).toEqual(esWithProjection);
-                expect(streamBuffer.query).toEqual({ aggregateId: mockQuery });
+                expect(streamBuffer.query).toEqual({
+                    aggregateId: mockQuery
+                });
                 expect(streamBuffer.channel).toEqual(mockChannel);
                 expect(streamBuffer.bucket).toEqual(mockBucket);
                 expect(streamBuffer.bufferCapacity).toEqual(10);
@@ -2507,7 +2548,7 @@ xdescribe('eventstore-projection tests', () => {
                 spyOn(esWithProjection, '_getCurrentStreamBufferBucket').and.returnValue(mockBucket);
                 esWithProjection.subscribe(mockQuery, 0);
 
-                
+
                 expect(esWithProjection._streamBuffers[mockChannel]).toBeTruthy();
                 expect(esWithProjection._streamBufferBuckets[mockBucket][mockChannel]).toBeTruthy();
                 expect(esWithProjection._streamBuffers[mockChannel]).toBeTruthy();
@@ -2582,9 +2623,10 @@ xdescribe('eventstore-projection tests', () => {
                         type: 'string'
                     }],
                     secondaryKeys: {
-                        idx_field_name: [
-                            { name: 'field_name', sort: 'ASC'}
-                        ]
+                        idx_field_name: [{
+                            name: 'field_name',
+                            sort: 'ASC'
+                        }]
                     }
                 }
             };
@@ -2615,9 +2657,10 @@ xdescribe('eventstore-projection tests', () => {
                         type: 'string'
                     }],
                     secondaryKeys: {
-                        idx_field_name: [
-                            { name: 'field_name', sort: 'ASC'}
-                        ]
+                        idx_field_name: [{
+                            name: 'field_name',
+                            sort: 'ASC'
+                        }]
                     }
                 }
             };
@@ -2650,9 +2693,10 @@ xdescribe('eventstore-projection tests', () => {
                         type: 'string'
                     }],
                     secondaryKeys: {
-                        idx_field_name: [
-                            { name: 'field_name', sort: 'ASC'}
-                        ]
+                        idx_field_name: [{
+                            name: 'field_name',
+                            sort: 'ASC'
+                        }]
                     }
                 }
             };
@@ -2683,9 +2727,10 @@ xdescribe('eventstore-projection tests', () => {
                         type: 'string'
                     }],
                     secondaryKeys: {
-                        idx_field_name: [
-                            { name: 'field_name', sort: 'ASC'}
-                        ]
+                        idx_field_name: [{
+                            name: 'field_name',
+                            sort: 'ASC'
+                        }]
                     }
                 }
             };
@@ -2870,7 +2915,7 @@ xdescribe('eventstore-projection tests', () => {
             });
         });
     });
-    
+
     // TODO: Review tests - should not access private methods and variables.
     xdescribe('_onStreamBufferEventOffered', () => {
         let mockBucket;
@@ -2959,8 +3004,12 @@ xdescribe('eventstore-projection tests', () => {
             };
 
             esWithProjection._cleanOldestStreamBufferBucket();
-            expect(esWithProjection._streamBufferLRUCleaner.push).toHaveBeenCalledWith({ channel: 'channel0' });
-            expect(esWithProjection._streamBufferLRUCleaner.push).toHaveBeenCalledWith({ channel: 'channel5' });
+            expect(esWithProjection._streamBufferLRUCleaner.push).toHaveBeenCalledWith({
+                channel: 'channel0'
+            });
+            expect(esWithProjection._streamBufferLRUCleaner.push).toHaveBeenCalledWith({
+                channel: 'channel5'
+            });
             expect(esWithProjection._streamBufferBuckets['2020-07-28T12']).toBeFalsy();
         });
     });
