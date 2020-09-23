@@ -16,7 +16,7 @@ JobsManagerFake.prototype = {
                 options: options
             };
     
-            const delay = options.delay || 0;
+            const delay = options.delay || 100;
             setTimeout(() => {
                 _.forEach(this._subscribers, async (subscriber) => {
                     if (subscriber.jobGroup == job.group) {

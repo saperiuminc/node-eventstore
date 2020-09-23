@@ -25,7 +25,7 @@ describe('eventstore-projection tests', () => {
 
         options = {
             pollingMaxRevisions: 10,
-            pollingTimeout: 100, // so that polling is immediate
+            pollingTimeout: 10, // so that polling is immediate
             eventCallbackTimeout: 0,
             projectionGroup: shortid.generate(), // NOTE: different projection group per test. still need to investigate why having the same projection group fails the test
             enableProjection: true,
