@@ -823,7 +823,7 @@ describe('eventstore-projection tests', () => {
 
                 // TODO: need to stub the implementation of the in-memory eventstore to add the filter by events
                 // currently the test is a spy that expects the method to have been called with
-                fit('should filter the getEvents call', async (done) => {
+                it('should filter the getEvents call', async (done) => {
                     const stream = await esWithProjection.getEventStreamAsync({
                         aggregateId: 'vehicle_1',
                         aggregate: 'vehicle', // optional
