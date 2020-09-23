@@ -3,9 +3,9 @@ const mockery = require('mockery');
 mockery.enable();
 const _ = require('lodash');
 
-const EventstorePlaybackList = require('../lib/eventstore-projections/eventstore-playback-list');
+const EventstorePlaybackList = require('../../lib/eventstore-projections/eventstore-playback-list');
 
-describe('eventstore-playback-list tests', () => {
+xdescribe('eventstore-playback-list tests', () => {
     let eventstorePlaybackList;
     let options;
     let mysql;

@@ -1,4 +1,4 @@
-var eventstore = require('../..'),
+var eventstore = require('../../..'),
     uuid = require('uuid').v4;
 
 const mysql = require('mysql');

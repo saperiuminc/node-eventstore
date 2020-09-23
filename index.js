@@ -9,7 +9,7 @@
  * @property {Number} pollingMaxRevisions maximum number of revisions to get for every polling interval
  * @property {Number} pollingTimeout timeout in milliseconds for the polling interval
  * @property {String} projectionGroup name of the projectionGroup if using projection
- * @property {PlaybackListStoreConfig} playbackListStore
+ * @property {PlaybackListStoreConfig} listStore
  */
 
 var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),
@@ -89,6 +89,11 @@ const esFunction = function(options) {
         throw err;
     }
 
+    // TODO: move dependencies out of the options and move them as a parameter in the constructor of Eventstore
+    let jobsManager;
+    let distributedLock;
+    let playbackListStore;
+    let playbackListViewStore;
     if (options.redisConfig) {
         var Redis = require("ioredis");
         const redis = new Redis({
@@ -106,22 +111,29 @@ const esFunction = function(options) {
         });
 
         const DistributedLock = require('./lib/eventstore-projections/distributed-lock');
-        const distributedLock = new DistributedLock({
+        distributedLock = new DistributedLock({
             redis: redLock
         });
 
         const JobsManager = require('./lib/eventstore-projections/jobs-manager');
-        const jobsManager = new JobsManager({
+        jobsManager = new JobsManager({
             BullQueue: require('bull'),
             redis: redis
         });
 
         options.redis = redis;
-        options.jobsManager = jobsManager;
-        options.distributedLock = distributedLock;
     }
 
-    var eventstore = new Eventstore(options, new Store(options));
+    if (options.listStore) {
+        // NOTE: we only have one store as of the moment. we can add more playbacklist stores in the future and pass it to the eventstore later
+        // based on the listStore configuration
+        // TODO: add base class for playbackliststore when there is a need to create another store in the future
+        const EventstorePlaybackListMySqlStore = require('./lib/eventstore-projections/eventstore-playbacklist-mysql-store');
+        playbackListStore = new EventstorePlaybackListMySqlStore(options.listStore);
+        playbackListStore.init(options.listStore);
+    }
+
+    var eventstore = new Eventstore(options, new Store(options), jobsManager, distributedLock, playbackListStore, playbackListViewStore);
 
     if (options.enableProjection === true) {
         eventstore.setupNotifyPublish();
