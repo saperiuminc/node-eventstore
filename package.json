@@ -76,6 +76,7 @@
     "test:extensions": "npm run test:extensions:lint && npm run test:extensions:unit",
     "test:extensions:unit": "jasmine jasmine/*.jasmine-spec.js",
     "test:extensions:coverage": "nyc --reporter=lcov npm run test:extensions:unit",
+    "test:extensions:integration:narrow": "jasmine jasmine/integration-narrow/*.jasmine-integration-spec.js",
     "test:extensions:integration": "jasmine jasmine/*/*.jasmine-integration-spec.js",
     "test:extensions:lint": "node node_modules/eslint/bin/eslint ./lib/*",
     "test:extensions:lintfix": "node node_modules/eslint/bin/eslint ./lib/* --fix"
