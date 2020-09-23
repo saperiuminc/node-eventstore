@@ -25,7 +25,7 @@ describe('eventstore-projection tests', () => {
 
         options = {
             pollingMaxRevisions: 10,
-            pollingTimeout: 10, // so that polling is immediate
+            pollingTimeout: 100, // so that polling is immediate
             eventCallbackTimeout: 0,
             projectionGroup: shortid.generate(), // NOTE: different projection group per test. still need to investigate why having the same projection group fails the test
             enableProjection: true,
@@ -195,7 +195,7 @@ describe('eventstore-projection tests', () => {
                 context: 'the_context'
             };
 
-            const projectionId = 'the_projection_id';
+            const projectionId = shortid.generate();
 
             const projection = {
                 projectionId: projectionId,
@@ -220,7 +220,7 @@ describe('eventstore-projection tests', () => {
                     context: 'the_context'
                 };
 
-                const projectionId = 'the_projection_id';
+                const projectionId = shortid.generate();
 
                 const lockKey = `projection-group:${options.projectionGroup}:projection:${projectionId}`;
                 esWithProjection.project({
@@ -240,7 +240,7 @@ describe('eventstore-projection tests', () => {
                     context: 'the_context'
                 };
 
-                const projectionId = 'the_projection_id';
+                const projectionId = shortid.generate();
 
                 esWithProjection.project({
                     projectionId: projectionId,
@@ -257,7 +257,7 @@ describe('eventstore-projection tests', () => {
                     context: 'the_context'
                 };
 
-                const projectionId = 'the_projection_id';
+                const projectionId = shortid.generate();
 
                 var queryProjection = {
                     aggregateId: `projections:${projectionId}`,
@@ -282,7 +282,7 @@ describe('eventstore-projection tests', () => {
             let projection;
             describe('playbacklist operations', () => {
                 beforeEach(async (done) => {
-                    const projectionId = 'the_projection_id';
+                    const projectionId = shortid.generate();
                     // arrange 
                     projection = {
                         projectionId: projectionId,
@@ -483,7 +483,7 @@ describe('eventstore-projection tests', () => {
 
             describe('emit', () => {
                 beforeEach(async (done) => {
-                    const projectionId = 'the_projection_id';
+                    const projectionId = shortid.generate();
                     // arrange 
                     projection = {
                         projectionId: projectionId,
@@ -551,7 +551,7 @@ describe('eventstore-projection tests', () => {
 
             describe('outputting states', () => {
                 beforeEach(async (done) => {
-                    const projectionId = 'the_projection_id';
+                    const projectionId = shortid.generate();
                     // arrange 
                     projection = {
                         projectionId: projectionId,
@@ -616,7 +616,7 @@ describe('eventstore-projection tests', () => {
                     const stateStream = await esWithProjection.pollingGetEventStreamAsync({
                         context: 'vehicle',
                         aggregate: 'states',
-                        aggregateId: 'the_projection_id-result'
+                        aggregateId: `${projection.projectionId}-result`
 
                     }, (stream) => stream.events.length > 0, 1000);
 
@@ -679,7 +679,7 @@ describe('eventstore-projection tests', () => {
                         const stateStream = await esWithProjection.pollingGetEventStreamAsync({
                             context: 'vehicle',
                             aggregate: 'states',
-                            aggregateId: `the_projection_id-vehicle-vehicle-vehicle_${index}-result`
+                            aggregateId: `${projection.projectionId}-vehicle-vehicle-vehicle_${index}-result`
     
                         }, (stream) => stream.events.length > 0, 1000);
     
@@ -749,9 +749,9 @@ describe('eventstore-projection tests', () => {
                         const stateStream = await esWithProjection.pollingGetEventStreamAsync({
                             context: 'vehicle',
                             aggregate: 'states',
-                            aggregateId: `the_projection_id-vehicle_${index}-result`
+                            aggregateId: `${projection.projectionId}-vehicle_${index}-result`
     
-                        }, (stream) => stream.events.length > 0, 1000);
+                        }, (stream) => stream.events.length > 0, 10000);
     
                         const expectedState = {
                             name: 'vehicle_created',
@@ -776,7 +776,7 @@ describe('eventstore-projection tests', () => {
             // will be in the mysql store only
             xdescribe('filtering projections by events', () => {
                 beforeEach(async (done) => {
-                    const projectionId = 'the_projection_id';
+                    const projectionId = shortid.generate();
                     // arrange 
                     projection = {
                         projectionId: projectionId,
@@ -941,5 +941,12 @@ describe('eventstore-projection tests', () => {
                 });
             });
         });
+    })
+
+    afterEach((done) => {
+        // jobsManager is polling so we need to stop the polling for each it test
+        jobsManager.reset();
+        playbackListStore.reset();
+        done();
     })
 })

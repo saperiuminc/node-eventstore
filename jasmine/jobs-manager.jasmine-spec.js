@@ -306,7 +306,7 @@ describe('jobs-manager tests', () => {
                 const owner = this;
                 await jobsManager.processJobGroup(owner, job.group, onProcessJob, onCompletedJob);
 
-                expect(queueInstance.process).toHaveBeenCalledWith(1, jasmine.any(Function));
+                expect(queueInstance.process).toHaveBeenCalledWith(20, jasmine.any(Function));
                 done();
             })
 
