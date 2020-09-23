@@ -22,7 +22,7 @@ module.exports = (function() {
         }, // required
         enableProjection: true,
         eventCallbackTimeout: 1000,
-        pollingTimeout: 1000, // optional,
+        pollingTimeout: 10000, // optional,
         pollingMaxRevisions: 5,
         errorMaxRetryCount: 2,
         errorRetryExponent: 2

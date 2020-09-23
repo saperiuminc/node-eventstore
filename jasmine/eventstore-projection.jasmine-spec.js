@@ -771,6 +771,86 @@ describe('eventstore-projection tests', () => {
                 })
             
             })
+            
+            // TODO: how to get stub the implementation of in memory getEvents. currently the test 
+            // will be in the mysql store only
+            xdescribe('filtering projections by events', () => {
+                beforeEach(async (done) => {
+                    const projectionId = 'the_projection_id';
+                    // arrange 
+                    projection = {
+                        projectionId: projectionId,
+                        query: {
+                            context: 'vehicle',
+                            events: ['vehicle_listed']
+                        },
+                        playbackInterface: {
+                            vehicle_listed: function(state, event, funcs, done) {
+                                const targetQuery = {
+                                    context: 'auction',
+                                    aggregate: 'vehicle',
+                                    aggregateId: event.aggregateId
+                                };
+
+                                funcs.emit(targetQuery, event.payload, done);
+                            }
+                        },
+                        playbackList: {
+                            name: 'vehicle_list',
+                            fields: [{
+                                name: 'vehicleId',
+                                type: 'string'
+                            }],
+                            secondaryKeys: {
+                                idx_vehicleId: [{
+                                    name: 'vehicleId',
+                                    sort: 'ASC'
+                                }]
+                            }
+                        },
+                        outputState: 'true',
+                        partitionBy: ''
+                    };
+                    await esWithProjection.projectAsync(projection);
+                    await esWithProjection.startAllProjections();
+
+                    done();
+                })
+
+                it('should save to the target query', async (done) => {
+                    const stream = await esWithProjection.getEventStreamAsync({
+                        aggregateId: 'vehicle_1',
+                        aggregate: 'vehicle', // optional
+                        context: 'vehicle' // optional
+                    });
+
+                    stream.addEvent({
+                        name: 'vehicle_listed',
+                        payload: {
+                            vehicleId: 'vehicle_1'
+                        }
+                    });
+
+                    stream.addEvent({
+                        name: 'vehicle_unlisted',
+                        payload: {
+                            vehicleId: 'vehicle_1'
+                        }
+                    });
+
+                    stream.commit();
+
+                    const newStream = await esWithProjection.pollingGetEventStreamAsync({
+                        aggregateId: 'vehicle_1',
+                        aggregate: 'vehicle', // optional
+                        context: 'vehicle' // optional
+                    }, (stream) => stream.events.length > 0, 1000);
+
+                    // should only get 1 event which is vehicle_listed
+                    expect(newStream.events.length).toEqual(1);
+                    done();
+                });
+            })
         });
 
         describe('subscribe', () => {

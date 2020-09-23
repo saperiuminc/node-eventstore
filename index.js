@@ -9,6 +9,7 @@
  * @property {Number} pollingMaxRevisions maximum number of revisions to get for every polling interval
  * @property {Number} pollingTimeout timeout in milliseconds for the polling interval
  * @property {String} projectionGroup name of the projectionGroup if using projection
+ * @property {Number} concurrentProjectionGroup number of concurrent running projections per projectionGroup
  * @property {PlaybackListStoreConfig} listStore
  */
 
@@ -118,7 +119,8 @@ const esFunction = function(options) {
         const JobsManager = require('./lib/eventstore-projections/jobs-manager');
         jobsManager = new JobsManager({
             BullQueue: require('bull'),
-            redis: redis
+            redis: redis,
+            concurrency: options.concurrentProjectionGroup
         });
 
         options.redis = redis;
