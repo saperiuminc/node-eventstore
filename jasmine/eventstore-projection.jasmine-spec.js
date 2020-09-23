@@ -18,6 +18,7 @@ describe('eventstore-projection tests', () => {
 
 
     beforeEach((done) => {
+        // const InMemoryStore = require('./test-doubles/fakes/eventstore-inmemory-store.fake');
         const InMemoryStore = require('../lib/databases/inmemory');
         const JobsManager = require('./test-doubles/fakes/jobs-manager.fake');
         const EventstorePlaybackListInMemoryStore = require('./test-doubles/fakes/eventstore-playbacklist-inmemory-store.fake');
@@ -40,6 +41,9 @@ describe('eventstore-projection tests', () => {
         };
 
         eventsDataStore = new InMemoryStore(options);
+
+        // TODO: move InMemoryStore to the test-doubles so that it is
+        
         jobsManager = new JobsManager();
         playbackListStore = new EventstorePlaybackListInMemoryStore();
         distributedLock = DistributedLock();
@@ -634,7 +638,7 @@ describe('eventstore-projection tests', () => {
 
                     done();
                 })
-                
+
                 it('should create one state for each stream if partition is set to stream', async (done) => {
                     projection.partitionBy = 'stream';
                     await esWithProjection.projectAsync(projection);
@@ -652,17 +656,17 @@ describe('eventstore-projection tests', () => {
                                 mileage: 12345
                             }
                         };
-    
+
                         const stream = await esWithProjection.getEventStreamAsync({
                             aggregateId: `vehicle_${index}`,
                             aggregate: 'vehicle', // optional
                             context: 'vehicle' // optional
                         });
-    
+
                         stream.addEvent(event);
                         stream.commit();
                     }
-                    
+
 
                     for (let index = 1; index <= numberOfCarsToExpect; index++) {
                         const event = {
@@ -680,9 +684,9 @@ describe('eventstore-projection tests', () => {
                             context: 'vehicle',
                             aggregate: 'states',
                             aggregateId: `${projection.projectionId}-vehicle-vehicle-vehicle_${index}-result`
-    
+
                         }, (stream) => stream.events.length > 0, 1000);
-    
+
                         const expectedState = {
                             name: 'vehicle_created',
                             payload: {
@@ -695,11 +699,11 @@ describe('eventstore-projection tests', () => {
                         }
                         expect(expectedState).toEqual(event);
                     }
-                    
+
 
                     done();
                 })
-            
+
                 it('should create a state for each unique id returned by partitionBy function', async (done) => {
                     projection.partitionBy = (event) => {
                         console.log(event);
@@ -720,7 +724,7 @@ describe('eventstore-projection tests', () => {
                                 mileage: 12345
                             }
                         };
-    
+
                         const stream = await esWithProjection.getEventStreamAsync({
                             aggregateId: `vehicle_${index}`,
                             aggregate: 'vehicle', // optional
@@ -728,11 +732,11 @@ describe('eventstore-projection tests', () => {
                         });
 
                         BlueBird.promisifyAll(stream);
-    
+
                         stream.addEvent(event);
                         await stream.commitAsync();
                     }
-                    
+
 
                     for (let index = 1; index <= numberOfCarsToExpect; index++) {
                         const event = {
@@ -750,9 +754,9 @@ describe('eventstore-projection tests', () => {
                             context: 'vehicle',
                             aggregate: 'states',
                             aggregateId: `${projection.projectionId}-vehicle_${index}-result`
-    
+
                         }, (stream) => stream.events.length > 0, 10000);
-    
+
                         const expectedState = {
                             name: 'vehicle_created',
                             payload: {
@@ -765,13 +769,13 @@ describe('eventstore-projection tests', () => {
                         }
                         expect(expectedState).toEqual(event);
                     }
-                    
+
 
                     done();
                 })
-            
+
             })
-            
+
             // TODO: how to get stub the implementation of in memory getEvents. currently the test 
             // will be in the mysql store only
             xdescribe('filtering projections by events', () => {
