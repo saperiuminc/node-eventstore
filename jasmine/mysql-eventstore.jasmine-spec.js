@@ -2,7 +2,8 @@ const MysqlEventStore = require('../lib/databases/mysql');
 const EventStoreDuplicateError = require('../lib/databases/errors/EventStoreDuplicateError');
 const _ = require('lodash');
 
-describe('mysql-eventstore', () => {
+// TODO: will change to a narrow integration test 
+xdescribe('mysql-eventstore', () => {
     let mockOptions;
     const mockError = new Error('Mock Error');
     let mockMysql;
