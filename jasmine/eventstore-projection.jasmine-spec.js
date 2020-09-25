@@ -302,7 +302,9 @@ describe('eventstore-projection tests', () => {
                                         year: eventPayload.year,
                                         make: eventPayload.make,
                                         model: eventPayload.model,
-                                        mileage: eventPayload.mileage
+                                        mileage: eventPayload.mileage,
+                                        color: null,
+                                        updatedAt: undefined
                                     };
                                     playbackList.add(event.aggregateId, event.streamRevision, data, {}, function(err) {
                                         done();
@@ -314,7 +316,9 @@ describe('eventstore-projection tests', () => {
                                     playbackList.get(event.aggregateId, function(err, oldData) {
                                         const eventPayload = event.payload.payload;
                                         const newData = {
-                                            reservePrice: eventPayload.reservePrice
+                                            reservePrice: eventPayload.reservePrice,
+                                            color: null,
+                                            startingBid: null
                                         };
 
                                         playbackList.update(event.aggregateId, event.streamRevision, oldData.data, newData, {}, done);
