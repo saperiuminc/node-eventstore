@@ -120,6 +120,9 @@ module.exports = (function() {
                     fields: [{
                         name: 'vehicleId',
                         type: 'string'
+                    }, {
+                        name: 'spread',
+                        type: 'decimal'
                     }],
                     secondaryKeys: {
                         idx_vehicleId: [{
