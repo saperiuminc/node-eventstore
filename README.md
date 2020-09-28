@@ -630,6 +630,21 @@ currently those implementations support this:
 1. inmemory ( by setting ```trackPosition`` option )
 1. mongodb ( by setting ```positionsCollectionName``` option)
 
+## special scaling handling with mysql
+
+For performance reasons, the skip parameter of es.getEvents expects a global event sequence number instead of an offset. Using OFFSET in mysql is very slow. So to paged through the events, we implemented it to use keyset paging. You can use the bookmark or last seen sequence number using the eventSequence field of the event.
+
+```javascript
+  const query = {
+    context: 'hr'
+  }
+  es.getEvents(query, 0, 10, function(err, events) {
+    es.getEvents(query, events[9].eventSequence, 10, function(err, events) {
+      console.log('got paged events', events);
+    })
+  });
+```
+
 ## special scaling handling with mongodb
 
 Inserting multiple events (documents) in mongodb, is not atomic.
