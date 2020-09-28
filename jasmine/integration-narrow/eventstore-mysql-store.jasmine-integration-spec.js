@@ -1,5 +1,5 @@
 const Bluebird = require('bluebird');
-const MySQLStore = require('../../lib/databases/mysql');
+const MySQLStore = require('../../lib/databases/mysql'); // toggle v2 and v1 mysql
 const shortid = require('shortid');
 const _ = require('lodash');
 
@@ -9,7 +9,7 @@ const mysqlOptions = {
     user: 'root',
     password: 'root',
     database: 'eventstore',
-    connectionLimit: 1
+    connectionLimit: '2'
 };
 
 const mysqlServer = (function() {
@@ -117,6 +117,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                 const newEvent = {
                     id: shortid.generate(),
                     aggregateId: aggregateId,
+                    streamId: aggregateId,
                     aggregate: 'vehicle',
                     context: 'vehicle',
                     streamRevision: 5,
@@ -127,7 +128,8 @@ fdescribe('eventstore-mysql-store tests', () => {
                         name: 'mock_event_added',
                         payload: 'mockPayload',
                         aggregateId: aggregateId
-                    }
+                    },
+                    restInCommitStream: 0
                 };
 
                 await mysqlStore.addEventsAsync([newEvent]);
@@ -152,6 +154,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                     const event = {
                         id: shortid.generate(),
                         aggregateId: `vehicle_${index}`,
+                        streamId: `vehicle_${index}`,
                         aggregate: index % 2 == 0 ? 'vehicle' : 'salesChannelInstanceVehicle',
                         context: index % 2 == 0 ? 'vehicle' : 'auction',
                         streamRevision: 1,
@@ -162,7 +165,10 @@ fdescribe('eventstore-mysql-store tests', () => {
                             name: 'mock_event_added',
                             payload: 'mockPayload',
                             aggregateId: `vehicle_${index}`
-                        }
+                        },
+                        restInCommitStream: 0,
+                        position: null,
+                        eventSequence: index + 1
                     }
 
                     mockEvents.push(event);
@@ -213,7 +219,11 @@ fdescribe('eventstore-mysql-store tests', () => {
                     context: 'vehicle',
                     aggregate: 'vehicle'
                 };
-                const skip = 5;
+                
+                // NOTE: skip in getEvents is using the global event sequence number and not using mysql offset order by commit_stamp
+                // NOTE: last_seen in this example is eventSequence = 9
+                // const skip = 5;
+                const skip = 9;
                 const limit = 5;
                 const events = await mysqlStore.getEventsAsync(query, skip, limit);
 
@@ -235,6 +245,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                     const event = {
                         id: shortid.generate(),
                         aggregateId: `vehicle_${index}`,
+                        streamId: `vehicle_${index}`,
                         aggregate: index % 2 == 0 ? 'vehicle' : 'salesChannelInstanceVehicle',
                         context: index % 2 == 0 ? 'vehicle' : 'auction',
                         streamRevision: 1,
@@ -245,7 +256,9 @@ fdescribe('eventstore-mysql-store tests', () => {
                             name: 'mock_event_added',
                             payload: 'mockPayload',
                             aggregateId: `vehicle_${index}`
-                        }
+                        },
+                        restInCommitStream: 0,
+                        eventSequence: index + 1
                     }
 
                     mockEvents.push(event);
@@ -270,6 +283,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                     const event = {
                         id: shortid.generate(),
                         aggregateId: `vehicle_1`,
+                        streamId: `vehicle_1`,
                         aggregate: 'vehicle',
                         context: 'vehicle',
                         streamRevision: index,
@@ -280,7 +294,10 @@ fdescribe('eventstore-mysql-store tests', () => {
                             name: 'mock_event_added',
                             payload: 'mockPayload',
                             aggregateId: `vehicle_1`
-                        }
+                        },
+                        restInCommitStream: 0,
+                        position: null,
+                        eventSequence: index
                     }
 
                     mockEvents.push(event);
@@ -308,12 +325,14 @@ fdescribe('eventstore-mysql-store tests', () => {
         describe('getLastEvent', () => {
             let mockEvents;
             beforeEach(async (done) => {
+                let eventSequence = 1;
                 mockEvents = [];
                 // 10 events for vehice vehicle vehicle_1 AND
                 for (let index = 1; index <= 10; index++) {
                     const vehicleEvent = {
                         id: shortid.generate(),
                         aggregateId: `vehicle_1`,
+                        streamId: `vehicle_1`,
                         aggregate: 'vehicle',
                         context:'vehicle',
                         streamRevision: index,
@@ -324,7 +343,10 @@ fdescribe('eventstore-mysql-store tests', () => {
                             name: 'mock_event_added',
                             payload: 'mockPayload',
                             aggregateId: `vehicle_1`
-                        }
+                        },
+                        restInCommitStream: 0,
+                        position: null,
+                        eventSequence: eventSequence++
                     }
                     mockEvents.push(vehicleEvent);
                 }
@@ -334,6 +356,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                     const scivEvent = {
                         id: shortid.generate(),
                         aggregateId: `sciv_1`,
+                        streamId: `sciv_1`,
                         aggregate: 'salesChannelInstanceVehicle',
                         context:'auction',
                         streamRevision: index,
@@ -344,7 +367,10 @@ fdescribe('eventstore-mysql-store tests', () => {
                             name: 'mock_event_added',
                             payload: 'mockPayload',
                             aggregateId: `sciv_1`
-                        }
+                        },
+                        restInCommitStream: 0,
+                        position: null,
+                        eventSequence: eventSequence++
                     }
                     
                     mockEvents.push(scivEvent);
@@ -355,6 +381,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                     const salesChannelEvent = {
                         id: shortid.generate(),
                         aggregateId: `salesChannel_1`,
+                        streamId: `salesChannel_1`,
                         aggregate: 'salesChannel',
                         context:'auction',
                         streamRevision: index,
@@ -365,7 +392,10 @@ fdescribe('eventstore-mysql-store tests', () => {
                             name: 'mock_event_added',
                             payload: 'mockPayload',
                             aggregateId: `salesChannel_1`
-                        }
+                        },
+                        restInCommitStream: 0,
+                        position: null,
+                        eventSequence: eventSequence++
                     }
                     
                     mockEvents.push(salesChannelEvent);
@@ -419,6 +449,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                     const event = {
                         id: shortid.generate(),
                         aggregateId: `vehicle_${index}`,
+                        streamId: `vehicle_${index}`,
                         aggregate: index % 2 == 0 ? 'vehicle' : 'salesChannelInstanceVehicle',
                         context: index % 2 == 0 ? 'vehicle' : 'auction',
                         streamRevision: 1,
@@ -429,7 +460,10 @@ fdescribe('eventstore-mysql-store tests', () => {
                             name: 'mock_event_added',
                             payload: 'mockPayload',
                             aggregateId: `vehicle_${index}`
-                        }
+                        },
+                        position: null,
+                        eventSequence: index + 1,
+                        restInCommitStream: 0
                     }
 
                     mockEvents.push(event);
@@ -476,6 +510,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                 const newEvent = {
                     id: shortid.generate(),
                     aggregateId: aggregateId,
+                    streamId: aggregateId,
                     aggregate: 'vehicle',
                     context: 'vehicle',
                     streamRevision: 5,
@@ -486,7 +521,10 @@ fdescribe('eventstore-mysql-store tests', () => {
                         name: 'mock_event_added',
                         payload: 'mockPayload',
                         aggregateId: aggregateId
-                    }
+                    },
+                    position: null,
+                    restInCommitStream: 0,
+                    eventSequence: 1
                 };
 
                 await mysqlStore.addEventsAsync([newEvent]);
@@ -512,6 +550,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                 const snapshot = {
                     id: snapshotId,
                     aggregateId: aggregateId,
+                    streamId: aggregateId,
                     aggregate: 'vehicle',
                     context: 'vehicle',
                     revision: 3,
