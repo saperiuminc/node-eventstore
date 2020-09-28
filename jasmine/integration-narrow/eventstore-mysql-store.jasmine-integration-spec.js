@@ -24,7 +24,7 @@ const mysqlServer = (function() {
 
     return {
         up: async function() {
-            const command = `docker run --name eventstore_playbacklist_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.password} -e MYSQL_DATABASE=${mysqlOptions.database} -p ${mysqlOptions.port}:3306 -d mysql:5.7`;
+            const command = `docker run --name eventstore_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.password} -e MYSQL_DATABASE=${mysqlOptions.database} -p ${mysqlOptions.port}:3306 -d mysql:5.7`;
             const process = exec(command);
 
             // wait until process has exited
@@ -65,12 +65,12 @@ const mysqlServer = (function() {
             }
         },
         down: async function() {
-            exec('docker rm eventstore_playbacklist_mysql --force');
+            exec('docker rm eventstore_mysql --force');
         }
     }
 })();
 
-fdescribe('eventstore-mysql-store tests', () => {
+describe('eventstore-mysql-store tests', () => {
     let mysqlStore = new MySQLStore({});
     let listName;
     beforeAll(async (done) => {

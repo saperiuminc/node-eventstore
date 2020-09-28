@@ -8,7 +8,7 @@ const mysqlOptions = {
     user: 'root',
     password: 'root',
     database: 'playbacklist_db',
-    connectionLimit: 1
+    connectionLimit: 10
 };
 
 const mysqlServer = (function() {
@@ -113,19 +113,19 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                         streamRevision: revision
                     }
 
-                    await eventstorePlaybackListStore.addAsync(listName, rowId, revision, data, meta);
+                    await eventstorePlaybackListStore.add(listName, rowId, revision, data, meta);
                 }
 
-                const allResultsInserted = await eventstorePlaybackListStore.queryAsync(listName, 0, 10, null, null);
+                const allResultsInserted = await eventstorePlaybackListStore.query(listName, 0, 10, null, null);
                 expect(allResultsInserted.count).toEqual(10);
                 expect(allResultsInserted.rows.length).toEqual(10);
 
-                const pagedResults = await eventstorePlaybackListStore.queryAsync(listName, 5, 5, null, null);
+                const pagedResults = await eventstorePlaybackListStore.query(listName, 5, 5, null, null);
                 // should get revision 5 - 9
                 expect(pagedResults.count).toEqual(10); // total still 10
                 expect(pagedResults.rows.length).toEqual(5); // paged should be 5
 
-                const filteredResults = await eventstorePlaybackListStore.queryAsync(listName, 0, 5, [{
+                const filteredResults = await eventstorePlaybackListStore.query(listName, 0, 5, [{
                     field: 'vehicleId',
                     operator: 'is',
                     value: 'vehicle_5'
@@ -135,7 +135,7 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 expect(filteredResults.rows[0].revision).toEqual(5);
                 expect(filteredResults.rows[0].data.vehicleId).toEqual('vehicle_5');
 
-                const sortedResults = await eventstorePlaybackListStore.queryAsync(listName, 0, 10, null, [{
+                const sortedResults = await eventstorePlaybackListStore.query(listName, 0, 10, null, [{
                     field: 'vehicleId',
                     sortDirection: 'ASC'
                 }]);
@@ -164,9 +164,9 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 streamRevision: 1
             }
 
-            await eventstorePlaybackListStore.addAsync(listName, rowId, revision, data, meta);
+            await eventstorePlaybackListStore.add(listName, rowId, revision, data, meta);
 
-            const gotItem = await eventstorePlaybackListStore.getAsync(listName, rowId);
+            const gotItem = await eventstorePlaybackListStore.get(listName, rowId);
 
             expect(gotItem).toEqual({
                 data: data,
@@ -200,10 +200,10 @@ describe('eventstore-playback-list-mysql-store tests', () => {
 
             const updatedRevision = 2;
 
-            await eventstorePlaybackListStore.addAsync(listName, rowId, revision, data, meta);
-            await eventstorePlaybackListStore.updateAsync(listName, rowId, updatedRevision, updatedData, updatedMeta);
+            await eventstorePlaybackListStore.add(listName, rowId, revision, data, meta);
+            await eventstorePlaybackListStore.update(listName, rowId, updatedRevision, updatedData, updatedMeta);
 
-            const gotItem = await eventstorePlaybackListStore.getAsync(listName, rowId);
+            const gotItem = await eventstorePlaybackListStore.get(listName, rowId);
 
             expect(gotItem).toEqual({
                 data: updatedData,
@@ -226,21 +226,21 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 streamRevision: 1
             }
 
-            await eventstorePlaybackListStore.addAsync(listName, rowId, revision, data, meta);
-            await eventstorePlaybackListStore.deleteAsync(listName, rowId);
+            await eventstorePlaybackListStore.add(listName, rowId, revision, data, meta);
+            await eventstorePlaybackListStore.delete(listName, rowId);
 
-            const gotItem = await eventstorePlaybackListStore.getAsync(listName, rowId);
+            const gotItem = await eventstorePlaybackListStore.get(listName, rowId);
 
             expect(gotItem).toBeNull();
             done();
         })
     })
 
-    afterAll(async (done) => {
+    afterAll((done) => {
         // NOTE: uncomment if we need to terminate the mysql every test
         // for now, it is okay since we are using a non-standard port (13306) and a fixed docker container name
         // not terminating will make the tests faster by around 11 secs
-        await mysqlServer.down();
+        // await mysqlServer.down();
         done();
     })
 });
