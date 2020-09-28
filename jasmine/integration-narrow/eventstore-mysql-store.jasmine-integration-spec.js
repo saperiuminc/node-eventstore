@@ -225,6 +225,7 @@ fdescribe('eventstore-mysql-store tests', () => {
                 expect(events.length).toEqual(5);
                 done();
             });
+
         })
 
         describe('getEventsSince', () => {
@@ -409,6 +410,133 @@ fdescribe('eventstore-mysql-store tests', () => {
                 done();
             })
         })
+
+        describe('getUndispatchedEvents', () => {
+            let mockEvents;
+            beforeEach(async (done) => {
+                mockEvents = [];
+                for (let index = 0; index < 20; index++) {
+                    const event = {
+                        id: shortid.generate(),
+                        aggregateId: `vehicle_${index}`,
+                        aggregate: index % 2 == 0 ? 'vehicle' : 'salesChannelInstanceVehicle',
+                        context: index % 2 == 0 ? 'vehicle' : 'auction',
+                        streamRevision: 1,
+                        commitId: shortid.generate(),
+                        commitStamp: new Date(),
+                        commitSequence: index,
+                        payload: {
+                            name: 'mock_event_added',
+                            payload: 'mockPayload',
+                            aggregateId: `vehicle_${index}`
+                        }
+                    }
+
+                    mockEvents.push(event);
+                }
+
+                await mysqlStore.addEventsAsync(mockEvents);
+                done();
+            });
+
+            it('should get the events from the store using context', async (done) => {
+                const query = {
+                    context: 'vehicle'
+                };
+                const events = await mysqlStore.getUndispatchedEventsAsync(query);
+                expect(events.length).toEqual(10);
+                done();
+            });
+
+            it('should get the events from the store using context and aggregate', async (done) => {
+                const query = {
+                    context: 'vehicle',
+                    aggregate: 'vehicle'
+                };
+                const events = await mysqlStore.getUndispatchedEventsAsync(query);
+                expect(events.length).toEqual(10);
+                done();
+            });
+
+            it('should get the events from the store using context, aggregate and aggregateId', async (done) => {
+                const query = {
+                    context: 'vehicle',
+                    aggregate: 'vehicle',
+                    aggregateId: 'vehicle_10'
+                };
+                const events = await mysqlStore.getUndispatchedEventsAsync(query);
+                expect(events[0]).toEqual(mockEvents[10]);
+                done();
+            });
+        })
+        
+        describe('setEventToDispatched', () => {
+            it('should set the event to dispatched', async (done) => {
+                const aggregateId = shortid.generate();
+                const newEvent = {
+                    id: shortid.generate(),
+                    aggregateId: aggregateId,
+                    aggregate: 'vehicle',
+                    context: 'vehicle',
+                    streamRevision: 5,
+                    commitId: shortid.generate(),
+                    commitStamp: new Date('2020-03-06T00:28:36.728Z'),
+                    commitSequence: 0,
+                    payload: {
+                        name: 'mock_event_added',
+                        payload: 'mockPayload',
+                        aggregateId: aggregateId
+                    }
+                };
+
+                await mysqlStore.addEventsAsync([newEvent]);
+               
+                await mysqlStore.setEventToDispatchedAsync(newEvent.id);
+
+                const query = {
+                    context: 'vehicle',
+                    aggregate: 'vehicle',
+                    aggregateId: newEvent.aggregateId
+                };
+
+                const undispatchedEvents = await mysqlStore.getUndispatchedEventsAsync(query);
+                expect(undispatchedEvents.length).toEqual(0);
+                done();
+            });
+        })
+        
+        describe('snapshots', () => {
+            it('should add and get the snapshot', async (done) => {
+                const snapshotId = shortid.generate();
+                const aggregateId = shortid.generate();
+                const snapshot = {
+                    id: snapshotId,
+                    aggregateId: aggregateId,
+                    aggregate: 'vehicle',
+                    context: 'vehicle',
+                    revision: 3,
+                    commitStamp: new Date('2020-04-06T00:28:36.728Z'),
+                    data: {
+                        state: 'created',
+                        aggregateId: aggregateId
+                    }
+                };
+
+                await mysqlStore.addSnapshotAsync(snapshot);
+
+                const query = {
+                    context: 'vehicle',
+                    aggregate: 'vehicle',
+                    aggregateId: aggregateId
+                };
+
+                const dbSnapshot = await mysqlStore.getSnapshotAsync(query, 10)
+
+                expect(dbSnapshot).toEqual(snapshot);
+
+                done();
+            })
+        });
 
         afterEach(async (done) => {
             await mysqlStore.clearAsync();
