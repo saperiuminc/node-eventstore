@@ -76,8 +76,6 @@ describe('eventstore-playback-list-mysql-store tests', () => {
         await mysqlServer.up();
         eventstorePlaybackListStore = new EventstorePlaybackListStore(mysqlOptions);
 
-        Bluebird.promisifyAll(eventstorePlaybackListStore);
-
         await eventstorePlaybackListStore.init();
         done();
     }, 60000);
@@ -236,10 +234,11 @@ describe('eventstore-playback-list-mysql-store tests', () => {
         })
     })
 
-    afterAll((done) => {
+    afterAll(async (done) => {
         // NOTE: uncomment if we need to terminate the mysql every test
         // for now, it is okay since we are using a non-standard port (13306) and a fixed docker container name
         // not terminating will make the tests faster by around 11 secs
+        await eventstorePlaybackListStore.close();
         // await mysqlServer.down();
         done();
     })
