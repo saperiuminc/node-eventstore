@@ -11,6 +11,10 @@
  * @property {String} projectionGroup name of the projectionGroup if using projection
  * @property {Number} concurrentProjectionGroup number of concurrent running projections per projectionGroup
  * @property {PlaybackListStoreConfig} listStore
+ * @property {String} eventNameFieldName the field name of the event's name in the payload. Default is "name"
+ * @property {String} stateContextName the name of the context when a state is created by a projection. default is 'default'
+ * @property {Number} concurrentAggregatesInProjection number of concurrent aggregates running in the projection job
+ * @property {Boolean} shouldExhaustAllEvents tells the projection if it should exhaust all the events when a projection job is triggered.
  */
 
 var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),
