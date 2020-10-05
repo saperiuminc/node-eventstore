@@ -246,7 +246,7 @@ describe('eventstore-mysql-store tests', () => {
 
         })
 
-        xdescribe('getEventsSince', () => {
+        describe('getEventsSince', () => {
             it('should get the events since the date, skip and limit', async (done) => {
                 const expectedEvents = [];
                 for (let index = 0; index < 12; index++) {
@@ -292,7 +292,7 @@ describe('eventstore-mysql-store tests', () => {
             })
         })
 
-        xdescribe('getEventsByRevision', () => {
+        describe('getEventsByRevision', () => {
             it('should get the events by revision, revision min and max', async (done) => {
                 const expectedEvents = [];
                 for (let index = 1; index <= 10; index++) {
@@ -346,7 +346,7 @@ describe('eventstore-mysql-store tests', () => {
             })
         })
 
-        xdescribe('getLastEvent', () => {
+        describe('getLastEvent', () => {
             let expectedEvents;
             beforeEach(async (done) => {
                 let eventSequence = 1;
@@ -473,7 +473,7 @@ describe('eventstore-mysql-store tests', () => {
             })
         })
 
-        xdescribe('getUndispatchedEvents', () => {
+        describe('getUndispatchedEvents', () => {
             let expectedEvents;
             beforeEach(async (done) => {
                 expectedEvents = [];
@@ -544,7 +544,7 @@ describe('eventstore-mysql-store tests', () => {
             });
         })
         
-        xdescribe('setEventToDispatched', () => {
+        describe('setEventToDispatched', () => {
             it('should set the event to dispatched', async (done) => {
                 const aggregateId = shortid.generate();
                 const newEvent = {
@@ -583,7 +583,7 @@ describe('eventstore-mysql-store tests', () => {
             });
         })
         
-        xdescribe('snapshots', () => {
+        describe('snapshots', () => {
             it('should add and get the snapshot', async (done) => {
                 const snapshotId = shortid.generate();
                 const aggregateId = shortid.generate();
