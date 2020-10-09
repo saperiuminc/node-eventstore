@@ -29,9 +29,9 @@ const _getPlaybackListViewAsync = function(listName) {
     });
 }
 
-const _queryPlaybackListAsync = function(playbackList, start, limit) {
+const _queryPlaybackListAsync = function(playbackList, start, limit, filters, sort) {
     return new Promise((resolve, reject) => {
-        playbackList.query(start, limit, null, null, function(error, results) {
+        playbackList.query(start, limit, filters, sort, function(error, results) {
             if (error) {
                 reject(error);
             } else {
@@ -83,11 +83,15 @@ router.post('/subscribe', async function(req, res) {
 // GET playback list
 router.get('/:listName', async function(req, res) {
     const listName = req.params.listName;
-    let start = parseInt(req.query.start);
-    let limit = parseInt(req.query.limit);
 
-    if (isNaN(start)) {
-        start = 0;
+    const query = req.query;
+    let startIndex = query.startIndex;
+    let limit = query.limit;
+    const filters = query.filters ? JSON.parse(query.filters) : null;
+    const sort = query.sort ? JSON.parse(query.sort) : null;
+
+    if (isNaN(startIndex)) {
+        startIndex = 0;
     }
 
     if (isNaN(limit)) {
@@ -95,10 +99,9 @@ router.get('/:listName', async function(req, res) {
     }
 
     const playbackList = await _getPlaybackListViewAsync(listName);
-    const results = await _queryPlaybackListAsync(playbackList, start, limit);
+    const results = await _queryPlaybackListAsync(playbackList, +startIndex, +limit, filters, sort);
 
     res.json(results);
-
 });
 
 module.exports = router;
