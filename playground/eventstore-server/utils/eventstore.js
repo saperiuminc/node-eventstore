@@ -176,11 +176,7 @@ module.exports = (function() {
 
             await eventstore.registerPlaybackListViewAsync(
                 'vehicle_list_view',
-                `
-        SELECT
-            *
-        FROM vehicle_list v;`);
-
+                `SELECT * FROM vehicle_list v;`);
 
             await eventstore.startAllProjectionsAsync();
         } catch (error) {

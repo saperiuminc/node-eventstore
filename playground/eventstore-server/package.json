@@ -9,10 +9,11 @@
     "bench-growing": "node_modules/matcha/bin/matcha benchmark/streambuffer-growing-sub.js",
     "bench-stream-emit": "node_modules/matcha/bin/matcha benchmark/streambuffer-stream-emit-all.js",
     "bench-stream-growing": "node_modules/matcha/bin/matcha benchmark/streambuffer-stream-growing-sub.js",
-    "bench-2k": "node_modules/matcha/bin/matcha benchmark/streambuffer-2k.js"
+    "bench-2k": "node_modules/matcha/bin/matcha benchmark/streambuffer-2k.js",
+    "install-eventstore": "npm install --save --save-exact @saperiuminc/eventstore || :"
   },
   "dependencies": {
-    "@saperiuminc/eventstore": "^1.15.12-alpha.67",
+    "@saperiuminc/eventstore": "1.15.13-queryOptimization.1",
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",
     "express": "~4.16.1",
