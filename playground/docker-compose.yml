@@ -33,6 +33,14 @@ services:
       EVENTSTORE_MYSQL_PASSWORD: root
       EVENTSTORE_MYSQL_DATABASE: eventstore
       DEBUG: 'eventstore,eventstore:eventPollingSubscription'
+      ENABLE_TRACING: 'true'
+      JAEGER_SERVICE_NAME: uauction
+      JAEGER_AGENT_HOST: jaeger
+      JAEGER_AGENT_HOST: 6832
+      JAEGER_ENDPOINT: http://jaeger:14268/api/traces
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_SAMPLER_PARAM: 1
+      JAEGER_SAMPLER_MANAGER_HOST_PORT: http://jaeger:5778/sampling
     links:
       - redis
       - db
@@ -57,3 +65,16 @@ services:
       MYSQL_DATABASE: eventstore
       MYSQL_USER: root
       MYSQL_PASSWORD: root
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    ports:
+        - 5775:5775/udp
+        - 6831:6831/udp
+        - 6832:6832/udp
+        - 5778:5778
+        - 9411:9411
+        - 14268:14268
+        - 16686:16686
+    # environment:
+    #     LOG_LEVEL: debug

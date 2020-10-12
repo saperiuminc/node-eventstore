@@ -1,3 +1,4 @@
+const Bluebird = require('bluebird');
 const bluebird = require('bluebird');
 
 module.exports = (function() {
@@ -8,6 +9,7 @@ module.exports = (function() {
         user: process.env.EVENTSTORE_MYSQL_USERNAME,
         password: process.env.EVENTSTORE_MYSQL_PASSWORD,
         database: process.env.EVENTSTORE_MYSQL_DATABASE,
+        connectionPoolLimit: 10,
         // projections-specific configuration below
         redisConfig: {
             host: process.env.REDIS_HOST,
@@ -18,14 +20,16 @@ module.exports = (function() {
             port: process.env.EVENTSTORE_MYSQL_PORT,
             user: process.env.EVENTSTORE_MYSQL_USERNAME,
             password: process.env.EVENTSTORE_MYSQL_PASSWORD,
-            database: process.env.EVENTSTORE_MYSQL_DATABASE
+            database: process.env.EVENTSTORE_MYSQL_DATABASE,
+            connectionPoolLimit: 10
         }, // required
         enableProjection: true,
         eventCallbackTimeout: 1000,
         pollingTimeout: 10000, // optional,
         pollingMaxRevisions: 5,
         errorMaxRetryCount: 2,
-        errorRetryExponent: 2
+        errorRetryExponent: 2,
+        concurrentAggregatesInProjection: 10
     });
 
     bluebird.promisifyAll(eventstore);
@@ -35,6 +39,32 @@ module.exports = (function() {
             await eventstore.initAsync();
 
             console.log('eventstore initialized');
+
+            // add dummy data
+            for (let index = 0; index < 10; index++) {
+                const vehicleId = `vehicle_${index}`;
+                const stream = await eventstore.getLastEventAsStreamAsync({
+                    context: 'vehicle',
+                    aggregate: 'vehicle',
+                    aggregateId: vehicleId
+                });
+
+                Bluebird.promisifyAll(stream);
+
+                const event = {
+                    name: "VEHICLE_CREATED",
+                    payload: {
+                        vehicleId: vehicleId,
+                        year: 2012,
+                        make: "Honda",
+                        model: "Jazz",
+                        mileage: 1245
+                    }
+                }
+                stream.addEvent(event);
+                await stream.commitAsync();
+            }
+            
 
             // some dummy calls for testing
             // eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event, callback) => {
@@ -69,7 +99,6 @@ module.exports = (function() {
                      */
                     VEHICLE_CREATED: function(state, event, funcs, done) {
                         funcs.getPlaybackList('vehicle_list', function(err, playbackList) {
-                            console.log('got vehicle_created event', event);
                             const eventPayload = event.payload.payload;
                             const data = {
                                 vehicleId: eventPayload.vehicleId,
@@ -86,7 +115,6 @@ module.exports = (function() {
                     },
                     VEHICLE_MILEAGE_CHANGED: function(state, event, funcs, done) {
                         funcs.getPlaybackList('vehicle_list', function(err, playbackList) {
-                            console.log('got vehicle_created event', event);
                             const eventPayload = event.payload.payload;
                             const data = {
                                 mileage: eventPayload.mileage
