@@ -1,1 +1,1 @@
-module.exports.eventstore = require('./eventstore-optimizations');
+module.exports.eventstore = require('./eventstore');
