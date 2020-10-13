@@ -85,7 +85,3 @@ services:
     image: namshi/aws-xray
     ports:
         - '2000:2000/udp'
-    environment:
-        AWS_ACCESS_KEY_ID: AKIAJIEKVUI6EKZXHP7A
-        AWS_SECRET_ACCESS_KEY: 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
-        AWS_REGION: us-west-2
