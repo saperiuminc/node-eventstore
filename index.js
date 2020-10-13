@@ -24,7 +24,7 @@ var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),
     StoreEventEmitter = require('./lib/storeEventEmitter');
 
 // add tracing
-require('./lib/eventstore-projections/eventstore-tracing');
+require('./lib/eventstore-projections/tracing/eventstore-tracing');
 
 function exists(toCheck) {
     var _exists = require('fs').existsSync || require('path').existsSync;
