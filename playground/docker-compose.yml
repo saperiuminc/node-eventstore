@@ -66,6 +66,7 @@ services:
       MYSQL_DATABASE: eventstore
       MYSQL_USER: root
       MYSQL_PASSWORD: root
+
   jaeger:
     image: jaegertracing/all-in-one:latest
     restart: always
@@ -79,3 +80,8 @@ services:
         - 16686:16686
     # environment:
     #     LOG_LEVEL: debug
+
+  xray: # For Local Testing
+    image: namshi/aws-xray
+    ports:
+        - '2000:2000/udp'
