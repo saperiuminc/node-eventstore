@@ -34,7 +34,8 @@ services:
       EVENTSTORE_MYSQL_DATABASE: eventstore
       DEBUG: 'eventstore,eventstore:eventPollingSubscription'
       ENABLE_TRACING: 'true'
-      JAEGER_SERVICE_NAME: uauction
+      TRACER_NAME: 'xray'
+      JAEGER_SERVICE_NAME: eventstore-playground
       JAEGER_AGENT_HOST: jaeger
       JAEGER_AGENT_HOST: 6832
       JAEGER_ENDPOINT: http://jaeger:14268/api/traces
@@ -42,12 +43,16 @@ services:
       JAEGER_SAMPLER_PARAM: 1
       JAEGER_SAMPLER_MANAGER_HOST_PORT: http://jaeger:5778/sampling
       DEBUG: 'eventstore,eventstore:show-queries'
+      AWS_XRAY_DAEMON_ADDRESS: xray:2000
+      AWS_XRAY_TRACING_NAME: 'eventstore' # need to set as root segment name
     links:
       - redis
       - db
+      - xray
     depends_on:
       - redis
       - db
+      - xray
 
   redis:
     image: redis:5.0
@@ -81,7 +86,17 @@ services:
     # environment:
     #     LOG_LEVEL: debug
 
-  xray: # For Local Testing
+  # For Local Testing.  
+  # Need to set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_REGION outside. 
+  # e.g. AWS_ACCESS_KEY_ID=access AWS_SECRET_ACCESS_KEY=key AWS_REGION=us-west-2 docker-compose up
+  # or you can export the env in your favorite shell like zsh and update the startup file (like .zshrc) 
+  # to include the new keys
+  # e.g. export AWS_ACCESS_KEY_ID=access AWS_SECRET_ACCESS_KEY=key AWS_REGION=us-west-2
+  xray:     
     image: namshi/aws-xray
     ports:
-        - '2000:2000/udp'
+      - '2000:2000/udp'
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_REGION
