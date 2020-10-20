@@ -91,7 +91,8 @@
     "test:extensions:benchmark": "jasmine jasmine/benchmark/*.jasmine-benchmark-spec.js",
     "test:extensions:integration": "jasmine jasmine/*/*.jasmine-integration-spec.js",
     "test:extensions:lint": "node node_modules/eslint/bin/eslint ./lib/*",
-    "test:extensions:lintfix": "node node_modules/eslint/bin/eslint ./lib/* --fix"
+    "test:extensions:lintfix": "node node_modules/eslint/bin/eslint ./lib/* --fix",
+    "test:extensions:all": "npm run test:extensions:lint && npm run test:extensions:coverage && npm run test:extensions:integration:narrow"
   },
   "bugs": {
     "url": "https://github.com/adrai/node-eventstore/issues"
