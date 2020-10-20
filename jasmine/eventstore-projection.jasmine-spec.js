@@ -2,11 +2,13 @@ let EventStoreWithProjection = require('../lib/eventstore-projections/eventstore
 const BlueBird = require('bluebird');
 const StreamBuffer = require('../lib/eventStreamBuffer');
 const shortid = require('shortid');
+const EventstoreWithProjection = require('../lib/eventstore-projections/eventstore-projection');
 
 
 describe('eventstore-projection tests', () => {
     // just instantiating for vscode jsdoc intellisense
     let esWithProjection = new EventStoreWithProjection();
+    let outEsWithProjection;
     let eventsDataStore;
     let options;
     let defaultStream;
@@ -24,6 +26,8 @@ describe('eventstore-projection tests', () => {
         const EventstorePlaybackListInMemoryStore = require('./test-doubles/fakes/eventstore-playbacklist-inmemory-store.fake');
         const DistributedLock = require('./test-doubles/mocks/distributed-lock.mock');
 
+        outEsWithProjection = new EventstoreWithProjection({}, new InMemoryStore({}));
+
         options = {
             pollingMaxRevisions: 10,
             pollingTimeout: 10, // so that polling is immediate
@@ -37,7 +41,8 @@ describe('eventstore-projection tests', () => {
                 user: 'user',
                 password: 'password'
             },
-            stateContextName: 'vehicle'
+            context: 'vehicle',
+            outputsTo: outEsWithProjection
         };
 
         eventsDataStore = new InMemoryStore(options);
@@ -49,7 +54,7 @@ describe('eventstore-projection tests', () => {
         distributedLock = DistributedLock();
         esWithProjection = new EventStoreWithProjection(options, eventsDataStore, jobsManager, distributedLock, playbackListStore, playbackListViewStore);
 
-        esWithProjection.pollingGetEventStreamAsync = async function(query, comparer, timeout) {
+        outEsWithProjection.pollingGetEventStreamAsync = esWithProjection.pollingGetEventStreamAsync = async function(query, comparer, timeout) {
             if (!comparer) {
                 comparer = () => false;
             }
@@ -68,7 +73,7 @@ describe('eventstore-projection tests', () => {
             const startTime = Date.now();
             let stream = null;
             do {
-                stream = await esWithProjection.getEventStreamAsync(query);
+                stream = await this.getEventStreamAsync(query);
 
                 if (!comparer(stream)) {
                     // sleep every 10ms
@@ -82,8 +87,10 @@ describe('eventstore-projection tests', () => {
             return stream;
         };
         BlueBird.promisifyAll(esWithProjection);
+        BlueBird.promisifyAll(outEsWithProjection);
 
         esWithProjection.initAsync();
+        outEsWithProjection.initAsync();
         done();
     });
 
@@ -546,7 +553,7 @@ describe('eventstore-projection tests', () => {
                     });
                     stream.commit();
 
-                    const newStream = await esWithProjection.pollingGetEventStreamAsync({
+                    const newStream = await outEsWithProjection.pollingGetEventStreamAsync({
                         aggregateId: 'vehicle_1',
                         aggregate: 'vehicle', // optional
                         context: 'auction' // optional
@@ -555,6 +562,9 @@ describe('eventstore-projection tests', () => {
                     expect(newStream.events.length).toEqual(1);
                     done();
                 });
+                
+
+            
             })
 
             describe('outputting states', () => {
@@ -621,7 +631,7 @@ describe('eventstore-projection tests', () => {
                     stream.addEvent(event);
                     stream.commit();
 
-                    const stateStream = await esWithProjection.pollingGetEventStreamAsync({
+                    const stateStream = await outEsWithProjection.pollingGetEventStreamAsync({
                         context: 'vehicle',
                         aggregate: 'states',
                         aggregateId: `${projection.projectionId}-result`
@@ -684,7 +694,7 @@ describe('eventstore-projection tests', () => {
                             }
                         };
 
-                        const stateStream = await esWithProjection.pollingGetEventStreamAsync({
+                        const stateStream = await outEsWithProjection.pollingGetEventStreamAsync({
                             context: 'vehicle',
                             aggregate: 'states',
                             aggregateId: `${projection.projectionId}-vehicle-vehicle-vehicle_${index}-result`
@@ -754,7 +764,7 @@ describe('eventstore-projection tests', () => {
                             }
                         };
 
-                        const stateStream = await esWithProjection.pollingGetEventStreamAsync({
+                        const stateStream = await outEsWithProjection.pollingGetEventStreamAsync({
                             context: 'vehicle',
                             aggregate: 'states',
                             aggregateId: `${projection.projectionId}-vehicle_${index}-result`
@@ -780,6 +790,7 @@ describe('eventstore-projection tests', () => {
 
             })
 
+            
             // TODO: how to get stub the implementation of in memory getEvents. currently the test 
             // will be in the mysql store only
             xdescribe('filtering projections by events', () => {
@@ -854,7 +865,7 @@ describe('eventstore-projection tests', () => {
 
                     stream.commit();
 
-                    const newStream = await esWithProjection.pollingGetEventStreamAsync({
+                    const newStream = await outEsWithProjection.pollingGetEventStreamAsync({
                         aggregateId: 'vehicle_1',
                         aggregate: 'vehicle', // optional
                         context: 'vehicle' // optional

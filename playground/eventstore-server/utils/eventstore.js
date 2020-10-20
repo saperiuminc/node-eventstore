@@ -29,7 +29,8 @@ module.exports = (function() {
         pollingMaxRevisions: 5,
         errorMaxRetryCount: 2,
         errorRetryExponent: 2,
-        concurrentAggregatesInProjection: 10
+        concurrentAggregatesInProjection: 10,
+        context: 'vehicle'
     });
 
     bluebird.promisifyAll(eventstore);

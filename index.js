@@ -15,6 +15,8 @@
  * @property {String} stateContextName the name of the context when a state is created by a projection. default is 'default'
  * @property {Number} concurrentAggregatesInProjection number of concurrent aggregates running in the projection job
  * @property {Boolean} shouldExhaustAllEvents tells the projection if it should exhaust all the events when a projection job is triggered.
+ * @property {String} context the context name of this eventstore. default context name is "default"
+ * @property {Eventstore} outputsTo the eventstore where emits and states are outputted to. default is itself
  */
 
 var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),

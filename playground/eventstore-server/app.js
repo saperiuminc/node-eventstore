@@ -4,17 +4,12 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
-const AWSXRay = require('aws-xray-sdk');
-const XRayExpress = AWSXRay.express;
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var eventsRouter = require('./routes/events');
 
 var app = express();
-
-
-app.use(XRayExpress.openSegment('eventstore'));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));

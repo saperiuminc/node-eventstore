@@ -32,9 +32,8 @@ services:
       EVENTSTORE_MYSQL_USERNAME: root
       EVENTSTORE_MYSQL_PASSWORD: root
       EVENTSTORE_MYSQL_DATABASE: eventstore
-      DEBUG: 'eventstore,eventstore:eventPollingSubscription'
       ENABLE_TRACING: 'true'
-      TRACER_NAME: 'xray'
+      TRACER_NAME: 'jaeger'
       JAEGER_SERVICE_NAME: eventstore-playground
       JAEGER_AGENT_HOST: jaeger
       JAEGER_AGENT_HOST: 6832
@@ -42,7 +41,7 @@ services:
       JAEGER_SAMPLER_TYPE: const
       JAEGER_SAMPLER_PARAM: 1
       JAEGER_SAMPLER_MANAGER_HOST_PORT: http://jaeger:5778/sampling
-      DEBUG: 'eventstore,eventstore:show-queries'
+      DEBUG: 'eventstore,eventstore:projection:timing'
       AWS_XRAY_DAEMON_ADDRESS: xray:2000
       AWS_XRAY_TRACING_NAME: 'eventstore' # need to set as root segment name
     links:
