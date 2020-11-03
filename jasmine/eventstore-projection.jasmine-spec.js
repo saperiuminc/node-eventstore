@@ -3,7 +3,7 @@ const BlueBird = require('bluebird');
 const StreamBuffer = require('../lib/eventStreamBuffer');
 const shortid = require('shortid');
 const EventstoreWithProjection = require('../lib/eventstore-projections/eventstore-projection');
-
+const _ = require('lodash');
 
 describe('eventstore-projection tests', () => {
     // just instantiating for vscode jsdoc intellisense
@@ -17,6 +17,7 @@ describe('eventstore-projection tests', () => {
     let jobsManager;
     let playbackListStore;
     let playbackListViewStore;
+    let projectionStore;
 
 
     beforeEach((done) => {
@@ -24,6 +25,8 @@ describe('eventstore-projection tests', () => {
         const InMemoryStore = require('../lib/databases/inmemory');
         const JobsManager = require('./test-doubles/fakes/jobs-manager.fake');
         const EventstorePlaybackListInMemoryStore = require('./test-doubles/fakes/eventstore-playbacklist-inmemory-store.fake');
+        const EventstoreProjectionInMemoryStore = require('./test-doubles/fakes/eventstore-projection-inmemory-store.fake');
+        
         const DistributedLock = require('./test-doubles/mocks/distributed-lock.mock');
 
         outEsWithProjection = new EventstoreWithProjection({}, new InMemoryStore({}));
@@ -41,6 +44,14 @@ describe('eventstore-projection tests', () => {
                 user: 'user',
                 password: 'password'
             },
+            projectionStore: {
+                host: 'host',
+                port: 'port',
+                database: 'database',
+                user: 'user',
+                password: 'password',
+                name: 'projections'
+            },
             context: 'vehicle',
             outputsTo: outEsWithProjection
         };
@@ -51,9 +62,9 @@ describe('eventstore-projection tests', () => {
         
         jobsManager = new JobsManager();
         playbackListStore = new EventstorePlaybackListInMemoryStore();
+        projectionStore = new EventstoreProjectionInMemoryStore();
         distributedLock = DistributedLock();
-        esWithProjection = new EventStoreWithProjection(options, eventsDataStore, jobsManager, distributedLock, playbackListStore, playbackListViewStore);
-
+        esWithProjection = new EventStoreWithProjection(options, eventsDataStore, jobsManager, distributedLock, playbackListStore, playbackListViewStore, projectionStore);
         outEsWithProjection.pollingGetEventStreamAsync = esWithProjection.pollingGetEventStreamAsync = async function(query, comparer, timeout) {
             if (!comparer) {
                 comparer = () => false;
@@ -790,7 +801,84 @@ describe('eventstore-projection tests', () => {
 
             })
 
-            
+            describe('projection storage', () => {
+                beforeEach(async (done) => {
+                    const projectionId = shortid.generate();
+                    // arrange 
+                    projection = {
+                        projectionId: projectionId,
+                        query: {
+                            context: 'vehicle'
+                        },
+                        playbackInterface: {
+                            vehicle_listed: function(state, event, funcs, done) {
+                                const targetQuery = {
+                                    context: 'auction',
+                                    aggregate: 'vehicle',
+                                    aggregateId: event.aggregateId
+                                };
+
+                                funcs.emit(targetQuery, event.payload, done);
+                            }
+                        },
+                        playbackList: {
+                            name: 'vehicle_list',
+                            fields: [{
+                                name: 'vehicleId',
+                                type: 'string'
+                            }],
+                            secondaryKeys: {
+                                idx_vehicleId: [{
+                                    name: 'vehicleId',
+                                    sort: 'ASC'
+                                }]
+                            }
+                        },
+                        outputState: 'true',
+                        partitionBy: ''
+                    };
+                    await esWithProjection.projectAsync(projection);
+                    await esWithProjection.startAllProjections();
+
+                    done();
+                })
+
+                it('should update processedDate and offset', async (done) => {
+                    
+                    const beforeProjectionDate = Date.now();
+                    const befreProjection = await projectionStore.getProjection(projection.projectionId);
+
+                    const stream = await esWithProjection.getEventStreamAsync({
+                        aggregateId: 'vehicle_1',
+                        aggregate: 'vehicle', // optional
+                        context: 'vehicle' // optional
+                    });
+
+                    stream.addEvent({
+                        name: 'vehicle_listed',
+                        payload: {
+                            vehicleId: 'vehicle_1'
+                        }
+                    }, {
+                        name: 'vehicle_updated',
+                        payload: {
+                            vehicleId: 'vehicle_1'
+                        }
+                    });
+                    stream.commit();
+
+                    expect(befreProjection.processedDate).toBeUndefined();
+
+
+                    const afterProjection = await projectionStore.pollingGetProjection(projection.projectionId, (projection) => !!projection.processedDate, 1000);
+                    expect(afterProjection.processedDate).toBeGreaterThan(beforeProjectionDate);
+                    // TODO: in memory store does not support any event sequence. so this will always be undefined
+                    // this has been checked already by the test so should be okay. commenting out for now
+                    // expect(afterProjection.offset).toBeGreaterThan(0);
+                    done();
+                });
+                
+            })
             // TODO: how to get stub the implementation of in memory getEvents. currently the test 
             // will be in the mysql store only
             xdescribe('filtering projections by events', () => {

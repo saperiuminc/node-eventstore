@@ -23,6 +23,15 @@ module.exports = (function() {
             database: process.env.EVENTSTORE_MYSQL_DATABASE,
             connectionPoolLimit: 10
         }, // required
+        projectionStore: {
+            host: process.env.EVENTSTORE_MYSQL_HOST,
+            port: process.env.EVENTSTORE_MYSQL_PORT,
+            user: process.env.EVENTSTORE_MYSQL_USERNAME,
+            password: process.env.EVENTSTORE_MYSQL_PASSWORD,
+            database: process.env.EVENTSTORE_MYSQL_DATABASE,
+            connectionPoolLimit: 10,
+            name: 'projections'
+        }, // required
         enableProjection: true,
         eventCallbackTimeout: 1000,
         pollingTimeout: 10000, // optional,

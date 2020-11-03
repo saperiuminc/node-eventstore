@@ -3,6 +3,13 @@
  * @typedef {import('./lib/eventstore-projections/eventstore-projection').PlaybackListStoreConfig} PlaybackListStoreConfig
  */
 
+const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
+
+ /**
+ * ProjectionStoreConfig
+ * @typedef {import('./lib/eventstore-projections/eventstore-projection').ProjectionStoreConfig} ProjectionStoreConfig
+ */
+
 /**
  * EventStore
  * @typedef {Object} EventstoreOptions
@@ -11,6 +18,7 @@
  * @property {String} projectionGroup name of the projectionGroup if using projection
  * @property {Number} concurrentProjectionGroup number of concurrent running projections per projectionGroup
  * @property {PlaybackListStoreConfig} listStore
+ * @property {ProjectionStoreConfig} projectionStore
  * @property {String} eventNameFieldName the field name of the event's name in the payload. Default is "name"
  * @property {String} stateContextName the name of the context when a state is created by a projection. default is 'default'
  * @property {Number} concurrentAggregatesInProjection number of concurrent aggregates running in the projection job
@@ -104,6 +112,7 @@ const esFunction = function(options) {
     let distributedLock;
     let playbackListStore;
     let playbackListViewStore;
+    let projectionStore;
     if (options.redisConfig) {
         var Redis = require("ioredis");
         const redis = new Redis({
@@ -144,7 +153,13 @@ const esFunction = function(options) {
         playbackListStore.init(options.listStore);
     }
 
-    var eventstore = new Eventstore(options, new Store(options), jobsManager, distributedLock, playbackListStore, playbackListViewStore);
+    if (options.projectionStore) {
+        const EventstoreProjectionStore = require('./lib/eventstore-projections/eventstore-projection-store');
+        projectionStore = new EventstoreProjectionStore(options.projectionStore);
+        projectionStore.init();
+    }
+
+    var eventstore = new Eventstore(options, new Store(options), jobsManager, distributedLock, playbackListStore, playbackListViewStore, projectionStore);
 
     if (options.enableProjection === true) {
         eventstore.setupNotifyPublish();
