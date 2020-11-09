@@ -163,11 +163,11 @@ describe('eventstore-projection-store tests', () => {
                         aggregate: 'vehicle'
                     },
                     playbackInterface: {
-                        seed_vehicle_updated: function() {
+                        seed_vehicle_created: function() {
                             return projection.vehicle_created();
                         },
                         vehicle_created: function() {
-                            return projection.seed_vehicle_updated();
+                            return 'a';
                         }
                     }
                 }
