@@ -175,6 +175,7 @@ describe('eventstore-projection-store tests', () => {
                 expect(storeProjection.projectionId).toEqual(projection.projectionId);
                 expect(storeProjection.query).toEqual(projection.query);
                 expect(storeProjection.processedDate).toBeFalsy();
+                expect(storeProjection.isProcessing).toBeFalsy();
                 expect(storeProjection.offset).toBeFalsy();
     
                 done();
@@ -192,15 +193,17 @@ describe('eventstore-projection-store tests', () => {
                 }
     
                 const processedDate = Date.now();
+                const isProcessing = 1;
                 const offset = undefined;
     
                 await projectionStore.createProjectionIfNotExists(projection);
-                await projectionStore.setProcessed(projection.projectionId, processedDate, offset);
+                await projectionStore.setProcessed(projection.projectionId, processedDate, offset, isProcessing);
     
                 const storeProjection = await projectionStore.getProjection(projection.projectionId);
     
                 expect(storeProjection.projectionId).toEqual(projection.projectionId);
                 expect(storeProjection.processedDate).toEqual(processedDate);
+                expect(storeProjection.isProcessing).toEqual(isProcessing);
                 expect(storeProjection.offset).toBeNull();
     
                 done();
