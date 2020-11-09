@@ -70,7 +70,7 @@ const mysqlServer = (function() {
     }
 })();
 
-describe('eventstore-projection-store tests', () => {
+fdescribe('eventstore-projection-store tests', () => {
     describe('validations', () => {
         it('should validate host', (done) => {
             try {
@@ -163,8 +163,11 @@ describe('eventstore-projection-store tests', () => {
                         aggregate: 'vehicle'
                     },
                     playbackInterface: {
+                        seed_vehicle_updated: function() {
+                            return projection.vehicle_created();
+                        },
                         vehicle_created: function() {
-                            return 'a';
+                            return projection.seed_vehicle_updated();
                         }
                     }
                 }
