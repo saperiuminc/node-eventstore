@@ -63,6 +63,34 @@ router.post('/', async function(req, res) {
 
 });
 
+router.post('/add-vehicle-events', async function(req, res) {
+    const query = req.body.query;
+    const count = req.body.count;
+    const stream = await utils.eventstore.getLastEventAsStreamAsync(query);
+    Bluebird.promisifyAll(stream);
+    
+    for (let i = 0; i < count; i++) {
+        const event = {
+            "name": "VEHICLE_CREATED",
+            "payload": {
+                "make": "Honda",
+                "year": 2012,
+                "model": "Jazz",
+                "mileage": 1245,
+                "vehicleId": query.aggregateId
+            }
+        }    
+        stream.addEvent(event)
+    }
+
+    await stream.commitAsync();
+
+    res.json({
+        result: 'OK'
+    });
+
+});
+
 /* Add event */
 router.post('/subscribe', async function(req, res) {
     // NOTE: used private async interface just for tests

@@ -15,10 +15,11 @@ EventstoreProjectionInMemoryStore.prototype = {
         return this._projectionList[projectionId];
     },
 
-    setProcessed: async function(projectionId, processedDate, newOffset) {
+    setProcessed: async function(projectionId, processedDate, newOffset, isProcessing) {
         const projection = await this.getProjection(projectionId);
         if (projection) {
             projection.processedDate = processedDate;
+            projection.isProcessing = isProcessing;
             if (newOffset) {
                 projection.offset = newOffset;
             }
