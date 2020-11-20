@@ -90,6 +90,9 @@ describe('eventstore-playback-list-mysql-store tests', () => {
             fields: [{
                 name: 'vehicleId',
                 type: 'string'
+            },{
+                name: 'accessDate',
+                type: 'date'
             }]
         });
 
@@ -149,7 +152,56 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 throw error;
             }
         })
-    })
+    });
+
+    describe('query date', () => {
+        it('should return the correct results based on the query parameters passed', async (done) => {
+            try {
+                // add items to our list
+                for (let i = 1; i < 10; i++) {
+                    const rowId = shortid.generate();
+                    const revision = i;
+                    const data = {
+                        accessDate: `2020-11-0${i}`
+                    };
+                    const meta = {
+                        streamRevision: revision
+                    }
+
+                    await eventstorePlaybackListStore.add(listName, rowId, revision, data, meta);
+                }
+
+                const allResultsInserted = await eventstorePlaybackListStore.query(listName, 0, 10, null, null);
+                expect(allResultsInserted.count).toEqual(9);
+                expect(allResultsInserted.rows.length).toEqual(9);
+
+                const pagedResults = await eventstorePlaybackListStore.query(listName, 5, 5, null, null);
+                // should get revision 5 - 8
+                expect(pagedResults.count).toEqual(9); // total still 9
+                expect(pagedResults.rows.length).toEqual(4); // paged should be 4
+
+                const filteredResults = await eventstorePlaybackListStore.query(listName, 0, 2, [{
+                    field: 'accessDate',
+                    operator: 'dateRange',
+                    from: '2020-11-04',
+                    to: '2020-11-07'
+                }], [{
+                    field: 'accessDate',
+                    sortDirection: 'ASC'
+                }]);
+                expect(filteredResults.count).toEqual(4); // total should be 4
+                expect(filteredResults.rows.length).toEqual(2); // should be 4
+                expect(filteredResults.rows[0].revision).toEqual(4);
+                console.log(JSON.stringify(filteredResults));
+                expect(filteredResults.rows[0].data.accessDate).toEqual('2020-11-04');
+
+                done();
+            } catch (error) {
+                console.log(error);
+                throw error;
+            }
+        })
+    });
 
     describe('add and get', () => {
         it('should add the data in the table', async (done) => {
