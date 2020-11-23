@@ -70,7 +70,7 @@ const mysqlServer = (function() {
     }
 })();
 
-describe('eventstore-projection-store tests', () => {
+fdescribe('eventstore-projection-store tests', () => {
     describe('validations', () => {
         it('should validate host', (done) => {
             try {
