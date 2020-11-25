@@ -110,7 +110,7 @@ describe('jobs-manager tests', () => {
                     jobId: job.id,
                     delay: undefined,
                     removeOnComplete: true,
-                    timeout: 10000
+                    timeout: undefined
                 });
                 done();
             })
