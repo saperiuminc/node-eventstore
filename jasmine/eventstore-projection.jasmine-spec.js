@@ -78,8 +78,8 @@ describe('eventstore-projection tests', () => {
             const sleep = async function(timeout) {
                 return new Promise((resolve) => {
                     setTimeout(resolve, timeout);
-                })
-            }
+                });
+            };
 
             const startTime = Date.now();
             let stream = null;
@@ -253,7 +253,7 @@ describe('eventstore-projection tests', () => {
                     expect(distributedLock.lock).toHaveBeenCalledWith(lockKey);
                     done();
                 });
-            })
+            });
 
             it('should call unlock of the distributedLock', (done) => {
                 const lockToken = 'the_lock_token';
@@ -272,7 +272,7 @@ describe('eventstore-projection tests', () => {
                     expect(distributedLock.unlock).toHaveBeenCalledWith(lockToken);
                     done();
                 });
-            })
+            });
 
             it('should not have an error if distributedLock is not passed as an option', (done) => {
                 const query = {
@@ -297,8 +297,8 @@ describe('eventstore-projection tests', () => {
                     expect(error).toBeUndefined();
                     done();
                 });
-            })
-        })
+            });
+        });
 
         describe('project', () => {
             let projection;
@@ -326,7 +326,7 @@ describe('eventstore-projection tests', () => {
                                     };
                                     playbackList.add(event.aggregateId, event.streamRevision, data, {}, function(err) {
                                         done();
-                                    })
+                                    });
                                 });
                             },
                             vehicle_reserve_price_updated: function(state, event, funcs, done) {
@@ -378,7 +378,7 @@ describe('eventstore-projection tests', () => {
                     await esWithProjection.startAllProjections();
 
                     done();
-                })
+                });
 
                 describe('playback list add', () => {
                     it('should add to item when an item is added to the playbacklist', async (done) => {
@@ -415,10 +415,10 @@ describe('eventstore-projection tests', () => {
                                 mileage: 12345
                             },
                             meta: {}
-                        })
+                        });
                         done();
                     });
-                })
+                });
 
                 describe('playback list updates', () => {
                     let stream;
@@ -451,7 +451,7 @@ describe('eventstore-projection tests', () => {
                         });
 
                         done();
-                    })
+                    });
 
                     it('should update the item when an item is updated to the playbacklist', async (done) => {
                         // arrange 
@@ -481,7 +481,7 @@ describe('eventstore-projection tests', () => {
                                 reservePrice: 2233
                             },
                             meta: {}
-                        })
+                        });
                         done();
                     });
 
@@ -503,9 +503,8 @@ describe('eventstore-projection tests', () => {
                         expect(data).toBeUndefined();
                         done();
                     });
-                })
-
-            })
+                });
+            });
 
             describe('emit', () => {
                 beforeEach(async (done) => {
@@ -547,7 +546,7 @@ describe('eventstore-projection tests', () => {
                     await esWithProjection.startAllProjections();
 
                     done();
-                })
+                });
 
                 it('should save to the target query', async (done) => {
                     const stream = await esWithProjection.getEventStreamAsync({
@@ -573,10 +572,7 @@ describe('eventstore-projection tests', () => {
                     expect(newStream.events.length).toEqual(1);
                     done();
                 });
-                
-
-            
-            })
+            });
 
             describe('outputting states', () => {
                 beforeEach(async (done) => {
@@ -615,7 +611,7 @@ describe('eventstore-projection tests', () => {
                         partitionBy: ''
                     };
                     done();
-                })
+                });
 
                 it('should create one state for the projection if partition is not defined', async (done) => {
                     projection.partitionBy = '';
@@ -662,7 +658,7 @@ describe('eventstore-projection tests', () => {
                     expect(expectedState).toEqual(event);
 
                     done();
-                })
+                });
 
                 it('should create one state for each stream if partition is set to stream', async (done) => {
                     projection.partitionBy = 'stream';
@@ -727,7 +723,7 @@ describe('eventstore-projection tests', () => {
 
 
                     done();
-                })
+                });
 
                 it('should create a state for each unique id returned by partitionBy function', async (done) => {
                     projection.partitionBy = (event) => {
@@ -762,7 +758,6 @@ describe('eventstore-projection tests', () => {
                         await stream.commitAsync();
                     }
 
-
                     for (let index = 1; index <= numberOfCarsToExpect; index++) {
                         const event = {
                             name: 'vehicle_created',
@@ -795,11 +790,9 @@ describe('eventstore-projection tests', () => {
                         expect(expectedState).toEqual(event);
                     }
 
-
                     done();
-                })
-
-            })
+                });
+            });
 
             describe('projection storage', () => {
                 beforeEach(async (done) => {
@@ -841,7 +834,7 @@ describe('eventstore-projection tests', () => {
                     await esWithProjection.startAllProjections();
 
                     done();
-                })
+                });
 
                 it('should update processedDate and offset', async (done) => {
                     
@@ -881,7 +874,7 @@ describe('eventstore-projection tests', () => {
                     done();
                 });
                 
-            })
+            });
             // TODO: how to get stub the implementation of in memory getEvents. currently the test 
             // will be in the mysql store only
             xdescribe('filtering projections by events', () => {
@@ -929,7 +922,7 @@ describe('eventstore-projection tests', () => {
                     await esWithProjection.startAllProjections();
 
                     done();
-                })
+                });
 
                 // TODO: need to stub the implementation of the in-memory eventstore to add the filter by events
                 // currently the test is a spy that expects the method to have been called with
@@ -978,7 +971,7 @@ describe('eventstore-projection tests', () => {
                     // }, jasmine.any(Number), jasmine.any(Number), jasmine.any(Function))
                     done();
                 });
-            })
+            });
         });
 
         describe('subscribe', () => {
@@ -1069,12 +1062,12 @@ describe('eventstore-projection tests', () => {
                 });
             });
         });
-    })
+    });
 
     afterEach((done) => {
         // jobsManager is polling so we need to stop the polling for each it test
         jobsManager.reset();
         playbackListStore.reset();
         done();
-    })
+    });
 })

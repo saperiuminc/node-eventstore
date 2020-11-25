@@ -15,8 +15,8 @@ JobsManagerFake.prototype = {
                 job: job,
                 options: options
             };
-    
-            const delay = options.delay || 100;
+
+            const delay = options && options.delay ? options.delay : 100;
             setTimeout(() => {
                 _.forEach(this._subscribers, async (subscriber) => {
                     if (subscriber.jobGroup == job.group) {
@@ -31,11 +31,12 @@ JobsManagerFake.prototype = {
         }
     },
 
-    processJobGroup: async function(owner, jobGroup, onProcessJob, onCompletedJob) {
+    processJobGroup: async function(owner, jobGroup, options, onProcessJob, onCompletedJob) {
         if (this._subscribers) {
             this._subscribers.push({
                 owner: owner,
-                jobGroup, jobGroup,
+                jobGroup: jobGroup,
+                options: options,
                 onProcessJob: onProcessJob,
                 onCompletedJob: onCompletedJob
             });
