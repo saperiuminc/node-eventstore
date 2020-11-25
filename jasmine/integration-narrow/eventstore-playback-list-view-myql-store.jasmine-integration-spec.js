@@ -91,6 +91,10 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             fields: [{
                 name: 'vehicleId',
                 type: 'string'
+            },
+            {
+                name: 'accessDate',
+                type: 'date'
             }]
         });
 
@@ -99,7 +103,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             const rowId = shortid.generate();
             const revision = i;
             const data = {
-                vehicleId: 'vehicle_' + revision
+                vehicleId: 'vehicle_' + revision,
+                accessDate: `2020-11-${(revision+1) >= 10 ? (revision+1) : '0' + (revision+1)}`
             };
             const meta = {
                 streamRevision: revision
@@ -130,7 +135,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             listName: "list_view_2",
             query: `SELECT * FROM ${listName} AS vehicle_list @@where @@order @@limit; SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where;`,
             alias: {
-                vehicleId: `vehicle_list.vehicleId`
+                vehicleId: `vehicle_list.vehicleId`,
+                accessDate: `vehicle_list.accessDate`
             }
         });
         Bluebird.promisifyAll(eventstorePlaybackListViewOptimized);
@@ -155,6 +161,11 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
                     field: 'vehicleId',
                     operator: 'is',
                     value: 'vehicle_5'
+                },{
+                    field: 'accessDate',
+                    operator: 'dateRange',
+                    from: '2020-11-01',
+                    to: '2020-11-10'
                 }], null);
                 expect(filteredResults.count).toEqual(1); // total still 10
                 expect(filteredResults.rows.length).toEqual(1);

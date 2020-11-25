@@ -1,7 +1,7 @@
 {
   "author": "adrai",
   "name": "@saperiuminc/eventstore",
-  "version": "1.15.13-alpha.10",
+  "version": "1.15.13-alpha.17",
   "contributors": [
     "Ryan Goce <ryan@saperium.com>",
     "Gabby Sanchez <gabby@saperium.com>",
@@ -61,7 +61,6 @@
     "pubsub-js": "^1.8.0",
     "redlock": "^4.1.0",
     "save": "^2.4.0",
-    "serialize-javascript": "^5.0.1",
     "shimmer": "^1.2.1",
     "tolerance": "1.0.0",
     "uuid": "3.3.3"
