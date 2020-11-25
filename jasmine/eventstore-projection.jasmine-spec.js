@@ -867,7 +867,7 @@ describe('eventstore-projection tests', () => {
                     const afterProjection = await projectionStore.pollingGetProjection(projection.projectionId, (projection) => !!projection.processedDate, 1000);
                     console.log(afterProjection);
                     expect(afterProjection.processedDate).toBeGreaterThan(beforeProjectionDate);
-                    expect(afterProjection.isProcessing).toEqual(0);
+                    expect(afterProjection.isProcessing).toEqual(1);
                     // TODO: in memory store does not support any event sequence. so this will always be undefined
                     // this has been checked already by the test so should be okay. commenting out for now
                     // expect(afterProjection.offset).toBeGreaterThan(0);
