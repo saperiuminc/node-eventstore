@@ -212,7 +212,8 @@ describe('eventstore-projection tests', () => {
             done();
         });
 
-        it('should validate listStore', (done) => {
+        // NOTE: put this back once state list has a use case
+        xit('should validate listStore', (done) => {
             const query = {
                 context: 'the_context'
             };
