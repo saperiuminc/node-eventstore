@@ -38,7 +38,7 @@ module.exports = (function() {
         pollingMaxRevisions: 5,
         errorMaxRetryCount: 2,
         errorRetryExponent: 2,
-        concurrentAggregatesInProjection: 10,
+        playbackEventJobCount: 10,
         context: 'vehicle'
     });
 
@@ -108,6 +108,7 @@ module.exports = (function() {
                      * @returns {void} Returns void. Use the callback to the get playbacklist
                      */
                     VEHICLE_CREATED: function(state, event, funcs, done) {
+                        return done(new Error('this is an error'));
                         funcs.getPlaybackList('vehicle_list', function(err, playbackList) {
                             const eventPayload = event.payload.payload;
                             const data = {
