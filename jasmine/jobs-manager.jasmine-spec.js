@@ -110,7 +110,12 @@ describe('jobs-manager tests', () => {
                     jobId: job.id,
                     delay: undefined,
                     removeOnComplete: true,
-                    timeout: undefined
+                    timeout: undefined,
+                    attempts: 10,
+                    backoff: {
+                        type: 'exponential',
+                        delay: 2000,
+                    }
                 });
                 done();
             })
@@ -291,6 +296,43 @@ describe('jobs-manager tests', () => {
                 expect(queueInstance.on).toHaveBeenCalledWith('completed', jasmine.any(Function));
 
                 done();
+            });
+
+            it('should call job.retry if a job fails with failedReason of job stalled more than allowable limit', async (done) => {
+                const job = {
+                    id: 'job_id',
+                    group: 'job_group',
+                    payload: 'job_payload',
+                    retry: jasmine.createSpy('retry')
+                };
+
+                const options = {};
+
+                // queue a job first
+                const promise = jobsManager.queueJob(job);
+
+                const onProcessJob = (jobId, jobData, lastResult, jobDone) => {
+                    jobDone();
+                };
+                const onCompletedJob = (jobId, jobData) => {}
+
+                queueInstance.on.and.callFake((event, cb) => {
+                    if (event == 'error') {
+                        const errMessage = 'job stalled more than allowable limit';
+                        job.failedReason = errMessage;
+                        cb(job, new Error(errMessage));
+                        expect(job.retry).toHaveBeenCalled();
+                        done();
+                    }
+                });
+
+                const owner = this;
+                await jobsManager.processJobGroup(owner, job.group, options, onProcessJob, onCompletedJob);
+
+                
+
+
+
             });
 
             it('should call queue.process with correct params', async (done) => {

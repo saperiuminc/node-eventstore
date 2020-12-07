@@ -9,7 +9,7 @@ module.exports = (function() {
         user: process.env.EVENTSTORE_MYSQL_USERNAME,
         password: process.env.EVENTSTORE_MYSQL_PASSWORD,
         database: process.env.EVENTSTORE_MYSQL_DATABASE,
-        connectionPoolLimit: 10,
+        connectionPoolLimit: 1,
         // projections-specific configuration below
         redisConfig: {
             host: process.env.REDIS_HOST,
@@ -21,7 +21,7 @@ module.exports = (function() {
             user: process.env.EVENTSTORE_MYSQL_USERNAME,
             password: process.env.EVENTSTORE_MYSQL_PASSWORD,
             database: process.env.EVENTSTORE_MYSQL_DATABASE,
-            connectionPoolLimit: 10
+            connectionPoolLimit: 1
         }, // required
         projectionStore: {
             host: process.env.EVENTSTORE_MYSQL_HOST,
@@ -29,7 +29,7 @@ module.exports = (function() {
             user: process.env.EVENTSTORE_MYSQL_USERNAME,
             password: process.env.EVENTSTORE_MYSQL_PASSWORD,
             database: process.env.EVENTSTORE_MYSQL_DATABASE,
-            connectionPoolLimit: 10,
+            connectionPoolLimit: 1,
             name: 'projections'
         }, // required
         enableProjection: true,
@@ -92,6 +92,7 @@ module.exports = (function() {
             // });
 
             // neeed to await the project call to initalize the playback list
+            
             await eventstore.projectAsync({
                 projectionId: 'vehicle-list',
                 playbackInterface: {
