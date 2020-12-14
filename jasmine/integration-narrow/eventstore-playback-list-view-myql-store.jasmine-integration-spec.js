@@ -74,8 +74,10 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
     let eventstorePlaybackListStore = new EventstorePlaybackListStore();
     let eventstorePlaybackListView = new EventstorePlaybackListView();
     let eventstorePlaybackListViewOptimized = new EventstorePlaybackListView();
+    let eventstorePlaybackListViewUnionOptimized = new EventstorePlaybackListView();
 
     let listName;
+    let listName2;
     beforeAll(async (done) => {
         await mysqlServer.up();
 
@@ -88,6 +90,22 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
 
         await eventstorePlaybackListStore.createList({
             name: listName,
+            fields: [{
+                name: 'vehicleId',
+                type: 'string'
+            },
+            {
+                name: 'accessDate',
+                type: 'date'
+            }]
+        });
+
+        let randomString2 = 'list_' + shortid.generate();
+        randomString2 = randomString2.replace('-', '');
+        listName2 = 'list_' + randomString2;
+
+        await eventstorePlaybackListStore.createList({
+            name: listName2,
             fields: [{
                 name: 'vehicleId',
                 type: 'string'
@@ -111,6 +129,21 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             }
 
             await eventstorePlaybackListStore.add(listName, rowId, revision, data, meta);
+        }
+
+        // add items to our second list
+        for (let i = 0; i < 10; i++) {
+            const rowId = shortid.generate();
+            const revision = i;
+            const data = {
+                vehicleId: 'vehicle_' + (revision + 10),
+                accessDate: `2020-11-${(revision+1) >= 10 ? (revision+1) : '0' + (revision+1)}`
+            };
+            const meta = {
+                streamRevision: revision
+            }
+
+            await eventstorePlaybackListStore.add(listName2, rowId, revision, data, meta);
         }
 
         eventstorePlaybackListView = new EventstorePlaybackListView({
@@ -141,6 +174,25 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
         });
         Bluebird.promisifyAll(eventstorePlaybackListViewOptimized);
         await eventstorePlaybackListViewOptimized.init();
+
+        eventstorePlaybackListViewUnionOptimized = new EventstorePlaybackListView({
+            host: mysqlOptions.host,
+            port: mysqlOptions.port,
+            database: mysqlOptions.database,
+            user: mysqlOptions.user,
+            password: mysqlOptions.password,
+            listName: "list_view_3",
+            query: `SELECT * FROM (( SELECT * FROM ${listName} AS vehicle_list @@where @@order @@unionlimit ) UNION ALL ` + 
+                `( SELECT * FROM ${listName2} AS vehicle_list @@where @@order @@unionlimit )) vehicle_list @@order @@limit; ` +
+                `SELECT SUM(t_count) as total_count FROM (( SELECT COUNT(1) AS t_count FROM ${listName} AS vehicle_list @@where ) UNION ALL ` + 
+                `( SELECT COUNT(1) AS t_count FROM ${listName2} AS vehicle_list @@where )) t1;`,
+            alias: {
+                vehicleId: `vehicle_list.vehicleId`,
+                accessDate: `vehicle_list.accessDate`
+            }
+        });
+        Bluebird.promisifyAll(eventstorePlaybackListViewUnionOptimized);
+        await eventstorePlaybackListViewUnionOptimized.init();
 
         done();
     }, 60000);
@@ -225,7 +277,53 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
                 console.log(error);
                 throw error;
             }
-        })
+        });
+
+        it('should return the correct results based on the query parameters passed using union optimized query', async (done) => {
+            try {
+                const allResultsInserted = await eventstorePlaybackListViewUnionOptimized.queryAsync(0, 10, null, null);
+                console.log(JSON.stringify(allResultsInserted));
+                expect(allResultsInserted.count).toEqual(20);
+                expect(allResultsInserted.rows.length).toEqual(10);
+
+                const pagedResults = await eventstorePlaybackListViewUnionOptimized.queryAsync(5, 5, null, null);
+                // should get revision 5 - 9
+                expect(pagedResults.count).toEqual(20); // total still 20
+                expect(pagedResults.rows.length).toEqual(5); // paged should be 5
+
+                const filteredResults = await eventstorePlaybackListViewUnionOptimized.queryAsync(0, 5, [{
+                    field: 'vehicleId',
+                    operator: 'is',
+                    value: 'vehicle_5'
+                }], null);
+                expect(filteredResults.count).toEqual(1);
+                expect(filteredResults.rows.length).toEqual(1);
+                expect(filteredResults.rows[0].revision).toEqual(5);
+                expect(filteredResults.rows[0].data.vehicleId).toEqual('vehicle_5');
+                console.log(JSON.stringify(filteredResults));
+
+                const sortedResults = await eventstorePlaybackListViewUnionOptimized.queryAsync(0, 10, null, [{
+                    field: 'accessDate',
+                    sortDirection: 'ASC'
+                }]);
+
+                expect(sortedResults.count).toEqual(20);
+                expect(sortedResults.rows.length).toEqual(10);
+                expect(sortedResults.rows[0].revision).toEqual(0);
+                expect(sortedResults.rows[0].data.vehicleId).toEqual('vehicle_0');
+                expect(sortedResults.rows[1].revision).toEqual(0);
+                expect(sortedResults.rows[1].data.vehicleId).toEqual('vehicle_10');
+                expect(sortedResults.rows[2].revision).toEqual(1);
+                expect(sortedResults.rows[2].data.vehicleId).toEqual('vehicle_1');
+                expect(sortedResults.rows[3].revision).toEqual(1);
+                expect(sortedResults.rows[3].data.vehicleId).toEqual('vehicle_11');
+
+                done();
+            } catch (error) {
+                console.log(error);
+                throw error;
+            }
+        });
     });
 
     afterAll(async (done) => {
