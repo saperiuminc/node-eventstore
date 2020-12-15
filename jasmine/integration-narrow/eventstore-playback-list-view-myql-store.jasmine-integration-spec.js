@@ -75,6 +75,7 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
     let eventstorePlaybackListView = new EventstorePlaybackListView();
     let eventstorePlaybackListViewOptimized = new EventstorePlaybackListView();
     let eventstorePlaybackListViewUnionOptimized = new EventstorePlaybackListView();
+    let eventstorePlaybackListViewDefaultWhereOptimized = new EventstorePlaybackListView();
 
     let listName;
     let listName2;
@@ -97,6 +98,10 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             {
                 name: 'accessDate',
                 type: 'date'
+            },
+            {
+                name: 'type',
+                type: 'int'
             }]
         });
 
@@ -113,6 +118,10 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             {
                 name: 'accessDate',
                 type: 'date'
+            },
+            {
+                name: 'type',
+                type: 'int'
             }]
         });
 
@@ -122,7 +131,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             const revision = i;
             const data = {
                 vehicleId: 'vehicle_' + revision,
-                accessDate: `2020-11-${(revision+1) >= 10 ? (revision+1) : '0' + (revision+1)}`
+                accessDate: `2020-11-${(revision+1) >= 10 ? (revision+1) : '0' + (revision+1)}`,
+                type: i % 2
             };
             const meta = {
                 streamRevision: revision
@@ -137,7 +147,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             const revision = i;
             const data = {
                 vehicleId: 'vehicle_' + (revision + 10),
-                accessDate: `2020-11-${(revision+1) >= 10 ? (revision+1) : '0' + (revision+1)}`
+                accessDate: `2020-11-${(revision+1) >= 10 ? (revision+1) : '0' + (revision+1)}`,
+                type: i % 2
             };
             const meta = {
                 streamRevision: revision
@@ -194,6 +205,23 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
         Bluebird.promisifyAll(eventstorePlaybackListViewUnionOptimized);
         await eventstorePlaybackListViewUnionOptimized.init();
 
+        eventstorePlaybackListViewDefaultWhereOptimized = new EventstorePlaybackListView({
+            host: mysqlOptions.host,
+            port: mysqlOptions.port,
+            database: mysqlOptions.database,
+            user: mysqlOptions.user,
+            password: mysqlOptions.password,
+            listName: "list_view_2",
+            query: `SELECT * FROM ${listName} AS vehicle_list @@where and vehicle_list.type = 1 @@order @@limit; SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where and type = 1;`,
+            alias: {
+                vehicleId: `vehicle_list.vehicleId`,
+                accessDate: `vehicle_list.accessDate`,
+                type: `vehicle_list.type`
+            }
+        });
+        Bluebird.promisifyAll(eventstorePlaybackListViewDefaultWhereOptimized);
+        await eventstorePlaybackListViewDefaultWhereOptimized.init();
+
         done();
     }, 60000);
 
@@ -219,7 +247,7 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
                     from: '2020-11-01',
                     to: '2020-11-10'
                 }], null);
-                expect(filteredResults.count).toEqual(1); // total still 10
+                expect(filteredResults.count).toEqual(1); // total = 1 after filter
                 expect(filteredResults.rows.length).toEqual(1);
                 expect(filteredResults.rows[0].revision).toEqual(5);
                 expect(filteredResults.rows[0].data.vehicleId).toEqual('vehicle_5');
@@ -257,7 +285,7 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
                     operator: 'is',
                     value: 'vehicle_5'
                 }], null);
-                expect(filteredResults.count).toEqual(1); // total still 10
+                expect(filteredResults.count).toEqual(1); // total = 1 after filter
                 expect(filteredResults.rows.length).toEqual(1);
                 expect(filteredResults.rows[0].revision).toEqual(5);
                 expect(filteredResults.rows[0].data.vehicleId).toEqual('vehicle_5');
@@ -317,6 +345,44 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
                 expect(sortedResults.rows[2].data.vehicleId).toEqual('vehicle_1');
                 expect(sortedResults.rows[3].revision).toEqual(1);
                 expect(sortedResults.rows[3].data.vehicleId).toEqual('vehicle_11');
+
+                done();
+            } catch (error) {
+                console.log(error);
+                throw error;
+            }
+        });
+
+        it('should return the correct results based on the query parameters passed using optimized query with default where clause', async (done) => {
+            try {
+                const allResultsInserted = await eventstorePlaybackListViewDefaultWhereOptimized.queryAsync(0, 10, null, null);
+                expect(allResultsInserted.count).toEqual(5);
+                expect(allResultsInserted.rows.length).toEqual(5);
+
+                const pagedResults = await eventstorePlaybackListViewDefaultWhereOptimized.queryAsync(3, 5, null, null);
+                // should get revision 5 - 9
+                expect(pagedResults.count).toEqual(5); // total still 5
+                expect(pagedResults.rows.length).toEqual(2); // paged should be 2
+
+                const filteredResults = await eventstorePlaybackListViewDefaultWhereOptimized.queryAsync(0, 5, [{
+                    field: 'vehicleId',
+                    operator: 'is',
+                    value: 'vehicle_5'
+                }], null);
+                expect(filteredResults.count).toEqual(1); // total = 1 after filter
+                expect(filteredResults.rows.length).toEqual(1);
+                expect(filteredResults.rows[0].revision).toEqual(5);
+                expect(filteredResults.rows[0].data.vehicleId).toEqual('vehicle_5');
+
+                const sortedResults = await eventstorePlaybackListViewDefaultWhereOptimized.queryAsync(0, 10, null, [{
+                    field: 'vehicleId',
+                    sortDirection: 'ASC'
+                }]);
+
+                expect(sortedResults.count).toEqual(5); // total still 5
+                expect(sortedResults.rows.length).toEqual(5);
+                expect(sortedResults.rows[0].revision).toEqual(1);
+                expect(sortedResults.rows[0].data.vehicleId).toEqual('vehicle_1');
 
                 done();
             } catch (error) {
