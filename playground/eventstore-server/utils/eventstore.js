@@ -192,6 +192,16 @@ module.exports = (function() {
                 `SELECT * FROM vehicle_list v;`);
 
             await eventstore.startAllProjectionsAsync();
+
+            eventstore.subscribe({
+                context: 'vehicle',
+                aggregate: 'vehicle',
+                aggregateId: 'vehicle_1'
+            }, 0, function(err, event, done) {
+                
+                console.log('got event from subscribe', event.aggregateId, event.streamRevision);
+                done();
+            });
         } catch (error) {
             console.error('error in setting up the projection', error);
         }

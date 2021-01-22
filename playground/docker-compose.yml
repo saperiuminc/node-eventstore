@@ -22,8 +22,8 @@ services:
       - ./eventstore-server:/app
       - ../:/app/node_modules/@saperiuminc/eventstore
     ports:
-      - 3001:3000
-      - 9000:5858
+      - 3000
+      - 5858
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
