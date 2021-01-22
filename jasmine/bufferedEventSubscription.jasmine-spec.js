@@ -1,5 +1,6 @@
 const BufferedEventSubscription = require('../lib/bufferedEventSubscription');
 const PubSub = require('pubsub-js');
+const DistributedSignal = require('./test-doubles/fakes/distributed-signal.fake');
 
 describe('bufferedEventSubscription', () => {
     let mockOptions;
@@ -7,13 +8,15 @@ describe('bufferedEventSubscription', () => {
     let mockStreamBuffer;
     let mockCallback;
     let bufferedEventSubscription;
+    let mockDistributedSignal;
 
     beforeEach(() => {
         mockES = jasmine.createSpyObj('mockES', ['getLastEvent', 'getEventStream']);
         mockStreamBuffer = jasmine.createSpyObj('mockStreamBuffer', ['getEventsInBufferAsStream', 'offerEvents']);
-
+        mockDistributedSignal = new DistributedSignal();
         mockOptions = {
             es: mockES,
+            distributedSignal: mockDistributedSignal,
             streamBuffer: mockStreamBuffer,
             query: {
                 aggregate: 'mockAggregate',
@@ -722,6 +725,7 @@ describe('bufferedEventSubscription', () => {
                 let numExecutions = 0;
                 const mockOptionsWithHighTimeout = {
                     es: mockES,
+                    distributedSignal: mockDistributedSignal,
                     streamBuffer: mockStreamBuffer,
                     query: {
                         aggregate: 'mockAggregate',
@@ -788,7 +792,7 @@ describe('bufferedEventSubscription', () => {
                     if (numExecutions === 1) {
                         callback(null, mockEmptyEventStream);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
 
                             // Add an additional subscriber
                             bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
@@ -796,7 +800,7 @@ describe('bufferedEventSubscription', () => {
                     } else if (numExecutions === 2) {
                         callback(null, mockNewEventStreams[0]);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                         }, 25);
                     } else if (numExecutions === 3) {
                         callback(null, mockNewEventStreams[1]);
@@ -831,6 +835,7 @@ describe('bufferedEventSubscription', () => {
                 let numExecutions = 0;
                 const mockOptionsWithHighTimeout = {
                     es: mockES,
+                    distributedSignal: mockDistributedSignal,
                     streamBuffer: mockStreamBuffer,
                     query: {
                         aggregate: 'mockAggregate',
@@ -899,12 +904,12 @@ describe('bufferedEventSubscription', () => {
                     if (numExecutions === 2) {
                         callback(null, mockEmptyEventStream);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                         }, 25);
                     } else if (numExecutions === 3) {
                         callback(null, mockNewEventStreams[0]);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                         }, 25);
                     } else if (numExecutions === 4) {
                         callback(null, mockNewEventStreams[1]);
@@ -938,6 +943,7 @@ describe('bufferedEventSubscription', () => {
                 let numExecutions = 0;
                 const mockOptionsWithHighTimeout = {
                     es: mockES,
+                    distributedSignal: mockDistributedSignal,
                     streamBuffer: mockStreamBuffer,
                     query: {
                         aggregate: 'mockAggregate',
@@ -1004,12 +1010,12 @@ describe('bufferedEventSubscription', () => {
                     if (numExecutions === 2) {
                         callback(null, mockEmptyEventStream);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                         }, 25);
                     } else if (numExecutions === 3) {
                         callback(null, mockNewEventStreams[0]);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                         }, 25);
                     } else if (numExecutions === 4) {
                         callback(null, mockNewEventStreams[1]);
@@ -1043,6 +1049,7 @@ describe('bufferedEventSubscription', () => {
                 let numExecutions = 0;
                 const mockOptionsWithHighTimeout = {
                     es: mockES,
+                    distributedSignal: mockDistributedSignal,
                     streamBuffer: mockStreamBuffer,
                     query: {
                         aggregate: 'mockAggregate',
@@ -1102,12 +1109,12 @@ describe('bufferedEventSubscription', () => {
                     if (numExecutions === 2) {
                         callback(null, mockEmptyEventStream);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                         }, 25);
                     } else if (numExecutions === 3) {
                         callback(null, mockNewEventStreams[0]);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                         }, 25);
                     } else if (numExecutions === 4) {
                         callback(null, mockNewEventStreams[1]);
@@ -1140,6 +1147,7 @@ describe('bufferedEventSubscription', () => {
                 let numExecutions = 0;
                 const mockOptionsWithHighTimeout = {
                     es: mockES,
+                    distributedSignal: mockDistributedSignal,
                     streamBuffer: mockStreamBuffer,
                     query: {
                         aggregate: 'mockAggregate',
@@ -1210,12 +1218,12 @@ describe('bufferedEventSubscription', () => {
                     } else if (numExecutions === 2) {
                         callback(null, mockEmptyEventStream);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                         }, 25);
                     } else if (numExecutions === 3) {
                         callback(null, mockNewEventStreams[0]);
                         setTimeout(() => {
-                            PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                            mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                         }, 25);
                     } else if (numExecutions === 4) {
                         callback(mockError, null);
@@ -1251,6 +1259,7 @@ describe('bufferedEventSubscription', () => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
+                distributedSignal: mockDistributedSignal,
                 streamBuffer: mockStreamBuffer,
                 query: {
                     aggregate: 'mockAggregate',
@@ -1317,13 +1326,13 @@ describe('bufferedEventSubscription', () => {
                 if (numExecutions === 2) {
                     callback(null, mockEmptyEventStream);
                     setTimeout(() => {
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
                         bufferedEventSubscription.unsubscribe('mockToken2');
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                 } else if (numExecutions === 4) {
                     callback(null, mockNewEventStreams[1]);
@@ -1357,6 +1366,7 @@ describe('bufferedEventSubscription', () => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
+                distributedSignal: mockDistributedSignal,
                 streamBuffer: mockStreamBuffer,
                 query: {
                     aggregate: 'mockAggregate',
@@ -1424,14 +1434,14 @@ describe('bufferedEventSubscription', () => {
                 if (numExecutions === 2) {
                     callback(null, mockEmptyEventStream);
                     setTimeout(() => {
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
                         bufferedEventSubscription.unsubscribe('mockToken');
                         bufferedEventSubscription.unsubscribe('mockToken2');
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
 
                     setTimeout(() => {
@@ -1466,6 +1476,7 @@ describe('bufferedEventSubscription', () => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
+                distributedSignal: mockDistributedSignal,
                 streamBuffer: mockStreamBuffer,
                 query: {
                     aggregate: 'mockAggregate',
@@ -1532,13 +1543,13 @@ describe('bufferedEventSubscription', () => {
                 if (numExecutions === 2) {
                     callback(null, mockEmptyEventStream);
                     setTimeout(() => {
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
                         bufferedEventSubscription.deactivate();
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
 
                     setTimeout(() => {
@@ -1573,6 +1584,7 @@ describe('bufferedEventSubscription', () => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
+                distributedSignal: mockDistributedSignal,
                 streamBuffer: mockStreamBuffer,
                 query: {
                     aggregate: 'mockAggregate',
@@ -1639,14 +1651,14 @@ describe('bufferedEventSubscription', () => {
                 if (numExecutions === 2) {
                     callback(null, mockEmptyEventStream);
                     setTimeout(() => {
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
                         bufferedEventSubscription.deactivate();
                         bufferedEventSubscription.activate();
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                 } else if (numExecutions === 4) {
                     callback(null, mockNewEventStreams[1]);
@@ -1703,6 +1715,7 @@ describe('bufferedEventSubscription', () => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
+                distributedSignal: mockDistributedSignal,
                 streamBuffer: mockStreamBuffer,
                 query: {
                     aggregate: 'mockAggregate',
@@ -1769,7 +1782,7 @@ describe('bufferedEventSubscription', () => {
                 if (numExecutions === 2) {
                     callback(null, mockEmptyEventStream);
                     setTimeout(() => {
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
@@ -1777,7 +1790,7 @@ describe('bufferedEventSubscription', () => {
                         bufferedEventSubscription.unsubscribe('mockToken');
                         bufferedEventSubscription.unsubscribe('mockToken2');
                         bufferedEventSubscription.activate();
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                     setTimeout(() => {
                         // Assert stream buffer and callbacks invoked
@@ -1811,6 +1824,7 @@ describe('bufferedEventSubscription', () => {
             let numExecutions = 0;
             const mockOptionsWithHighTimeout = {
                 es: mockES,
+                distributedSignal: mockDistributedSignal,
                 streamBuffer: mockStreamBuffer,
                 query: {
                     aggregate: 'mockAggregate',
@@ -1877,7 +1891,7 @@ describe('bufferedEventSubscription', () => {
                 if (numExecutions === 2) {
                     callback(null, mockEmptyEventStream);
                     setTimeout(() => {
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
@@ -1905,6 +1919,7 @@ describe('bufferedEventSubscription', () => {
             const mockOptionsWithHighTimeout = {
                 es: mockES,
                 streamBuffer: mockStreamBuffer,
+                distributedSignal: mockDistributedSignal,
                 query: {
                     aggregate: 'mockAggregate',
                     aggregateId: 'mockAggregateId',
@@ -1970,13 +1985,13 @@ describe('bufferedEventSubscription', () => {
                 if (numExecutions === 2) {
                     callback(null, mockEmptyEventStream);
                     setTimeout(() => {
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[0]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
                 } else if (numExecutions === 3) {
                     callback(null, mockNewEventStreams[0]);
                     setTimeout(() => {
                         bufferedEventSubscription.deactivate();
-                        PubSub.publish(mockOptionsWithHighTimeout.channel, mockPublishedEvents[1]);
+                        mockDistributedSignal.signal(mockOptionsWithHighTimeout.channel);
                     }, 25);
 
                     setTimeout(() => {
@@ -1995,7 +2010,7 @@ describe('bufferedEventSubscription', () => {
             bufferedEventSubscription = new BufferedEventSubscription(mockOptionsWithHighTimeout);
             bufferedEventSubscription.subscribe('mockToken', mockRevision, mockCallbacks[0].onEventCallback, mockCallbacks[0].onErrorCallback);
             bufferedEventSubscription.subscribe('mockToken2', mockRevision, mockCallbacks[1].onEventCallback, mockCallbacks[1].onErrorCallback);
-        }, 100);
+        }, 1000);
 
         it('should return false if the internal bufferedEventSubscription has not been started', (done) => {
             const mockEmptyEventStream = {

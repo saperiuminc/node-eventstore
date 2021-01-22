@@ -41,7 +41,7 @@ services:
       JAEGER_SAMPLER_TYPE: const
       JAEGER_SAMPLER_PARAM: 1
       JAEGER_SAMPLER_MANAGER_HOST_PORT: http://jaeger:5778/sampling
-      DEBUG: 'eventstore,eventstore:projection'
+      DEBUG: ''
       AWS_XRAY_DAEMON_ADDRESS: xray:2000
       AWS_XRAY_TRACING_NAME: 'eventstore' # need to set as root segment name
     links:

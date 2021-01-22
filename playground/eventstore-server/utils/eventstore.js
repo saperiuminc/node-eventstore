@@ -51,7 +51,7 @@ module.exports = (function() {
             console.log('eventstore initialized');
 
             // add dummy data
-            for (let index = 0; index < 10; index++) {
+            for (let index = 0; index < 20; index++) {
                 const vehicleId = `vehicle_${index}`;
                 const stream = await eventstore.getLastEventAsStreamAsync({
                     context: 'vehicle',
@@ -74,7 +74,7 @@ module.exports = (function() {
                 stream.addEvent(event);
                 await stream.commitAsync();
             }
-            
+
 
             // some dummy calls for testing
             // eventstore.subscribe('dummy-projection-id-1-result', 0, (err, event, callback) => {
@@ -92,7 +92,7 @@ module.exports = (function() {
             // });
 
             // neeed to await the project call to initalize the playback list
-            
+
             await eventstore.projectAsync({
                 projectionId: 'vehicle-list',
                 playbackInterface: {
@@ -109,7 +109,7 @@ module.exports = (function() {
                      * @returns {void} Returns void. Use the callback to the get playbacklist
                      */
                     VEHICLE_CREATED: function(state, event, funcs, done) {
-                        return done(new Error('this is an error'));
+                        // return done(new Error('this is an error'));
                         funcs.getPlaybackList('vehicle_list', function(err, playbackList) {
                             const eventPayload = event.payload.payload;
                             const data = {
@@ -119,6 +119,7 @@ module.exports = (function() {
                                 model: eventPayload.model,
                                 mileage: eventPayload.mileage
                             };
+                            console.log('adding', event.aggregateId);
                             playbackList.add(event.aggregateId, event.streamRevision, data, {}, function(err) {
                                 state.count++;
                                 done();

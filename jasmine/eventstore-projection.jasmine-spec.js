@@ -14,7 +14,7 @@ describe('eventstore-projection tests', () => {
     let defaultStream;
     let getEventStreamResult;
     let distributedLock;
-    let jobsManager;
+    let distributedSignal;
     let playbackListStore;
     let playbackListViewStore;
     let projectionStore;
@@ -23,7 +23,7 @@ describe('eventstore-projection tests', () => {
     beforeEach((done) => {
         // const InMemoryStore = require('./test-doubles/fakes/eventstore-inmemory-store.fake');
         const InMemoryStore = require('../lib/databases/inmemory');
-        const JobsManager = require('./test-doubles/fakes/jobs-manager.fake');
+        const DistributedSignal = require('./test-doubles/fakes/distributed-signal.fake');
         const EventstorePlaybackListInMemoryStore = require('./test-doubles/fakes/eventstore-playbacklist-inmemory-store.fake');
         const EventstoreProjectionInMemoryStore = require('./test-doubles/fakes/eventstore-projection-inmemory-store.fake');
         
@@ -60,11 +60,11 @@ describe('eventstore-projection tests', () => {
 
         // TODO: move InMemoryStore to the test-doubles so that it is
         
-        jobsManager = new JobsManager();
+        distributedSignal = new DistributedSignal();
         playbackListStore = new EventstorePlaybackListInMemoryStore();
         projectionStore = new EventstoreProjectionInMemoryStore();
         distributedLock = DistributedLock();
-        esWithProjection = new EventStoreWithProjection(options, eventsDataStore, jobsManager, distributedLock, playbackListStore, playbackListViewStore, projectionStore);
+        esWithProjection = new EventStoreWithProjection(options, eventsDataStore, distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore);
         outEsWithProjection.pollingGetEventStreamAsync = esWithProjection.pollingGetEventStreamAsync = async function(query, comparer, timeout) {
             if (!comparer) {
                 comparer = () => false;
@@ -251,7 +251,7 @@ describe('eventstore-projection tests', () => {
                     query: query
                 }, function(error) {
                     expect(error).toBeUndefined();
-                    expect(distributedLock.lock).toHaveBeenCalledWith(lockKey);
+                    expect(distributedLock.lock).toHaveBeenCalledWith(lockKey, jasmine.any(Number));
                     done();
                 });
             });
@@ -401,7 +401,8 @@ describe('eventstore-projection tests', () => {
                                 mileage: 12345
                             }
                         });
-                        stream.commit();
+                        BlueBird.promisifyAll(stream);
+                        await stream.commitAsync();
 
                         // assert
                         const data = await playbackListStore.pollingGet(projection.playbackList.name, 'vehicle_1', (item) => !!item);
@@ -464,7 +465,9 @@ describe('eventstore-projection tests', () => {
                                 reservePrice: 2233
                             }
                         });
-                        stream.commit();
+
+                        BlueBird.promisifyAll(stream);
+                        await stream.commitAsync();
 
                         // assert
                         const data = await playbackListStore.pollingGet(projection.playbackList.name, 'vehicle_1', (item) => {
@@ -562,7 +565,9 @@ describe('eventstore-projection tests', () => {
                             vehicleId: 'vehicle_1'
                         }
                     });
-                    stream.commit();
+
+                    BlueBird.promisifyAll(stream);
+                    await stream.commitAsync();
 
                     const newStream = await outEsWithProjection.pollingGetEventStreamAsync({
                         aggregateId: 'vehicle_1',
@@ -637,7 +642,9 @@ describe('eventstore-projection tests', () => {
                     });
 
                     stream.addEvent(event);
-                    stream.commit();
+                    stream.commit(function() {});
+
+                    console.log('commit');
 
                     const stateStream = await outEsWithProjection.pollingGetEventStreamAsync({
                         context: 'vehicle',
@@ -661,7 +668,7 @@ describe('eventstore-projection tests', () => {
                     done();
                 });
 
-                it('should create one state for each stream if partition is set to stream', async (done) => {
+                it('should create one state for each stream if partition is set to stream', async () => {
                     projection.partitionBy = 'stream';
                     await esWithProjection.projectAsync(projection);
                     await esWithProjection.startAllProjections();
@@ -686,9 +693,9 @@ describe('eventstore-projection tests', () => {
                         });
 
                         stream.addEvent(event);
-                        stream.commit();
+                        BlueBird.promisifyAll(stream);
+                        await stream.commitAsync();
                     }
-
 
                     for (let index = 1; index <= numberOfCarsToExpect; index++) {
                         const event = {
@@ -707,7 +714,7 @@ describe('eventstore-projection tests', () => {
                             aggregate: 'states',
                             aggregateId: `${projection.projectionId}-vehicle-vehicle-vehicle_${index}-result`
 
-                        }, (stream) => stream.events.length > 0, 1000);
+                        }, (stream) => stream.events.length > 0, 4000);
 
                         const expectedState = {
                             name: 'vehicle_created',
@@ -721,9 +728,6 @@ describe('eventstore-projection tests', () => {
                         }
                         expect(expectedState).toEqual(event);
                     }
-
-
-                    done();
                 });
 
                 it('should create a state for each unique id returned by partitionBy function', async (done) => {
@@ -776,7 +780,7 @@ describe('eventstore-projection tests', () => {
                             aggregate: 'states',
                             aggregateId: `${projection.projectionId}-vehicle_${index}-result`
 
-                        }, (stream) => stream.events.length > 0, 10000);
+                        }, (stream) => stream.events.length > 0, 1000);
 
                         const expectedState = {
                             name: 'vehicle_created',
@@ -859,7 +863,9 @@ describe('eventstore-projection tests', () => {
                             vehicleId: 'vehicle_1'
                         }
                     });
-                    stream.commit();
+
+                    BlueBird.promisifyAll(stream);
+                    await stream.commitAsync();
 
                     expect(befreProjection.processedDate).toBeUndefined();
                     expect(befreProjection.isProcessing).toBeUndefined(0);
@@ -1067,7 +1073,6 @@ describe('eventstore-projection tests', () => {
 
     afterEach((done) => {
         // jobsManager is polling so we need to stop the polling for each it test
-        jobsManager.reset();
         playbackListStore.reset();
         done();
     });

@@ -39,6 +39,7 @@
     "node": ">=0.8.0"
   },
   "dependencies": {
+    "@saperiuminc/waitables": "^1.0.3",
     "async": "2.6.2",
     "aws-xray-sdk": "^3.2.0",
     "bluebird": "^3.7.2",

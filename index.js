@@ -110,60 +110,64 @@ const esFunction = function(options) {
     // TODO: move dependencies out of the options and move them as a parameter in the constructor of Eventstore
     let jobsManager;
     let distributedLock;
+    let distributedSignal;
     let playbackListStore;
     let playbackListViewStore;
     let projectionStore;
-    if (options.redisConfig) {
-        var Redis = require("ioredis");
-        const redis = new Redis({
-            host: options.redisConfig.host,
-            password: options.redisConfig.password,
-            port: options.redisConfig.port
-        });
 
-        const RedisLock = require('redlock');
-        const redLock = new RedisLock([redis], {
-            driftFactor: 0.01, // time in ms
-            retryCount: 10,
-            retryDelay: 200, // time in ms
-            retryJitter: 200 // time in ms
-        });
+    if (options.enableProjection) {
+        if (options.redisConfig) {
+            const DistributedLock = require('./lib/eventstore-projections/distributed-lock');
+            distributedLock = new DistributedLock({
+                redis: options.redisConfig,
+                lock: options.lock
+            });
 
-        const DistributedLock = require('./lib/eventstore-projections/distributed-lock');
-        distributedLock = new DistributedLock({
-            redis: redLock
-        });
+            const Redis = require('ioredis');
+            const redisClient = new Redis(options.redisConfig);
+            const redisSubscriber = new Redis(options.redisConfig);
+            const createClient = function(type) {
+                switch (type) {
+                    case 'client':
+                        return redisClient;
+                    case 'bclient':
+                        return new Redis(options.redisConfig); // always create a new one
+                    case 'subscriber':
+                        return redisSubscriber;
+                    default:
+                        return new Redis(options.redisConfig);
+                }
+            }
+            const DistributedSignal = require('./lib/eventstore-projections/distributed-signal');
+            distributedSignal = new DistributedSignal({
+                createClient: createClient
+            });
 
-        const JobsManager = require('./lib/eventstore-projections/jobs-manager');
-        jobsManager = new JobsManager({
-            BullQueue: require('bull'),
-            redis: redis,
-            concurrency: options.concurrentProjectionGroup
-        });
-
-        options.redis = redis;
+        } else {
+            throw new Error('redisConfig is required when enabeProjection is true');
+        }
+    
+        if (options.listStore) {
+            // NOTE: we only have one store as of the moment. we can add more playbacklist stores in the future and pass it to the eventstore later
+            // based on the listStore configuration
+            // TODO: add base class for playbackliststore when there is a need to create another store in the future
+            const EventstorePlaybackListMySqlStore = require('./lib/eventstore-projections/eventstore-playbacklist-mysql-store');
+            playbackListStore = new EventstorePlaybackListMySqlStore(options.listStore);
+            playbackListStore.init(options.listStore);
+        } else {
+            throw new Error('listStore is required when enabeProjection is true');
+        }
+    
+        if (options.projectionStore) {
+            const EventstoreProjectionStore = require('./lib/eventstore-projections/eventstore-projection-store');
+            projectionStore = new EventstoreProjectionStore(options.projectionStore);
+            projectionStore.init();
+        } else {
+            throw new Error('projectionStore is required when enabeProjection is true');
+        }
     }
 
-    if (options.listStore) {
-        // NOTE: we only have one store as of the moment. we can add more playbacklist stores in the future and pass it to the eventstore later
-        // based on the listStore configuration
-        // TODO: add base class for playbackliststore when there is a need to create another store in the future
-        const EventstorePlaybackListMySqlStore = require('./lib/eventstore-projections/eventstore-playbacklist-mysql-store');
-        playbackListStore = new EventstorePlaybackListMySqlStore(options.listStore);
-        playbackListStore.init(options.listStore);
-    }
-
-    if (options.projectionStore) {
-        const EventstoreProjectionStore = require('./lib/eventstore-projections/eventstore-projection-store');
-        projectionStore = new EventstoreProjectionStore(options.projectionStore);
-        projectionStore.init();
-    }
-
-    var eventstore = new Eventstore(options, new Store(options), jobsManager, distributedLock, playbackListStore, playbackListViewStore, projectionStore);
-
-    if (options.enableProjection === true) {
-        eventstore.setupNotifyPublish();
-    }
+    var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore);
 
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
