@@ -154,16 +154,12 @@ const esFunction = function(options) {
             const EventstorePlaybackListMySqlStore = require('./lib/eventstore-projections/eventstore-playbacklist-mysql-store');
             playbackListStore = new EventstorePlaybackListMySqlStore(options.listStore);
             playbackListStore.init(options.listStore);
-        } else {
-            throw new Error('listStore is required when enabeProjection is true');
         }
     
         if (options.projectionStore) {
             const EventstoreProjectionStore = require('./lib/eventstore-projections/eventstore-projection-store');
             projectionStore = new EventstoreProjectionStore(options.projectionStore);
             projectionStore.init();
-        } else {
-            throw new Error('projectionStore is required when enabeProjection is true');
         }
     }
 
