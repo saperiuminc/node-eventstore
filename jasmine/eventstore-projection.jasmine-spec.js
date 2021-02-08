@@ -510,6 +510,11 @@ describe('eventstore-projection tests', () => {
                 });
             });
 
+            // TODO: stateList operations
+            describe('stateList operations', () => {
+
+            });
+            
             describe('emit', () => {
                 beforeEach(async (done) => {
                     const projectionId = shortid.generate();
