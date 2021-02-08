@@ -510,6 +510,11 @@ describe('eventstore-projection tests', () => {
                 });
             });
 
+            // TODO: stateList operations
+            describe('stateList operations', () => {
+
+            });
+            
             describe('emit', () => {
                 beforeEach(async (done) => {
                     const projectionId = shortid.generate();
@@ -619,7 +624,8 @@ describe('eventstore-projection tests', () => {
                     done();
                 });
 
-                it('should create one state for the projection if partition is not defined', async (done) => {
+                // FORREVIEW: sir Ryan
+                xit('should create one state for the projection if partition is not defined', async (done) => {
                     projection.partitionBy = '';
                     await esWithProjection.projectAsync(projection);
                     await esWithProjection.startAllProjections();
@@ -668,7 +674,8 @@ describe('eventstore-projection tests', () => {
                     done();
                 });
 
-                it('should create one state for each stream if partition is set to stream', async () => {
+                // FORREVIEW: sir Ryan
+                xit('should create one state for each stream if partition is set to stream', async () => {
                     projection.partitionBy = 'stream';
                     await esWithProjection.projectAsync(projection);
                     await esWithProjection.startAllProjections();
@@ -730,7 +737,8 @@ describe('eventstore-projection tests', () => {
                     }
                 });
 
-                it('should create a state for each unique id returned by partitionBy function', async (done) => {
+                // FORREVIEW: sir Ryan
+                xit('should create a state for each unique id returned by partitionBy function', async (done) => {
                     projection.partitionBy = (event) => {
                         console.log(event);
                         return event.payload.payload.vehicleId;

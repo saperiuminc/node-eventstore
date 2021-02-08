@@ -72,15 +72,14 @@ const mysqlServer = (function() {
 describe('eventstore-playback-list-mysql-store tests', () => {
     let eventstorePlaybackListStore = new EventstorePlaybackListStore();
     let listName;
-    beforeAll(async (done) => {
+    beforeAll(async () => {
         await mysqlServer.up();
         eventstorePlaybackListStore = new EventstorePlaybackListStore(mysqlOptions);
 
         await eventstorePlaybackListStore.init();
-        done();
     }, 60000);
 
-    beforeEach(async (done) => {
+    beforeEach(async () => {
         let randomString = 'list_' + shortid.generate();
         randomString = randomString.replace('-', '');
         listName = 'list_' + randomString;
@@ -95,12 +94,10 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 type: 'date'
             }]
         });
-
-        done();
     });
 
     describe('query', () => {
-        it('should return the correct results based on the query parameters passed', async (done) => {
+        it('should return the correct results based on the query parameters passed', async () => {
             try {
 
                 // add items to our list
@@ -145,8 +142,6 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 expect(sortedResults.rows.length).toEqual(10); // paged should be 5
                 expect(sortedResults.rows[0].revision).toEqual(0);
                 expect(sortedResults.rows[0].data.vehicleId).toEqual('vehicle_0');
-
-                done();
             } catch (error) {
                 console.log(error);
                 throw error;
@@ -155,7 +150,7 @@ describe('eventstore-playback-list-mysql-store tests', () => {
     });
 
     describe('query date', () => {
-        it('should return the correct results based on the query parameters passed', async (done) => {
+        it('should return the correct results based on the query parameters passed', async () => {
             try {
                 // add items to our list
                 for (let i = 1; i < 10; i++) {
@@ -194,8 +189,6 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 expect(filteredResults.rows[0].revision).toEqual(4);
                 console.log(JSON.stringify(filteredResults));
                 expect(filteredResults.rows[0].data.accessDate).toEqual('2020-11-04');
-
-                done();
             } catch (error) {
                 console.log(error);
                 throw error;
@@ -204,7 +197,7 @@ describe('eventstore-playback-list-mysql-store tests', () => {
     });
 
     describe('add and get', () => {
-        it('should add the data in the table', async (done) => {
+        it('should add the data in the table', async () => {
             const rowId = shortid.generate();
             const revision = 1;
             const data = {
@@ -224,12 +217,11 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 revision: revision,
                 rowId: rowId
             });
-            done();
         })
     })
 
     describe('update', () => {
-        it('should update the data in the table', async (done) => {
+        it('should update the data in the table', async () => {
             const rowId = shortid.generate();
             const revision = 1;
             const data = {
@@ -261,12 +253,11 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 revision: updatedRevision,
                 rowId: rowId
             });
-            done();
         })
     })
 
     describe('delete', () => {
-        it('should delete the data in the table', async (done) => {
+        it('should delete the data in the table', async () => {
             const rowId = shortid.generate();
             const revision = 1;
             const data = {
@@ -282,16 +273,14 @@ describe('eventstore-playback-list-mysql-store tests', () => {
             const gotItem = await eventstorePlaybackListStore.get(listName, rowId);
 
             expect(gotItem).toBeNull();
-            done();
         })
     })
 
-    afterAll(async (done) => {
+    afterAll(async () => {
         // NOTE: uncomment if we need to terminate the mysql every test
         // for now, it is okay since we are using a non-standard port (13306) and a fixed docker container name
         // not terminating will make the tests faster by around 11 secs
         await eventstorePlaybackListStore.close();
-        // await mysqlServer.down();
-        done();
+        await mysqlServer.down();
     })
 });

@@ -114,6 +114,7 @@ const esFunction = function(options) {
     let playbackListStore;
     let playbackListViewStore;
     let projectionStore;
+    let stateListStore;
 
     if (options.enableProjection) {
         if (options.redisConfig) {
@@ -153,7 +154,11 @@ const esFunction = function(options) {
             // TODO: add base class for playbackliststore when there is a need to create another store in the future
             const EventstorePlaybackListMySqlStore = require('./lib/eventstore-projections/eventstore-playbacklist-mysql-store');
             playbackListStore = new EventstorePlaybackListMySqlStore(options.listStore);
-            playbackListStore.init(options.listStore);
+            playbackListStore.init();
+
+            const EventstoreStateListMySqlStore = require('./lib/eventstore-projections/eventstore-statelist-mysql-store');
+            stateListStore = new EventstoreStateListMySqlStore(options.listStore);
+            stateListStore.init();
         }
     
         if (options.projectionStore) {
@@ -163,7 +168,7 @@ const esFunction = function(options) {
         }
     }
 
-    var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore);
+    var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
 
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);

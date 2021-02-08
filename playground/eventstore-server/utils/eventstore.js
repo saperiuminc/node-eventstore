@@ -171,9 +171,64 @@ module.exports = (function() {
                             sort: 'ASC'
                         }]
                     }
+                }
+            });
+
+            await eventstore.projectAsync({
+                projectionId: 'vehicle-state-list',
+                playbackInterface: {
+                    $init: function() {
+                        return {}
+                    },
+                    /**
+                     * @param {import('./types').VehicleListState} state the name of the playback list
+                     * @param {import('./types').VehicleCreatedEvent} event the name of the playback list
+                     * @param {Object} funcs the last event that built this projection state
+                     * @param {Function} done the last event that built this projection state
+                     * @returns {void} Returns void. Use the callback to the get playbacklist
+                     */
+                    VEHICLE_CREATED: async function(state, event, funcs) {
+                        const eventPayload = event.payload.payload;
+                        const stateList = await funcs.getStateList('vehicles_state_list');
+
+                        const data = {
+                            vehicleId: eventPayload.vehicleId,
+                            year: eventPayload.year,
+                            make: eventPayload.make,
+                            model: eventPayload.model,
+                            mileage: eventPayload.mileage
+                        };
+
+                        await stateList.push(data);
+                    },
+                    VEHICLE_MILEAGE_CHANGED: async function(state, event, funcs) {
+                        const eventPayload = event.payload.payload;
+                        const stateList = await funcs.getStateList('vehicles_state_list');
+
+                        const filters = [{
+                            field: 'vehicleId',
+                            operator: 'is',
+                            value: eventPayload.vehicleId
+                        }];
+
+                        const row = await stateList.find(filters);
+
+                        const rowIndex = row.index;
+                        const rowState = row.state;
+
+                        rowState.mileage = eventPayload.mileage;
+
+                        await stateList.set(rowIndex, rowState);
+                    }
                 },
+                query: {
+                    context: 'vehicle',
+                    aggregate: 'vehicle'
+                },
+                partitionBy: '',
+                outputState: 'true',
                 stateList: {
-                    name: 'vehicle_state_list',
+                    name: 'vehicles_state_list',
                     fields: [{
                         name: 'vehicleId',
                         type: 'string'
@@ -186,7 +241,6 @@ module.exports = (function() {
                     }
                 }
             });
-
             await eventstore.registerPlaybackListViewAsync(
                 'vehicle_list_view',
                 `SELECT * FROM vehicle_list v;`);
