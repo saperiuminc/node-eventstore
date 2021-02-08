@@ -213,12 +213,15 @@ module.exports = (function() {
 
                         const row = await stateList.find(filters);
 
-                        const rowIndex = row.index;
-                        const rowState = row.state;
+                        if (row) {
+                            const rowIndex = row.index;
+                            const rowValue = row.value;
+                            const rowMeta = row.meta;
 
-                        rowState.mileage = eventPayload.mileage;
+                            rowValue.mileage = eventPayload.mileage;
 
-                        await stateList.set(rowIndex, rowState);
+                            await stateList.set(rowIndex, rowValue, rowMeta);
+                        }
                     }
                 },
                 query: {
@@ -252,7 +255,7 @@ module.exports = (function() {
                 aggregate: 'vehicle',
                 aggregateId: 'vehicle_1'
             }, 0, function(err, event, done) {
-                
+
                 console.log('got event from subscribe', event.aggregateId, event.streamRevision);
                 done();
             });
