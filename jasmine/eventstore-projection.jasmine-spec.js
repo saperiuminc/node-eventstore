@@ -26,7 +26,7 @@ describe('eventstore-projection tests', () => {
         const DistributedSignal = require('./test-doubles/fakes/distributed-signal.fake');
         const EventstorePlaybackListInMemoryStore = require('./test-doubles/fakes/eventstore-playbacklist-inmemory-store.fake');
         const EventstoreProjectionInMemoryStore = require('./test-doubles/fakes/eventstore-projection-inmemory-store.fake');
-        
+
         const DistributedLock = require('./test-doubles/mocks/distributed-lock.mock');
 
         outEsWithProjection = new EventstoreWithProjection({}, new InMemoryStore({}));
@@ -59,7 +59,7 @@ describe('eventstore-projection tests', () => {
         eventsDataStore = new InMemoryStore(options);
 
         // TODO: move InMemoryStore to the test-doubles so that it is
-        
+
         distributedSignal = new DistributedSignal();
         playbackListStore = new EventstorePlaybackListInMemoryStore();
         projectionStore = new EventstoreProjectionInMemoryStore();
@@ -514,7 +514,7 @@ describe('eventstore-projection tests', () => {
             describe('stateList operations', () => {
 
             });
-            
+
             describe('emit', () => {
                 beforeEach(async (done) => {
                     const projectionId = shortid.generate();
@@ -850,7 +850,7 @@ describe('eventstore-projection tests', () => {
                 });
 
                 it('should update processedDate and offset', async (done) => {
-                    
+
                     const beforeProjectionDate = Date.now();
                     const befreProjection = await projectionStore.getProjection(projection.projectionId);
 
@@ -888,7 +888,7 @@ describe('eventstore-projection tests', () => {
                     // expect(afterProjection.offset).toBeGreaterThan(0);
                     done();
                 });
-                
+
             });
             // TODO: how to get stub the implementation of in memory getEvents. currently the test 
             // will be in the mysql store only
@@ -1077,6 +1077,68 @@ describe('eventstore-projection tests', () => {
                 });
             });
         });
+
+        describe('registerFunction', () => {
+            it('should be able to call a user defined function from the playback event handler', async (testDone) => {
+                const projectionId = shortid.generate();
+                // arrange 
+                projection = {
+                    projectionId: projectionId,
+                    query: {
+                        context: 'vehicle'
+                    },
+                    playbackInterface: {
+                        vehicle_created: function(state, event, funcs, done) {
+                            const result = funcs.foo();
+                            expect(result).toEqual('bar');
+                            done();
+                            testDone();
+                        }
+                    },
+                    playbackList: {
+                        name: 'vehicle_list',
+                        fields: [{
+                            name: 'vehicleId',
+                            type: 'string'
+                        }],
+                        secondaryKeys: {
+                            idx_vehicleId: [{
+                                name: 'vehicleId',
+                                sort: 'ASC'
+                            }]
+                        }
+                    },
+                    outputState: 'true',
+                    partitionBy: ''
+                };
+                await esWithProjection.projectAsync(projection);
+                await esWithProjection.startAllProjections();
+
+
+                esWithProjection.registerFunction('foo', function() {
+                    return 'bar';
+                });
+
+                const stream = await esWithProjection.getEventStreamAsync({
+                    aggregateId: 'vehicle_1',
+                    aggregate: 'vehicle', // optional
+                    context: 'vehicle' // optional
+                });
+
+                stream.addEvent({
+                    name: 'vehicle_created',
+                    payload: {
+                        vehicleId: 'vehicle_1',
+                        year: 2012,
+                        make: 'Honda',
+                        model: 'Jazz',
+                        mileage: 12345
+                    }
+                });
+                BlueBird.promisifyAll(stream);
+                await stream.commitAsync();
+            })
+        })
     });
 
     afterEach((done) => {

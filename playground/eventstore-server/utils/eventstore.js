@@ -1,5 +1,5 @@
 const Bluebird = require('bluebird');
-const bluebird = require('bluebird');
+const _ = require('lodash');
 
 module.exports = (function() {
     const eventstore = require('@saperiuminc/eventstore')({
@@ -42,7 +42,7 @@ module.exports = (function() {
         context: 'vehicle'
     });
 
-    bluebird.promisifyAll(eventstore);
+    Bluebird.promisifyAll(eventstore);
 
     const initialize = async function() {
         try {
@@ -192,15 +192,20 @@ module.exports = (function() {
                         const eventPayload = event.payload.payload;
                         const stateList = await funcs.getStateList('vehicles_state_list');
 
+                        // just showing user defined functions in playground
+                        // not a requirement
                         const data = {
                             vehicleId: eventPayload.vehicleId,
                             year: eventPayload.year,
                             make: eventPayload.make,
                             model: eventPayload.model,
                             mileage: eventPayload.mileage
-                        };
+                        }
+                        const cloned = funcs.cloneDeep(data);
 
-                        await stateList.push(data);
+                        if (funcs.isEqual(data, cloned)) {
+                            await stateList.push(data);
+                        }
                     },
                     VEHICLE_MILEAGE_CHANGED: async function(state, event, funcs) {
                         const eventPayload = event.payload.payload;
@@ -248,6 +253,9 @@ module.exports = (function() {
             await eventstore.registerPlaybackListViewAsync(
                 'vehicle_list_view',
                 `SELECT * FROM vehicle_list v;`);
+
+            eventstore.registerFunction('cloneDeep', _.cloneDeep);
+            eventstore.registerFunction('isEqual', _.isEqual);
 
             await eventstore.startAllProjectionsAsync();
 
