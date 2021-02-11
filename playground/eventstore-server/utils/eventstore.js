@@ -52,7 +52,8 @@ module.exports = (function() {
 
             // add dummy data
             for (let index = 0; index < 100; index++) {
-                const vehicleId = `vehicle_${index}`;
+                // const vehicleId = `vehicle_${index}`;
+                const vehicleId = require('shortid').generate();
                 const stream = await eventstore.getLastEventAsStreamAsync({
                     context: 'vehicle',
                     aggregate: 'vehicle',
