@@ -9,7 +9,7 @@ module.exports = (function() {
         user: process.env.EVENTSTORE_MYSQL_USERNAME,
         password: process.env.EVENTSTORE_MYSQL_PASSWORD,
         database: process.env.EVENTSTORE_MYSQL_DATABASE,
-        connectionPoolLimit: 1,
+        connectionPoolLimit: 10,
         // projections-specific configuration below
         redisConfig: {
             host: process.env.REDIS_HOST,
@@ -35,7 +35,7 @@ module.exports = (function() {
         enableProjection: true,
         eventCallbackTimeout: 1000,
         pollingTimeout: 10000, // optional,
-        pollingMaxRevisions: 5,
+        pollingMaxRevisions: 100,
         errorMaxRetryCount: 2,
         errorRetryExponent: 2,
         playbackEventJobCount: 10,
@@ -51,7 +51,7 @@ module.exports = (function() {
             console.log('eventstore initialized');
 
             // add dummy data
-            for (let index = 0; index < 20; index++) {
+            for (let index = 0; index < 100; index++) {
                 const vehicleId = `vehicle_${index}`;
                 const stream = await eventstore.getLastEventAsStreamAsync({
                     context: 'vehicle',

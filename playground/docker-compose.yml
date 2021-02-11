@@ -32,7 +32,7 @@ services:
       EVENTSTORE_MYSQL_USERNAME: root
       EVENTSTORE_MYSQL_PASSWORD: root
       EVENTSTORE_MYSQL_DATABASE: eventstore
-      ENABLE_TRACING: 'false'
+      ENABLE_TRACING: 'true'
       TRACER_NAME: 'jaeger'
       JAEGER_SERVICE_NAME: eventstore-playground
       JAEGER_AGENT_HOST: jaeger
