@@ -35,7 +35,7 @@ module.exports = (function() {
         enableProjection: true,
         eventCallbackTimeout: 1000,
         lockTimeToLive: 1000,
-        pollingTimeout: 10000, // optional,
+        pollingTimeout: 1000, // optional,
         pollingMaxRevisions: 100,
         errorMaxRetryCount: 2,
         errorRetryExponent: 2,
