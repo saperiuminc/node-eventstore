@@ -24,6 +24,7 @@ const EventstoreWithProjection = require('./lib/eventstore-projections/eventstor
  * @property {Number} concurrentAggregatesInProjection number of concurrent aggregates running in the projection job
  * @property {Boolean} shouldExhaustAllEvents tells the projection if it should exhaust all the events when a projection job is triggered.
  * @property {String} context the context name of this eventstore. default context name is "default"
+ * @property {Number} lockTimeToLive the ttlDuration of the lock. used by leader election code
  * @property {Eventstore} outputsTo the eventstore where emits and states are outputted to. default is itself
  */
 
@@ -141,7 +142,8 @@ const esFunction = function(options) {
             }
             const DistributedSignal = require('./lib/eventstore-projections/distributed-signal');
             distributedSignal = new DistributedSignal({
-                createClient: createClient
+                createClient: createClient,
+                ttlDuration: options.lockTimeToLive
             });
 
         } else {

@@ -34,6 +34,7 @@ module.exports = (function() {
         }, // required
         enableProjection: true,
         eventCallbackTimeout: 1000,
+        lockTimeToLive: 1000,
         pollingTimeout: 10000, // optional,
         pollingMaxRevisions: 100,
         errorMaxRetryCount: 2,
