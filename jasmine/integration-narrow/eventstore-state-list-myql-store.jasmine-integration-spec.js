@@ -70,7 +70,7 @@ const mysqlServer = (function() {
     }
 })();
 
-fdescribe('eventstore-playback-list-mysql-store tests', () => {
+describe('eventstore-playback-list-mysql-store tests', () => {
     let eventstoreStateListStore = new EventstoreStateListStore();
     let listName;
     beforeAll(async () => {
