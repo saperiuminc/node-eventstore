@@ -112,7 +112,7 @@ describe('eventstore-mysql-store tests', () => {
         })
     
         describe('addEvents', () => {
-            it('should add the event in the store', async (done) => {
+            it('should add the event in the store', async () => {
                 const aggregateId = shortid.generate();
                 const newEvent = {
                     id: shortid.generate(),
@@ -142,8 +142,11 @@ describe('eventstore-mysql-store tests', () => {
                 const limit = 1;
                 const events = await mysqlStore.getEventsAsync(query, skip, limit);
                 expect(events.length).toEqual(1);
-                done();
             });
+
+            it('should not throw an error even if events length is 0', async () => {
+                await mysqlStore.addEventsAsync([]);
+            })
         })
     
         describe('getEvents', () => {
