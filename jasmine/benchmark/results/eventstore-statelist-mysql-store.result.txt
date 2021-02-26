@@ -6,17 +6,16 @@ OS: linux x64
 node version: v14.10.1
 mysql connectionLimit: 1
 current commit: d6f35e7
-notes: unoptimized
 
 ==========================
-                208 ops/sec > eventstore statelist mysql store push#ops (1.08x)
-                308 ops/sec > eventstore statelist mysql store set#ops (1.59x)
-                193 ops/sec > eventstore statelist mysql store delete#ops (1x)
-                684 ops/sec > eventstore statelist mysql store find#ops (3.54x)
+                175 ops/sec > eventstore statelist mysql store push#ops (1x)
+                258 ops/sec > eventstore statelist mysql store set#ops (1.48x)
+                177 ops/sec > eventstore statelist mysql store delete#ops (1.01x)
+                680 ops/sec > eventstore statelist mysql store find#ops (3.89x)
 
   Benches: 4
   Fastest: eventstore statelist mysql store find#ops
-  Elapsed: 23.4s
+  Elapsed: 23.5s
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
