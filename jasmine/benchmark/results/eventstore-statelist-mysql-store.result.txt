@@ -1,0 +1,41 @@
+==========================
+ioredis: 1.15.13-alpha.53
+node_redis: 3.0.2
+CPU: 16
+OS: linux x64
+node version: v14.10.1
+mysql connectionLimit: 1
+current commit: d6f35e7
+notes: unoptimized
+
+==========================
+                208 ops/sec > eventstore statelist mysql store push#ops (1.08x)
+                308 ops/sec > eventstore statelist mysql store set#ops (1.59x)
+                193 ops/sec > eventstore statelist mysql store delete#ops (1x)
+                684 ops/sec > eventstore statelist mysql store find#ops (3.54x)
+
+  Benches: 4
+  Fastest: eventstore statelist mysql store find#ops
+  Elapsed: 23.4s
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  ==========================
+ioredis: 1.15.13-alpha.53
+node_redis: 3.0.2
+CPU: 16
+OS: linux x64
+node version: v14.10.1
+mysql connectionLimit: 1
+current commit: d6f35e7
+notes: optimized
+
+==========================
+                251 ops/sec > eventstore statelist mysql store push#ops (1x)
+                250 ops/sec > eventstore statelist mysql store set#ops (1x)
+                255 ops/sec > eventstore statelist mysql store delete#ops (1.02x)
+                624 ops/sec > eventstore statelist mysql store find#ops (2.5x)
+
+  Benches: 4
+  Fastest: eventstore statelist mysql store find#ops
+  Elapsed: 23.6s
