@@ -6,7 +6,7 @@ const childProcess = require('child_process');
 const exec = childProcess.exec;
 const shortid = require('shortid');
 const Bluebird = require('bluebird');
-const fs = require('fs');
+const fs = require('fs/promises');
 const debug = require('debug')('BENCH');
 
 // NOTE: use mysql-based eventstore w/expanded bookmarked getEvents and archiving function
@@ -29,6 +29,7 @@ console.log('==========================');
 console.log('ioredis: ' + require('../../package.json').version);
 console.log('node_redis: ' + require('redis/package.json').version);
 var os = require('os');
+const { count } = require('console');
 console.log('CPU: ' + os.cpus().length);
 console.log('OS: ' + os.platform() + ' ' + os.arch());
 console.log('node version: ' + process.version);
@@ -45,8 +46,10 @@ const sleepAsync = function(sleepUntil) {
 set('setup', async function() {
     try {
 
+        
         debug('creating the container...');
-        const command = `docker run --name ${containerName} -e MYSQL_ROOT_PASSWORD=${mysqlOptions.password} -e MYSQL_DATABASE=${mysqlOptions.database} -p ${mysqlOptions.port}:3306 -d mysql:5.7`;
+        const command = `docker run --name ${containerName} -v ${path.join(__dirname, 'mysql.conf.d')}:/etc/mysql/mysql.conf.d -e MYSQL_ROOT_PASSWORD=${mysqlOptions.password} -e MYSQL_DATABASE=${mysqlOptions.database} -p ${mysqlOptions.port}:3306 -d mysql:5.7`;
+        debug('running the command', command);
         const process = exec(command);
 
         // wait until process has exited
@@ -239,4 +242,102 @@ suite('eventstore statelist mysql store find', () => {
             value: 'user_id'
         }]);
     });
+});
+
+
+suite('eventstore statelist mysql store with 1million rows', () => {
+    let stateListStore;
+    const listName = 'user_state_list';
+    let seedFileName = path.join(__dirname, 'users.csv');
+    let counter = 0;
+    set('setup', async function() {
+        debug('setup');
+        counter = 0;
+        stateListStore = new EventstoreStateListMySqlStore(mysqlOptions);
+        await stateListStore.init();
+        await stateListStore.createList({
+            name: listName,
+            fields: [{
+                name: 'userId',
+                type: 'string'
+            }],
+            secondaryKeys: {
+                idx_userId: [{
+                    name: 'userId',
+                    sort: 'ASC'
+                }]
+            }
+        });
+
+        const createTestFile = async function() {
+            const async = require('async');
+            const q = async.queue(async (index) => {
+                const state = {
+                    userId: 'user' + index,
+                    accessDate: Date.now()
+                }
+
+                await fs.appendFile(seedFileName,`"${'CREATE'}","${index}",${JSON.stringify(JSON.stringify(state))},"null"\r\n`);
+            }, 100000);
+    
+            for (let index = 0; index < 1000000; index++) {
+                q.push(index);
+            }
+    
+            const waitToDrain = async function() {
+                return new Promise((resolve) => {
+                    q.drain = resolve;
+                });
+            }
+        
+            await waitToDrain();
+        }
+        
+        if (!require('fs').existsSync(seedFileName)) {
+            debug(`file ${seedFileName} does not exist. creating.`);
+            await createTestFile();
+        } else {
+            debug(`file ${seedFileName} exists. skipping.`);
+        }
+
+        const sql = `
+            LOAD DATA LOCAL INFILE '${seedFileName}' INTO TABLE ${listName}
+            FIELDS TERMINATED BY ',' 
+            ENCLOSED BY '"' 
+            LINES TERMINATED BY '\r\n'
+            (row_type, row_index, state_json, meta_json);
+        `;
+
+        const conn = mysql.createConnection(mysqlOptions);
+
+        Bluebird.promisifyAll(conn);
+
+        await conn.connectAsync();
+        await conn.queryAsync(sql);
+        await conn.endAsync();
+    });
+
+    set('teardown', async function() {
+        await stateListStore.deleteList(listName);
+    });
+
+    bench('push ops', async function() {
+        await stateListStore.push(listName, { userId: 'user', firstName: 'Ryan', lastName: 'Goce'});
+    });
+
+    bench('set ops', async function() {
+        await stateListStore.set(listName, counter, { userId: 'user' + counter, firstName: 'Ryan', lastName: 'Goce'});
+        counter++;
+    });
+
+    bench('find ops', async function() {
+        const item = await stateListStore.find(listName, 234567, [{
+            field: 'userId',
+            operator: 'is',
+            value: 'user' + counter
+        }]);
+
+        counter++;
+    });
+
 });
