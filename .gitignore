@@ -21,3 +21,4 @@ package-lock.json
 coverage
 npm-debug.log
 jasmine/benchmark/users.csv
+jasmine/benchmark/playbacklist-vehicles.csv
