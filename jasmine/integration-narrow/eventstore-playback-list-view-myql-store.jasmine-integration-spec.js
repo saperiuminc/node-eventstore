@@ -5,7 +5,7 @@ const shortid = require('shortid');
 
 const mysqlOptions = {
     host: 'localhost',
-    port: 13306,
+    port: 33306,
     user: 'root',
     password: 'root',
     database: 'playbacklist_db',
@@ -164,9 +164,11 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             user: mysqlOptions.user,
             password: mysqlOptions.password,
             listName: "list_view_1",
-            query: `SELECT * FROM ${listName}`,
+            listQuery: `SELECT * FROM ${listName}`,
+            totalCountQuery: null,
             alias: undefined
         });
+        console.log('eventstorePlaybackListView', eventstorePlaybackListView);
         Bluebird.promisifyAll(eventstorePlaybackListView);
         await eventstorePlaybackListView.init();
 
@@ -177,7 +179,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             user: mysqlOptions.user,
             password: mysqlOptions.password,
             listName: "list_view_2",
-            query: `SELECT * FROM ${listName} AS vehicle_list @@where @@order @@limit; SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where;`,
+            listQuery: `SELECT * FROM ${listName} AS vehicle_list @@where @@order @@limit;`,
+            totalCountQuery: `SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where;`,
             alias: {
                 vehicleId: `vehicle_list.vehicleId`,
                 accessDate: `vehicle_list.accessDate`
@@ -193,10 +196,10 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             user: mysqlOptions.user,
             password: mysqlOptions.password,
             listName: "list_view_3",
-            query: `SELECT * FROM (( SELECT * FROM ${listName} AS vehicle_list @@where @@order @@unionlimit ) UNION ALL ` + 
-                `( SELECT * FROM ${listName2} AS vehicle_list @@where @@order @@unionlimit )) vehicle_list @@order @@limit; ` +
-                `SELECT SUM(t_count) as total_count FROM (( SELECT COUNT(1) AS t_count FROM ${listName} AS vehicle_list @@where ) UNION ALL ` + 
-                `( SELECT COUNT(1) AS t_count FROM ${listName2} AS vehicle_list @@where )) t1;`,
+            listQuery: `SELECT * FROM (( SELECT * FROM ${listName} AS vehicle_list @@where @@order @@unionlimit ) UNION ALL ` + 
+                `( SELECT * FROM ${listName2} AS vehicle_list @@where @@order @@unionlimit )) vehicle_list @@order @@limit; `,
+            totalCountQuery: `SELECT SUM(t_count) as total_count FROM (( SELECT COUNT(1) AS t_count FROM ${listName} AS vehicle_list @@where ) UNION ALL ` + 
+            `( SELECT COUNT(1) AS t_count FROM ${listName2} AS vehicle_list @@where )) t1;`,
             alias: {
                 vehicleId: `vehicle_list.vehicleId`,
                 accessDate: `vehicle_list.accessDate`
@@ -212,7 +215,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             user: mysqlOptions.user,
             password: mysqlOptions.password,
             listName: "list_view_2",
-            query: `SELECT * FROM ${listName} AS vehicle_list @@where and vehicle_list.type = 1 @@order @@limit; SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where and type = 1;`,
+            listQuery: `SELECT * FROM ${listName} AS vehicle_list @@where and vehicle_list.type = 1 @@order @@limit;`,
+            totalCountQuery: `SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where and type = 1;`,
             alias: {
                 vehicleId: `vehicle_list.vehicleId`,
                 accessDate: `vehicle_list.accessDate`,

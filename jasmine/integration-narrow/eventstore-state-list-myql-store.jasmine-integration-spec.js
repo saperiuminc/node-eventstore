@@ -4,7 +4,7 @@ const shortid = require('shortid');
 
 const mysqlOptions = {
     host: 'localhost',
-    port: 13306,
+    port: 53306,
     user: 'root',
     password: 'root',
     database: 'statelist_db',

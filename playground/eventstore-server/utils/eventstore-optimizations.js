@@ -300,7 +300,7 @@ module.exports = (function() {
                 LEFT JOIN profile_user_list buyer_user_list ON titles_list.soldDealerId = buyer_user_list.userId
                 LEFT JOIN profile_user_list seller_user_list ON vehicle_list.dealerId = seller_user_list.userId
                 @@order;
-
+            `, `
                 SELECT COUNT(1) as total_count
                 FROM auction_titles_dashboard_vehicle_list titles_list
                 JOIN vehicle_vehicle_list vehicle_list ON vehicle_list.categoryType = 'trade-ins' AND titles_list.vehicleId = vehicle_list.vehicleId
