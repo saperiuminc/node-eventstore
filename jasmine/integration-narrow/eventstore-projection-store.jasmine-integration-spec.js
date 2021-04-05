@@ -219,10 +219,11 @@ describe('eventstore-projection-store tests', () => {
                 }
     
                 const processedDate = Date.now();
+                const isProcessing = 1;
                 const offset = 10;
     
                 await projectionStore.createProjectionIfNotExists(projection);
-                await projectionStore.setProcessed(projection.projectionId, processedDate, offset);
+                await projectionStore.setProcessed(projection.projectionId, processedDate, offset, isProcessing);
     
                 const storeProjection = await projectionStore.getProjection(projection.projectionId);
     
