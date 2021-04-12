@@ -117,8 +117,6 @@ const esFunction = function(options) {
     let projectionStore;
     let stateListStore;
 
-    console.log('esFunction', options);
-
     if (options.enableProjection) {
         // TO DO: Find the best way to pass options params
         // options.redisConfig
