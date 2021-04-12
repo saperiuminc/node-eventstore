@@ -117,37 +117,28 @@ const esFunction = function(options) {
     let projectionStore;
     let stateListStore;
 
+    console.log('esFunction', options);
+
     if (options.enableProjection) {
-        if (options.redisConfig) {
+        // TO DO: Find the best way to pass options params
+        // options.redisConfig
+        if (options.redisCreateClient) {
+            const redisCreateClient = options.redisCreateClient;
+            const redisClient = redisCreateClient('client');
             const DistributedLock = require('./lib/eventstore-projections/distributed-lock');
             distributedLock = new DistributedLock({
-                redis: options.redisConfig,
+                redis: redisClient,
                 lock: options.lock
             });
 
-            const Redis = require('ioredis');
-            const redisClient = new Redis(options.redisConfig);
-            const redisSubscriber = new Redis(options.redisConfig);
-            const createClient = function(type) {
-                switch (type) {
-                    case 'client':
-                        return redisClient;
-                    case 'bclient':
-                        return new Redis(options.redisConfig); // always create a new one
-                    case 'subscriber':
-                        return redisSubscriber;
-                    default:
-                        return new Redis(options.redisConfig);
-                }
-            }
+            // TO DO: Handle redis config input instead of createClient
             const DistributedSignal = require('./lib/eventstore-projections/distributed-signal');
             distributedSignal = new DistributedSignal({
-                createClient: createClient,
+                createClient: redisCreateClient,
                 ttlDuration: options.lockTimeToLive
             });
-
         } else {
-            throw new Error('redisConfig is required when enabeProjection is true');
+            throw new Error('redisCreateClient is required when enableProjection is true');
         }
     
         if (options.listStore) {

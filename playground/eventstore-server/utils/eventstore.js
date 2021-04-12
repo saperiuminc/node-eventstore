@@ -1,5 +1,29 @@
 const Bluebird = require('bluebird');
 const _ = require('lodash');
+const Redis = require('ioredis');
+const redisFactory = function() {
+    const options = {
+        host: process.env.REDIS_HOST,
+        port: process.env.REDIS_PORT
+    };
+    const redisClient = new Redis(options);
+    const redisSubscriber = new Redis(options);
+
+    return {
+        createClient: function(type) {
+            switch (type) {
+                case 'client':
+                    return redisClient;
+                case 'bclient':
+                    return new Redis(options); // always create a new one
+                case 'subscriber':
+                    return redisSubscriber;
+                default:
+                    return new Redis(options);
+            }
+        }
+    };
+};
 
 module.exports = (function() {
     const eventstore = require('@saperiuminc/eventstore')({
@@ -11,10 +35,7 @@ module.exports = (function() {
         database: process.env.EVENTSTORE_MYSQL_DATABASE,
         connectionPoolLimit: 10,
         // projections-specific configuration below
-        redisConfig: {
-            host: process.env.REDIS_HOST,
-            port: process.env.REDIS_PORT
-        }, // required
+        redisCreateClient: redisFactory().redisCreateClient,
         listStore: {
             host: process.env.EVENTSTORE_MYSQL_HOST,
             port: process.env.EVENTSTORE_MYSQL_PORT,
