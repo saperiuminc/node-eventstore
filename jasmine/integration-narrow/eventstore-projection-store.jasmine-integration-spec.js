@@ -4,12 +4,17 @@ const shortid = require('shortid');
 const _ = require('lodash');
 
 const mysqlOptions = {
-    host: 'localhost',
-    port: 43306,
-    user: 'root',
-    password: 'root',
-    database: 'projections',
-    connectionLimit: '2'
+    connection: {
+        host: 'localhost',
+        port: 43306,
+        user: 'root',
+        password: 'root',
+        database: 'projections',
+    },
+    pool: {
+        min: 2,
+        max: 2
+    }
 };
 
 const mysqlServer = (function() {
@@ -24,7 +29,7 @@ const mysqlServer = (function() {
 
     return {
         up: async function() {
-            const command = `docker run --name eventstore_projection_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.password} -e MYSQL_DATABASE=${mysqlOptions.database} -p ${mysqlOptions.port}:3306 -d mysql:5.7`;
+            const command = `docker run --name eventstore_projection_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.connection.password} -e MYSQL_DATABASE=${mysqlOptions.connection.database} -p ${mysqlOptions.connection.port}:3306 -d mysql:5.7`;
             const process = exec(command);
 
             // wait until process has exited
@@ -41,7 +46,7 @@ const mysqlServer = (function() {
             let conn = null;
             do {
                 try {
-                    conn = mysql.createConnection(mysqlOptions);
+                    conn = mysql.createConnection(mysqlOptions.connection);
 
                     Bluebird.promisifyAll(conn);
 
@@ -84,7 +89,9 @@ describe('eventstore-projection-store tests', () => {
         it('should validate port', (done) => {
             try {
                 const store  = new EventstoreProjectionStore({
-                    host: 'host'
+                    connection: {
+                        host: 'host'
+                    }
                 });
             } catch (error) {
                 expect(error.message).toEqual('port is required');
@@ -94,8 +101,10 @@ describe('eventstore-projection-store tests', () => {
         it('should validate user', (done) => {
             try {
                 const store  = new EventstoreProjectionStore({
-                    host: 'host',
-                    port: 1212
+                    connection: {
+                        host: 'host',
+                        port: 1212
+                    }
                 });
             } catch (error) {
                 expect(error.message).toEqual('user is required');
@@ -105,9 +114,11 @@ describe('eventstore-projection-store tests', () => {
         it('should validate password', (done) => {
             try {
                 const store  = new EventstoreProjectionStore({
-                    host: 'host',
-                    port: 1212,
-                    user: 'user'
+                    connection: {
+                        host: 'host',
+                        port: 1212,
+                        user: 'user'
+                    }
                 });
             } catch (error) {
                 expect(error.message).toEqual('password is required');
@@ -117,10 +128,12 @@ describe('eventstore-projection-store tests', () => {
         it('should validate database', (done) => {
             try {
                 const store  = new EventstoreProjectionStore({
-                    host: 'host',
-                    port: 1212,
-                    user: 'user',
-                    password: 'password'
+                    connection: {
+                        host: 'host',
+                        port: 1212,
+                        user: 'user',
+                        password: 'password'
+                    }
                 });
             } catch (error) {
                 expect(error.message).toEqual('database is required');
@@ -140,12 +153,8 @@ describe('eventstore-projection-store tests', () => {
     
         beforeEach(async (done) => {
             options = {
-                host: mysqlOptions.host,
-                port: mysqlOptions.port,
-                user: mysqlOptions.user,
-                password: mysqlOptions.password,
-                database: mysqlOptions.database,
-                connectionLimit: mysqlOptions.connectionLimit,
+                connection: mysqlOptions.connection,
+                pool:  mysqlOptions.pool,
                 name: 'projections_2'
             };
     

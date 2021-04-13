@@ -1,4 +1,5 @@
 const shortid = require('shortid');
+const Redis = require('ioredis');
 
 const sleepAsync = function(sleepUntil) {
     return new Promise((resolve) => {
@@ -17,7 +18,6 @@ const redisServer = (function() {
     
 
     const exec = require('child_process').exec;
-    const Redis = require('ioredis');
 
     return {
         up: async function() {
@@ -116,7 +116,7 @@ describe('distributed-lock tests', () => {
     
         beforeEach(async () => {
             options = {
-                redis: redisConfig,
+                redis: new Redis(redisConfig),
                 lock: {
                     driftFactor: 0.01, // time in ms
                     retryCount: 1,

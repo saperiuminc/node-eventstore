@@ -3,12 +3,17 @@ const EventstorePlaybackListStore = require('../../lib/eventstore-projections/ev
 const shortid = require('shortid');
 
 const mysqlOptions = {
-    host: 'localhost',
-    port: 13306,
-    user: 'root',
-    password: 'root',
-    database: 'playbacklist_db',
-    connectionLimit: 10
+    connection: {
+        host: 'localhost',
+        port: 13306,
+        user: 'root',
+        password: 'root',
+        database: 'playbacklist_db'
+    },
+    pool: {
+        min: 10,
+        max: 10,
+    }
 };
 
 const mysqlServer = (function() {
@@ -23,7 +28,7 @@ const mysqlServer = (function() {
 
     return {
         up: async function() {
-            const command = `docker run --name eventstore_playbacklist_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.password} -e MYSQL_DATABASE=${mysqlOptions.database} -p ${mysqlOptions.port}:3306 -d mysql:5.7`;
+            const command = `docker run --name eventstore_playbacklist_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.connection.password} -e MYSQL_DATABASE=${mysqlOptions.connection.database} -p ${mysqlOptions.connection.port}:3306 -d mysql:5.7`;
             const process = exec(command);
 
             // wait until process has exited
@@ -40,7 +45,7 @@ const mysqlServer = (function() {
             let conn = null;
             do {
                 try {
-                    conn = mysql.createConnection(mysqlOptions);
+                    conn = mysql.createConnection(mysqlOptions.connection);
 
                     Bluebird.promisifyAll(conn);
 

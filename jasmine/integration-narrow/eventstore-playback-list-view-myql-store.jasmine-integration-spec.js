@@ -4,12 +4,17 @@ const EventstorePlaybackListView = require('../../lib/eventstore-projections/eve
 const shortid = require('shortid');
 
 const mysqlOptions = {
-    host: 'localhost',
-    port: 33306,
-    user: 'root',
-    password: 'root',
-    database: 'playbacklist_db',
-    connectionLimit: 10
+    connection: {
+        host: 'localhost',
+        port: 33306,
+        user: 'root',
+        password: 'root',
+        database: 'playbacklist_db',
+    },
+    pool: {
+        min: 10,
+        max: 10
+    }
 };
 
 const mysqlServer = (function() {
@@ -24,7 +29,7 @@ const mysqlServer = (function() {
 
     return {
         up: async function() {
-            const command = `docker run --name eventstore_playbacklist_view_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.password} -e MYSQL_DATABASE=${mysqlOptions.database} -p ${mysqlOptions.port}:3306 -d mysql:5.7`;
+            const command = `docker run --name eventstore_playbacklist_view_mysql -e MYSQL_ROOT_PASSWORD=${mysqlOptions.connection.password} -e MYSQL_DATABASE=${mysqlOptions.connection.database} -p ${mysqlOptions.connection.port}:3306 -d mysql:5.7`;
             const process = exec(command);
 
             // wait until process has exited
@@ -41,7 +46,7 @@ const mysqlServer = (function() {
             let conn = null;
             do {
                 try {
-                    conn = mysql.createConnection(mysqlOptions);
+                    conn = mysql.createConnection(mysqlOptions.connection);
 
                     Bluebird.promisifyAll(conn);
 
@@ -158,26 +163,25 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
         }
 
         eventstorePlaybackListView = new EventstorePlaybackListView({
-            host: mysqlOptions.host,
-            port: mysqlOptions.port,
-            database: mysqlOptions.database,
-            user: mysqlOptions.user,
-            password: mysqlOptions.password,
+            host: mysqlOptions.connection.host,
+            port: mysqlOptions.connection.port,
+            database: mysqlOptions.connection.database,
+            user: mysqlOptions.connection.user,
+            password: mysqlOptions.connection.password,
             listName: "list_view_1",
             listQuery: `SELECT * FROM ${listName}`,
             totalCountQuery: null,
             alias: undefined
         });
-        console.log('eventstorePlaybackListView', eventstorePlaybackListView);
         Bluebird.promisifyAll(eventstorePlaybackListView);
         await eventstorePlaybackListView.init();
 
         eventstorePlaybackListViewOptimized = new EventstorePlaybackListView({
-            host: mysqlOptions.host,
-            port: mysqlOptions.port,
-            database: mysqlOptions.database,
-            user: mysqlOptions.user,
-            password: mysqlOptions.password,
+            host: mysqlOptions.connection.host,
+            port: mysqlOptions.connection.port,
+            database: mysqlOptions.connection.database,
+            user: mysqlOptions.connection.user,
+            password: mysqlOptions.connection.password,
             listName: "list_view_2",
             listQuery: `SELECT * FROM ${listName} AS vehicle_list @@where @@order @@limit;`,
             totalCountQuery: `SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where;`,
@@ -190,11 +194,11 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
         await eventstorePlaybackListViewOptimized.init();
 
         eventstorePlaybackListViewUnionOptimized = new EventstorePlaybackListView({
-            host: mysqlOptions.host,
-            port: mysqlOptions.port,
-            database: mysqlOptions.database,
-            user: mysqlOptions.user,
-            password: mysqlOptions.password,
+            host: mysqlOptions.connection.host,
+            port: mysqlOptions.connection.port,
+            database: mysqlOptions.connection.database,
+            user: mysqlOptions.connection.user,
+            password: mysqlOptions.connection.password,
             listName: "list_view_3",
             listQuery: `SELECT * FROM (( SELECT * FROM ${listName} AS vehicle_list @@where @@order @@unionlimit ) UNION ALL ` + 
                 `( SELECT * FROM ${listName2} AS vehicle_list @@where @@order @@unionlimit )) vehicle_list @@order @@limit; `,
@@ -209,11 +213,11 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
         await eventstorePlaybackListViewUnionOptimized.init();
 
         eventstorePlaybackListViewDefaultWhereOptimized = new EventstorePlaybackListView({
-            host: mysqlOptions.host,
-            port: mysqlOptions.port,
-            database: mysqlOptions.database,
-            user: mysqlOptions.user,
-            password: mysqlOptions.password,
+            host: mysqlOptions.connection.host,
+            port: mysqlOptions.connection.port,
+            database: mysqlOptions.connection.database,
+            user: mysqlOptions.connection.user,
+            password: mysqlOptions.connection.password,
             listName: "list_view_2",
             listQuery: `SELECT * FROM ${listName} AS vehicle_list @@where and vehicle_list.type = 1 @@order @@limit;`,
             totalCountQuery: `SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where and type = 1;`,
