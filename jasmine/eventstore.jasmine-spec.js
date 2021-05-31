@@ -244,6 +244,38 @@ describe('evenstore classicist tests', function() {
 
         expect(storedProjection).toBeTruthy();
     });
+
+    it('should get projections list', async function() {
+        const projectionConfig = {
+            projectionId: 'vehicle-list',
+            projectionName: 'Vehicle Listing',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                }
+            },
+            query: {
+                context: 'vehicle',
+                aggregate: 'vehicle'
+            },
+            partitionBy: '',
+            outputState: 'true',
+            playbackList: {
+                name: 'vehicle_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }]
+            }
+        };
+
+        await eventstore.projectAsync(projectionConfig);
+        const projections = await eventstore.getProjectionsAsync();
+        expect(projections[0].projectionId).toEqual(projectionConfig.projectionId); 
+        expect(projections.length).toEqual(1);
+    });
     
     it('should delete the projection', async function() {
         const projectionConfig = {
