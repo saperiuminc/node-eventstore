@@ -420,6 +420,9 @@ describe('evenstore classicist tests', function() {
                     }
                 },
                 VEHICLE_CREATED: async function(state, event, funcs) {
+                    
+                },
+                VEHICLE_UPDATED: async function(state, event, funcs) {
                     throw new Error('your fault!');
                 }
             },
@@ -462,12 +465,24 @@ describe('evenstore classicist tests', function() {
                 mileage: 1245
             }
         }
+        const event2 = {
+            name: "VEHICLE_UPDATED",
+            payload: {
+                vehicleId: vehicleId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
         stream.addEvent(event);
+        stream.addEvent(event2);
         await stream.commitAsync();
 
         let pollCounter = 0;
+        let projection;
         while (pollCounter < 10) {
-            const projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+            projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
             if (projection.state == 'faulted') {
                 break;
             } else {
@@ -477,6 +492,8 @@ describe('evenstore classicist tests', function() {
         }
 
         expect(pollCounter).toBeLessThan(10);
+        expect(projection.error).toBeTruthy();
+        expect(projection.offset).toEqual(1);
     });
 
     it('should add data to the playbacklist', async function() {
