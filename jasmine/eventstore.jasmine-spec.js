@@ -370,11 +370,13 @@ describe('evenstore classicist tests', function() {
         };
 
         await eventstore.projectAsync(projectionConfig);
-        await eventstore.runProjectionAsync(projectionConfig.projectionId);
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
         const projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
 
         expect(projection.state).toEqual('running');
     });
+
+    
 
     it('should pause the projection', async function() {
         const projectionConfig = {
@@ -444,7 +446,7 @@ describe('evenstore classicist tests', function() {
         await eventstore.projectAsync(projectionConfig);
         await eventstore.startAllProjectionsAsync();
 
-        await eventstore.runProjectionAsync(projectionConfig.projectionId);
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
         const vehicleId = shortid.generate();
         const stream = await eventstore.getLastEventAsStreamAsync({
@@ -496,6 +498,110 @@ describe('evenstore classicist tests', function() {
         expect(projection.offset).toEqual(1);
     });
 
+    it('should force run the projection when there is an error', async function() {
+        const projectionConfig = {
+            projectionId: 'vehicle-list',
+            projectionName: 'Vehicle Listing',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                },
+                VEHICLE_CREATED: async function(state, event, funcs) {
+                    throw new Error('your fault!');
+                },
+                VEHICLE_UPDATED: async function(state, event, funcs) {
+                    
+                }
+            },
+            query: {
+                context: 'vehicle',
+                aggregate: 'vehicle'
+            },
+            partitionBy: '',
+            outputState: 'true',
+            playbackList: {
+                name: 'vehicle_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }]
+            }
+        };
+
+        await eventstore.projectAsync(projectionConfig);
+        await eventstore.startAllProjectionsAsync();
+
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
+
+        const vehicleId = shortid.generate();
+        const stream = await eventstore.getLastEventAsStreamAsync({
+            context: 'vehicle',
+            aggregate: 'vehicle',
+            aggregateId: vehicleId
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const event = {
+            name: "VEHICLE_CREATED",
+            payload: {
+                vehicleId: vehicleId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
+        const event2 = {
+            name: "VEHICLE_UPDATED",
+            payload: {
+                vehicleId: vehicleId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
+        stream.addEvent(event);
+        stream.addEvent(event2);
+        await stream.commitAsync();
+
+        let pollCounter = 0;
+        let projection;
+        while (pollCounter < 10) {
+            projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+            if (projection.state == 'faulted') {
+                break;
+            } else {
+                debug(`projection.state ${projection.state} is not faulted. trying again in 1000ms`);
+                await sleep(1000);
+            }
+        }
+
+        expect(pollCounter).toBeLessThan(10);
+
+        projection = null;
+        pollCounter = 0;
+
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, true);
+
+        while (pollCounter < 10) {
+            projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+            debug('projection got', projection);
+            if (projection.processedDate) {
+                break;
+            } else {
+                debug(`projection has not processed yet. trying again in 1000ms`);
+                await sleep(1000);
+            }
+        }
+
+        expect(projection.offset).toEqual(2);
+        expect(projection.state).toEqual('running');
+    });
+
     it('should add data to the playbacklist', async function() {
         const projectionConfig = {
             projectionId: 'vehicle-list',
@@ -538,7 +644,7 @@ describe('evenstore classicist tests', function() {
         await eventstore.projectAsync(projectionConfig);
         await eventstore.startAllProjectionsAsync();
 
-        await eventstore.runProjectionAsync(projectionConfig.projectionId);
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
 
         const vehicleId = shortid.generate();
@@ -639,7 +745,7 @@ describe('evenstore classicist tests', function() {
         await eventstore.projectAsync(projectionConfig);
         await eventstore.startAllProjectionsAsync();
 
-        await eventstore.runProjectionAsync(projectionConfig.projectionId);
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
         const vehicleId = shortid.generate();
         const stream = await eventstore.getLastEventAsStreamAsync({
@@ -739,7 +845,7 @@ describe('evenstore classicist tests', function() {
         await eventstore.projectAsync(projectionConfig);
         await eventstore.startAllProjectionsAsync();
 
-        await eventstore.runProjectionAsync(projectionConfig.projectionId);
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
         const vehicleId = shortid.generate();
         const stream = await eventstore.getLastEventAsStreamAsync({
@@ -822,7 +928,7 @@ describe('evenstore classicist tests', function() {
         await eventstore.projectAsync(projectionConfig);
         await eventstore.startAllProjectionsAsync();
 
-        await eventstore.runProjectionAsync(projectionConfig.projectionId);
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
         const vehicleId = shortid.generate();
         const stream = await eventstore.getLastEventAsStreamAsync({
@@ -844,10 +950,13 @@ describe('evenstore classicist tests', function() {
             }
         }
 
-        eventstore.on('playbackError', (error) => {
+        const listener = (error) => {
             expect(errorMessage).toEqual(error.message);
+            eventstore.off('playbackError', listener);
             done();
-        });
+        };
+
+        eventstore.on('playbackError', listener);
 
         stream.addEvent(event);
         await stream.commitAsync();
