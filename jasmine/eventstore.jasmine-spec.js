@@ -495,6 +495,8 @@ describe('evenstore classicist tests', function() {
 
         expect(pollCounter).toBeLessThan(10);
         expect(projection.error).toBeTruthy();
+        expect(projection.errorEvent).toBeTruthy();
+        expect(projection.errorOffset).toBeGreaterThan(0);
         expect(projection.offset).toEqual(1);
     });
 
@@ -587,10 +589,15 @@ describe('evenstore classicist tests', function() {
 
         await eventstore.runProjectionAsync(projectionConfig.projectionId, true);
 
+        let lastProcessedDate;
         while (pollCounter < 10) {
             projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+            if (!lastProcessedDate) {
+                lastProcessedDate = projection.processedDate;
+            }
+
             debug('projection got', projection);
-            if (projection.processedDate) {
+            if (projection.processedDate > lastProcessedDate) {
                 break;
             } else {
                 debug(`projection has not processed yet. trying again in 1000ms`);
@@ -600,6 +607,7 @@ describe('evenstore classicist tests', function() {
 
         expect(projection.offset).toEqual(2);
         expect(projection.state).toEqual('running');
+        expect(projection.isIdle).toEqual(0);
     });
 
     it('should add data to the playbacklist', async function() {
