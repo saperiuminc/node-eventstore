@@ -75,7 +75,7 @@ const mysqlServer = (function() {
     }
 })();
 
-fdescribe('eventstore-playback-list-view-mysql-store tests', () => {
+describe('eventstore-playback-list-view-mysql-store tests', () => {
     let eventstorePlaybackListStore = new EventstorePlaybackListStore();
     let eventstorePlaybackListView = new EventstorePlaybackListView();
     let eventstorePlaybackListViewOptimized = new EventstorePlaybackListView();
