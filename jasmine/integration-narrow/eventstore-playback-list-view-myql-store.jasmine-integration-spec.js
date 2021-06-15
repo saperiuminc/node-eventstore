@@ -75,7 +75,7 @@ const mysqlServer = (function() {
     }
 })();
 
-describe('eventstore-playback-list-view-mysql-store tests', () => {
+fdescribe('eventstore-playback-list-view-mysql-store tests', () => {
     let eventstorePlaybackListStore = new EventstorePlaybackListStore();
     let eventstorePlaybackListView = new EventstorePlaybackListView();
     let eventstorePlaybackListViewOptimized = new EventstorePlaybackListView();
@@ -163,11 +163,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
         }
 
         eventstorePlaybackListView = new EventstorePlaybackListView({
-            host: mysqlOptions.connection.host,
-            port: mysqlOptions.connection.port,
-            database: mysqlOptions.connection.database,
-            user: mysqlOptions.connection.user,
-            password: mysqlOptions.connection.password,
+            connection: mysqlOptions.connection,
+            pool: mysqlOptions.pool,
             listName: "list_view_1",
             listQuery: `SELECT * FROM ${listName}`,
             totalCountQuery: null,
@@ -177,11 +174,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
         await eventstorePlaybackListView.init();
 
         eventstorePlaybackListViewOptimized = new EventstorePlaybackListView({
-            host: mysqlOptions.connection.host,
-            port: mysqlOptions.connection.port,
-            database: mysqlOptions.connection.database,
-            user: mysqlOptions.connection.user,
-            password: mysqlOptions.connection.password,
+            connection: mysqlOptions.connection,
+            pool: mysqlOptions.pool,
             listName: "list_view_2",
             listQuery: `SELECT * FROM ${listName} AS vehicle_list @@where @@order @@limit;`,
             totalCountQuery: `SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where;`,
@@ -194,11 +188,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
         await eventstorePlaybackListViewOptimized.init();
 
         eventstorePlaybackListViewUnionOptimized = new EventstorePlaybackListView({
-            host: mysqlOptions.connection.host,
-            port: mysqlOptions.connection.port,
-            database: mysqlOptions.connection.database,
-            user: mysqlOptions.connection.user,
-            password: mysqlOptions.connection.password,
+            connection: mysqlOptions.connection,
+            pool: mysqlOptions.pool,
             listName: "list_view_3",
             listQuery: `SELECT * FROM (( SELECT * FROM ${listName} AS vehicle_list @@where @@order @@unionlimit ) UNION ALL ` + 
                 `( SELECT * FROM ${listName2} AS vehicle_list @@where @@order @@unionlimit )) vehicle_list @@order @@limit; `,
@@ -213,11 +204,8 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
         await eventstorePlaybackListViewUnionOptimized.init();
 
         eventstorePlaybackListViewDefaultWhereOptimized = new EventstorePlaybackListView({
-            host: mysqlOptions.connection.host,
-            port: mysqlOptions.connection.port,
-            database: mysqlOptions.connection.database,
-            user: mysqlOptions.connection.user,
-            password: mysqlOptions.connection.password,
+            connection: mysqlOptions.connection,
+            pool: mysqlOptions.pool,
             listName: "list_view_2",
             listQuery: `SELECT * FROM ${listName} AS vehicle_list @@where and vehicle_list.type = 1 @@order @@limit;`,
             totalCountQuery: `SELECT COUNT(1) AS total_count FROM ${listName} AS vehicle_list @@where and type = 1;`,
