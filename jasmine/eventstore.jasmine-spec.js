@@ -268,12 +268,14 @@ describe('evenstore classicist tests', function() {
                     name: 'vehicleId',
                     type: 'string'
                 }]
-            }
+            },
+            context: 'vehicle'
         };
 
         await eventstore.projectAsync(projectionConfig);
         const projections = await eventstore.getProjectionsAsync();
         expect(projections[0].projectionId).toEqual(projectionConfig.projectionId); 
+        expect(projections[0].context).toEqual(projectionConfig.context); 
         expect(projections.length).toEqual(1);
     });
     
