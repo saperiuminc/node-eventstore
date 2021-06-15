@@ -1,7 +1,7 @@
 {
   "author": "adrai",
   "name": "@saperiuminc/eventstore",
-  "version": "1.15.13-alpha.74",
+  "version": "1.15.13-alpha.75",
   "contributors": [
     "Ryan Goce <ryan@saperium.com>",
     "Gabby Sanchez <gabby@saperium.com>",
@@ -39,7 +39,7 @@
     "node": ">=0.8.0"
   },
   "dependencies": {
-    "@saperiuminc/mysql-shared-pool": "1.0.5",
+    "@saperiuminc/mysql-shared-pool": "1.0.6",
     "@saperiuminc/waitables": "^1.0.3",
     "async": "2.6.2",
     "aws-xray-sdk": "^3.2.0",
