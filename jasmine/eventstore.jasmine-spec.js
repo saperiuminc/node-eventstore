@@ -971,4 +971,72 @@ describe('evenstore classicist tests', function() {
         stream.addEvent(event);
         await stream.commitAsync();
     });
+
+    it('should emit playbackSuccess on playback', async (done) => {
+        const errorMessage = 'test-error';
+        const projectionConfig = {
+            projectionId: 'vehicle-list-error',
+            projectionName: 'Vehicle Listing',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                },
+                VEHICLE_CREATED: async function(state, event, funcs) {
+                    
+                }
+            },
+            query: {
+                context: 'vehicle',
+                aggregate: 'vehicle'
+            },
+            partitionBy: '',
+            outputState: 'true',
+            playbackList: {
+                name: 'vehicle_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }]
+            }
+        };
+        
+        await eventstore.projectAsync(projectionConfig);
+        await eventstore.startAllProjectionsAsync();
+
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
+
+        const vehicleId = shortid.generate();
+        const stream = await eventstore.getLastEventAsStreamAsync({
+            context: 'vehicle',
+            aggregate: 'vehicle',
+            aggregateId: vehicleId
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const event = {
+            name: "VEHICLE_CREATED",
+            payload: {
+                vehicleId: vehicleId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
+
+        const listener = (data) => {
+            expect(data.projectionId).toEqual(projectionConfig.projectionId);
+            expect(data.eventsCount).toEqual(1);
+            eventstore.off('playbackSuccess', listener);
+            done();
+        };
+
+        eventstore.on('playbackSuccess', listener);
+
+        stream.addEvent(event);
+        await stream.commitAsync();
+    });
 });
