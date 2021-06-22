@@ -46,7 +46,22 @@ function DistributedSignalFake() {
 
 DistributedSignalFake.prototype = {
 
-    waitForSignal: async function(topic, group) { 
+    subscribe: async function(topic, group) { 
+        const waitable = new WaitableFake(topic);
+        if (!group) {
+            group = 'default';
+        }
+
+        if (!this._groupWaitables[group]) {
+            this._groupWaitables[group] = {};
+            this._groupWaitables[group][topic] = [];
+        }
+        this._groupWaitables[group][topic].push(waitable);
+
+        return waitable.id;
+    },
+    // Temp function
+    subscribeWithWaitable: async function(topic, group) { 
         const waitable = new WaitableFake(topic);
         if (!group) {
             group = 'default';
@@ -79,7 +94,7 @@ DistributedSignalFake.prototype = {
         }
     },
 
-    stopWaitingForSignal: async function(waitableId, group) {
+    unsubscribe: async function(waitableId, group) {
         if (!group) {
             group = 'default';
         }
