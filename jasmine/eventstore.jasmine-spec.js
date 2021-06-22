@@ -24,6 +24,10 @@ const mysqlConfig = {
     database: 'eventstore'
 }
 
+const eventstoreConfig = {
+    pollingTimeout: 1000
+}
+
 const redisFactory = function() {
     const options = redisConfig;
     const redisClient = new Redis(options);
@@ -190,7 +194,7 @@ describe('evenstore classicist tests', function() {
             enableProjection: true,
             eventCallbackTimeout: 1000,
             lockTimeToLive: 1000,
-            pollingTimeout: 1000, // optional,
+            pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
             pollingMaxRevisions: 100,
             errorMaxRetryCount: 2,
             errorRetryExponent: 2,
@@ -1038,5 +1042,72 @@ describe('evenstore classicist tests', function() {
 
         stream.addEvent(event);
         await stream.commitAsync();
+    });
+
+    fit('should close the eventstore projection', async (done) => {
+        const projectionConfig = {
+            projectionId: 'vehicle-list-close',
+            projectionName: 'Vehicle Listing',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                },
+                VEHICLE_CREATED: async function(state, event, funcs) {
+                    
+                }
+            },
+            query: {
+                context: 'vehicle',
+                aggregate: 'vehicle'
+            },
+            partitionBy: '',
+            outputState: 'true',
+            playbackList: {
+                name: 'vehicle_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }]
+            }
+        };
+        
+        await eventstore.projectAsync(projectionConfig);
+        await eventstore.startAllProjectionsAsync();
+
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
+
+        const vehicleId = shortid.generate();
+        const stream = await eventstore.getLastEventAsStreamAsync({
+            context: 'vehicle',
+            aggregate: 'vehicle',
+            aggregateId: vehicleId
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const event = {
+            name: "VEHICLE_CREATED",
+            payload: {
+                vehicleId: vehicleId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
+
+        stream.addEvent(event);
+        await stream.commitAsync();
+
+        const lastProjectionCheck = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+        setTimeout(async () => {
+            const latestProjectionCheck = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+            expect(lastProjectionCheck.offset).toEqual(latestProjectionCheck.offset);
+            done();
+        }, eventstoreConfig.pollingTimeout * 2); // just wait for twice of polling. offset should not have changed
+
+        await eventstore.closeAsync();
     });
 });
