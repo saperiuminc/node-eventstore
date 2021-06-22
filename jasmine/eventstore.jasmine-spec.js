@@ -1044,7 +1044,57 @@ describe('evenstore classicist tests', function() {
         await stream.commitAsync();
     });
 
-    fit('should close the eventstore projection', async (done) => {
+    xit('should close the eventstore projection', async (done) => {
+        const eventstore2 = require('../index')({
+            type: 'mysql',
+            host: mysqlConfig.host,
+            port: mysqlConfig.port,
+            user: mysqlConfig.user,
+            password: mysqlConfig.password,
+            database: mysqlConfig.database,
+            connectionPoolLimit: 10,
+            // projections-specific configuration below
+            redisCreateClient: redisFactory().createClient,
+            listStore: {
+                connection: {
+                    host: mysqlConfig.host,
+                    port: mysqlConfig.port,
+                    user: mysqlConfig.user,
+                    password: mysqlConfig.password,
+                    database: mysqlConfig.database
+                },
+                pool: {
+                    min: 10,
+                    max: 10
+                }
+            }, // required
+            projectionStore: {
+                connection: {
+                    host: mysqlConfig.host,
+                    port: mysqlConfig.port,
+                    user: mysqlConfig.user,
+                    password: mysqlConfig.password,
+                    database: mysqlConfig.database
+                },
+                pool: {
+                    min: 10,
+                    max: 10
+                }
+            }, // required
+            enableProjection: true,
+            eventCallbackTimeout: 1000,
+            lockTimeToLive: 1000,
+            pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
+            pollingMaxRevisions: 100,
+            errorMaxRetryCount: 2,
+            errorRetryExponent: 2,
+            playbackEventJobCount: 10,
+            context: 'vehicle'
+        });
+
+        Bluebird.promisifyAll(eventstore2);
+        await eventstore2.initAsync();
+
         const projectionConfig = {
             projectionId: 'vehicle-list-close',
             projectionName: 'Vehicle Listing',
@@ -1073,13 +1123,13 @@ describe('evenstore classicist tests', function() {
             }
         };
         
-        await eventstore.projectAsync(projectionConfig);
-        await eventstore.startAllProjectionsAsync();
+        await eventstore2.projectAsync(projectionConfig);
+        await eventstore2.startAllProjectionsAsync();
 
-        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
+        await eventstore2.runProjectionAsync(projectionConfig.projectionId, false);
 
         const vehicleId = shortid.generate();
-        const stream = await eventstore.getLastEventAsStreamAsync({
+        const stream = await eventstore2.getLastEventAsStreamAsync({
             context: 'vehicle',
             aggregate: 'vehicle',
             aggregateId: vehicleId
@@ -1101,13 +1151,13 @@ describe('evenstore classicist tests', function() {
         stream.addEvent(event);
         await stream.commitAsync();
 
-        const lastProjectionCheck = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+        const lastProjectionCheck = await eventstore2.getProjectionAsync(projectionConfig.projectionId);
         setTimeout(async () => {
-            const latestProjectionCheck = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+            const latestProjectionCheck = await eventstore2.getProjectionAsync(projectionConfig.projectionId);
             expect(lastProjectionCheck.offset).toEqual(latestProjectionCheck.offset);
             done();
         }, eventstoreConfig.pollingTimeout * 2); // just wait for twice of polling. offset should not have changed
 
-        await eventstore.closeAsync();
+        await eventstore2.closeAsync();
     });
 });
