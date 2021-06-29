@@ -1,5 +1,5 @@
 const Bluebird = require('bluebird');
-const EventstoreStateListStore = require('../../lib/eventstore-projections/eventstore-statelist-mysql-store');
+const EventstoreStateListStore = require('../../lib/eventstore-projections/state-list/databases/eventstore-statelist-mysql-store');
 const shortid = require('shortid');
 
 const mysqlOptions = {

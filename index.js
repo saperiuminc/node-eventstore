@@ -3,8 +3,6 @@
  * @typedef {import('./lib/eventstore-projections/eventstore-projection').PlaybackListStoreConfig} PlaybackListStoreConfig
  */
 
-const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
-
  /**
  * ProjectionStoreConfig
  * @typedef {import('./lib/eventstore-projections/eventstore-projection').ProjectionStoreConfig} ProjectionStoreConfig
@@ -146,7 +144,7 @@ const esFunction = function(options) {
             // based on the listStore configuration
             // TODO: add base class for playbackliststore when there is a need to create another store in the future
             const type = options.listStore.type || defaultDataStore;
-            const EventstorePlaybackListStore = require(`./lib/eventstore-projections/datastore/eventstore-playbacklist-${type}-store`);
+            const EventstorePlaybackListStore = require(`./lib/eventstore-projections/playbacklist/eventstore-playbacklist-${type}-store`);
             playbackListStore = new EventstorePlaybackListStore(options.listStore);
             playbackListStore.init();
 
@@ -157,7 +155,7 @@ const esFunction = function(options) {
     
         if (options.projectionStore) {
             const type = options.projectionStore.type || defaultDataStore;
-            const EventstoreProjectionStore = require(`./lib/eventstore-projections/projectionStore/eventstore-projection-${type}-store`);
+            const EventstoreProjectionStore = require(`./lib/eventstore-projections/projection/eventstore-projection-${type}-store`);
             projectionStore = new EventstoreProjectionStore(options.projectionStore);
             projectionStore.init();
         }
