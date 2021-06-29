@@ -102,6 +102,7 @@ const esFunction = function(options) {
 
     var Store;
 
+    // eslint-disable-next-line no-useless-catch
     try {
         Store = getSpecificStore(options);
     } catch (err) {
@@ -109,7 +110,7 @@ const esFunction = function(options) {
     }
 
     // TODO: move dependencies out of the options and move them as a parameter in the constructor of Eventstore
-    let jobsManager;
+    // let jobsManager;
     let distributedLock;
     let distributedSignal;
     let playbackListStore;
@@ -138,22 +139,25 @@ const esFunction = function(options) {
         } else {
             throw new Error('redisCreateClient is required when enableProjection is true');
         }
-    
+
+        const defaultDataStore = 'mysql';
         if (options.listStore) {
             // NOTE: we only have one store as of the moment. we can add more playbacklist stores in the future and pass it to the eventstore later
             // based on the listStore configuration
             // TODO: add base class for playbackliststore when there is a need to create another store in the future
-            const EventstorePlaybackListMySqlStore = require('./lib/eventstore-projections/eventstore-playbacklist-mysql-store');
-            playbackListStore = new EventstorePlaybackListMySqlStore(options.listStore);
+            const type = options.listStore.type || defaultDataStore;
+            const EventstorePlaybackListStore = require(`./lib/eventstore-projections/datastore/eventstore-playbacklist-${type}-store`);
+            playbackListStore = new EventstorePlaybackListStore(options.listStore);
             playbackListStore.init();
 
-            const EventstoreStateListMySqlStore = require('./lib/eventstore-projections/state-list/databases/eventstore-statelist-mysql-store');
-            stateListStore = new EventstoreStateListMySqlStore(options.listStore);
+            const EventstoreStateListStore = require(`./lib/eventstore-projections/state-list/databases/eventstore-statelist-${type}-store`);
+            stateListStore = new EventstoreStateListStore(options.listStore);
             stateListStore.init();
         }
     
         if (options.projectionStore) {
-            const EventstoreProjectionStore = require('./lib/eventstore-projections/eventstore-projection-store');
+            const type = options.projectionStore.type || defaultDataStore;
+            const EventstoreProjectionStore = require(`./lib/eventstore-projections/projectionStore/eventstore-projection-${type}-store`);
             projectionStore = new EventstoreProjectionStore(options.projectionStore);
             projectionStore.init();
         }
