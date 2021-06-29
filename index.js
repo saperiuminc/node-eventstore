@@ -147,7 +147,7 @@ const esFunction = function(options) {
             playbackListStore = new EventstorePlaybackListMySqlStore(options.listStore);
             playbackListStore.init();
 
-            const EventstoreStateListMySqlStore = require('./lib/eventstore-projections/eventstore-statelist-mysql-store');
+            const EventstoreStateListMySqlStore = require('./lib/eventstore-projections/state-list/databases/eventstore-statelist-mysql-store');
             stateListStore = new EventstoreStateListMySqlStore(options.listStore);
             stateListStore.init();
         }
