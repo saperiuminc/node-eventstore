@@ -55,7 +55,7 @@ const sleep = function(timeout) {
     })
 }
 
-fdescribe('evenstore classicist tests', function() {
+describe('evenstore classicist tests', function() {
     /**
      * @type {Docker.Container}
      */
@@ -154,7 +154,7 @@ fdescribe('evenstore classicist tests', function() {
         }
 
         debug('successfully connected to mysql');
-
+        const createClient = redisFactory().createClient,
         eventstore = require('../index')({
             type: 'mysql',
             host: mysqlConfig.host,
@@ -164,19 +164,10 @@ fdescribe('evenstore classicist tests', function() {
             database: mysqlConfig.database,
             connectionPoolLimit: 10,
             // projections-specific configuration below
-            redisCreateClient: redisFactory().createClient,
+            redisCreateClient: createClient,
             listStore: {
-                connection: {
-                    host: mysqlConfig.host,
-                    port: mysqlConfig.port,
-                    user: mysqlConfig.user,
-                    password: mysqlConfig.password,
-                    database: mysqlConfig.database
-                },
-                pool: {
-                    min: 10,
-                    max: 10
-                }
+                createClient: createClient, 
+                type: 'redis'
             }, // required
             projectionStore: {
                 connection: {
@@ -189,7 +180,9 @@ fdescribe('evenstore classicist tests', function() {
                 pool: {
                     min: 10,
                     max: 10
-                }
+                },
+                type: 'redis',
+                createClient: createClient,
             }, // required
             enableProjection: true,
             eventCallbackTimeout: 1000,

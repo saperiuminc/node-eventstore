@@ -10,7 +10,7 @@ const fs = require('fs/promises');
 const debug = require('debug')('BENCH');
 
 // NOTE: use mysql-based eventstore w/expanded bookmarked getEvents and archiving function
-var EventstoreStateListMySqlStore = require('../../lib/eventstore-projections/eventstore-statelist-mysql-store');
+var EventstoreStateListMySqlStore = require('../../lib/eventstore-projections/state-list/databases/eventstore-statelist-mysql-store');
 
 const extension = path.extname(module.filename);
 const containerName = path.basename(module.filename, extension);

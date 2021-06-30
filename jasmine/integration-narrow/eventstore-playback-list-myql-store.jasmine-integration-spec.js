@@ -1,5 +1,5 @@
 const Bluebird = require('bluebird');
-const EventstorePlaybackListStore = require('../../lib/eventstore-projections/eventstore-playbacklist-mysql-store');
+const EventstorePlaybackListStore = require('../../lib/eventstore-projections/playbacklist/eventstore-playbacklist-mysql-store');
 const shortid = require('shortid');
 
 const mysqlOptions = {
