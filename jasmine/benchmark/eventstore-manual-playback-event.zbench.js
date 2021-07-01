@@ -307,6 +307,7 @@ zbench('bench eventstore-projection', (z) => {
     let eventstore;
     let redisFactory;
     let projectionConfig;
+    let projectionConfigurations = [];
     z.setup(async (done, b) => {
         try {
             if (!redisFactory) {
@@ -350,11 +351,45 @@ zbench('bench eventstore-projection', (z) => {
                 return {};
             }
 
-            eventstore.registerFunction('emit', async function() {
-                // do nothing for now
+            eventstore.registerFunction('emit', async function(targetQuery, event, done) {
+                // NOTE: just be careful here as this might be an indirect infinite loop if the source of the emit also handles the 
+                // the same event that it emitted
+
+                const doEmit = async function() {
+                    for (let i = 0; i < projectionConfigurations.length; i++) {
+                        const projectionConfig = projectionConfigurations[i];
+    
+                        if (projectionConfig.query.aggregate == targetQuery.aggregate && projectionConfig.query.context == targetQuery.context) {
+                            const eventToPlayback = {
+                                id: 1,
+                                context: targetQuery.context,
+                                payload: event,
+                                commitId: nanoid(),
+                                position: 0,
+                                streamId: targetQuery.aggregateId,
+                                aggregate: targetQuery.aggregate,
+                                aggregateId: targetQuery.aggregateId,
+                                commitStamp: Date.now(),
+                                commitSequence: 0,
+                                streamRevision: 0,
+                                restInCommitStream: 0,
+                                eventSequence: 0
+                            }
+        
+                            await eventstore._playbackEvent(eventToPlayback, projectionConfig, 100);
+                        }
+                        
+                    }
+                }
+                
+                if (done) {
+                    doEmit().then(done).catch(done);
+                } else {
+                    return doEmit();
+                }
             })
 
-            projectionConfig = {
+            const projectionConfig1 = {
                 projectionId: `vehicle-domain-projection`,
                 projectionName: `Vehicle Domain Projection`,
                 playbackInterface: {
@@ -363,8 +398,8 @@ zbench('bench eventstore-projection', (z) => {
                             count: 0
                         }
                     },
-                    VEHICLE_CREATED: async function(state, event, funcs) {
-                        // console.time('VEHICLE_CREATED');
+                    vehicle_created: async function(state, event, funcs) {
+                        // console.time('vehicle_created');
                         const eventPayload = event.payload.payload;
                         const stateList = await funcs.getStateList(`vehicle_domain_state_list`);
 
@@ -391,18 +426,18 @@ zbench('bench eventstore-projection', (z) => {
                             stateList.find(filters)
                         ];
 
-                        // const targetQuery = {
-                        //     context: 'reports',
-                        //     aggregate: 'reportsSecondChanceItem',
-                        //     aggregateId: aggregateId
-                        // };
+                        const targetQuery = {
+                            context: 'vehicle',
+                            aggregate: 'vehicleListItem',
+                            aggregateId: eventPayload.vehicleId
+                        };
         
-                        // const newEvent = {
-                        //     name: 'reports_second_chance_item_created',
-                        //     payload: eventPayload
-                        // };
+                        const newEvent = {
+                            name: 'vehicle_list_item_created',
+                            payload: eventPayload
+                        };
         
-                        // await funcs.emit(targetQuery, newEvent);
+                        await funcs.emit(targetQuery, newEvent);
                     }
                 },
                 query: {
@@ -423,7 +458,32 @@ zbench('bench eventstore-projection', (z) => {
                             sort: 'ASC'
                         }]
                     }
-                }],
+                }]
+            };
+
+            const projectionConfig2 = {
+                projectionId: `vehicle-list-projection`,
+                projectionName: `Vehicle List Projection`,
+                playbackInterface: {
+                    $init: function() {
+                        return {
+                            count: 0
+                        }
+                    },
+                    vehicle_list_item_created: async function(state, event, funcs) {
+                        // console.time('vehicle_list_item_created');
+                        const eventPayload = event.payload.payload;
+                        const playbackList = await funcs.getPlaybackList('vehicle_list');
+
+                        await playbackList.add(event.aggregateId, event.streamRevision, eventPayload, {});
+                    }
+                },
+                query: {
+                    context: 'vehicle',
+                    aggregate: 'vehicleListItem'
+                },
+                partitionBy: '',
+                outputState: 'false',
                 playbackList: {
                     name: `vehicle_list`,
                     fields: [{
@@ -433,9 +493,17 @@ zbench('bench eventstore-projection', (z) => {
                 }
             };
 
-            for (let i = 0; i < projectionConfig.stateList.length; i++) {
-                const stateListConfig = projectionConfig.stateList[i];
-                await eventstore._stateListStore.createList(stateListConfig);
+            projectionConfigurations.push(projectionConfig1);
+            projectionConfigurations.push(projectionConfig2);
+
+            for (let i = 0; i < projectionConfigurations.length; i++) {
+                const projectionConfig = projectionConfigurations[i];
+
+                const projection = {
+                    configuration: projectionConfig
+                }
+                await eventstore._initStateList(projection);
+                await eventstore._initPlaybackList(projection);
             }
 
             debug('setup complete');
@@ -460,7 +528,7 @@ zbench('bench eventstore-projection', (z) => {
                 id: autoIncrementId++,
                 context: 'vehicle',
                 payload: {
-                    name: "VEHICLE_CREATED",
+                    name: "vehicle_created",
                     payload: {
                         vehicleId: vehicleId,
                         year: 2012,
@@ -480,7 +548,13 @@ zbench('bench eventstore-projection', (z) => {
                 restInCommitStream: 0,
                 eventSequence: 0
             }
-            await eventstore._playbackEvent(event, projectionConfig, 100);
+
+            for (let i = 0; i < projectionConfigurations.length; i++) {
+                const projectionConfig = projectionConfigurations[i];
+                if (projectionConfig.query.aggregate == event.aggregate && projectionConfig.query.context == event.context) {
+                    await eventstore._playbackEvent(event, projectionConfig, 100);
+                }
+            }
 
             b.end();
         } catch (error) {
