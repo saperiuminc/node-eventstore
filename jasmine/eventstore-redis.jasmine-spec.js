@@ -55,7 +55,7 @@ const sleep = function(timeout) {
     })
 }
 
-describe('evenstore classicist tests', function() {
+describe('evenstore redis classicist tests', function() {
     /**
      * @type {Docker.Container}
      */
@@ -110,6 +110,9 @@ describe('evenstore classicist tests', function() {
             }
         });
 
+        // const stream = await mysqlContainer.attach({ stream: true, stdout: true, stderr: true });
+        // stream.pipe(process.stdout);
+
         await mysqlContainer.start();
 
         debug('creating and starting redis container');
@@ -154,7 +157,7 @@ describe('evenstore classicist tests', function() {
         }
 
         debug('successfully connected to mysql');
-        const createClient = redisFactory().createClient,
+        const createClient = redisFactory().createClient;
         eventstore = require('../index')({
             type: 'mysql',
             host: mysqlConfig.host,
@@ -170,17 +173,6 @@ describe('evenstore classicist tests', function() {
                 type: 'redis'
             }, // required
             projectionStore: {
-                connection: {
-                    host: mysqlConfig.host,
-                    port: mysqlConfig.port,
-                    user: mysqlConfig.user,
-                    password: mysqlConfig.password,
-                    database: mysqlConfig.database
-                },
-                pool: {
-                    min: 10,
-                    max: 10
-                },
                 type: 'redis',
                 createClient: createClient,
             }, // required
@@ -194,20 +186,19 @@ describe('evenstore classicist tests', function() {
             playbackEventJobCount: 10,
             context: 'vehicle'
         });
-
         Bluebird.promisifyAll(eventstore);
         await eventstore.initAsync();
     });
 
     beforeEach(async function() {
-        Bluebird.promisifyAll(eventstore.store);
-        await eventstore.store.clearAsync();
-
-        const projections = await eventstore.getProjectionsAsync();
-        for (let index = 0; index < projections.length; index++) {
-            const projection = projections[index];
-            await eventstore.deleteProjectionAsync(projection.projectionId);
-        }
+      Bluebird.promisifyAll(eventstore.store);
+      // await eventstore.store.clearAsync();
+   
+      const projections = await eventstore.getProjectionsAsync();
+      for (let index = 0; index < projections.length; index++) {
+          const projection = projections[index];
+          await eventstore.deleteProjectionAsync(projection.projectionId);
+      }
     });
 
     it('should create the projection', async function() {
@@ -644,6 +635,10 @@ describe('evenstore classicist tests', function() {
                 fields: [{
                     name: 'vehicleId',
                     type: 'string'
+                }],
+                secondaryKeys: [{
+                  name: 'year',
+                  type: 'string'
                 }]
             }
         };
@@ -675,6 +670,9 @@ describe('evenstore classicist tests', function() {
         }
         stream.addEvent(event);
         await stream.commitAsync();
+        
+        // const stateList = eventstore.getStateList('vehicle_list');
+        // await stateList.push(event.payload);
 
         let pollCounter = 0;
         while (pollCounter < 10) {
@@ -690,6 +688,7 @@ describe('evenstore classicist tests', function() {
         expect(pollCounter).toBeLessThan(10);
 
         const playbackList = eventstore.getPlaybackList('vehicle_list');
+        // const state = await stateList.find([{ field: 'year', value: event.payload.year }]);
         const result = await playbackList.get(vehicleId);
         expect(result.data).toEqual(event.payload);
     });
@@ -1037,7 +1036,7 @@ describe('evenstore classicist tests', function() {
         await stream.commitAsync();
     });
 
-    xit('should close the eventstore projection', async (done) => {
+    fit('should close the eventstore projection', async (done) => {
         const eventstore2 = require('../index')({
             type: 'mysql',
             host: mysqlConfig.host,
