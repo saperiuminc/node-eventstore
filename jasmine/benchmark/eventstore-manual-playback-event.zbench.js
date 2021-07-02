@@ -9,6 +9,10 @@ const nanoid = require('nanoid');
 const Redis = require('ioredis');
 const async = require('async');
 const fs = require('fs/promises');
+const EventstorePlaybackListMysqlStore = require('../../lib/eventstore-projections/playbacklist/eventstore-playbacklist-mysql-store');
+const EventstoreStateListListMysqlStore = require('../../lib/eventstore-projections/state-list/databases/eventstore-statelist-mysql-store');
+
+
 
 const sleep = function(timeout) {
     return new Promise((resolve) => {
@@ -28,6 +32,21 @@ const mysqlConfig = {
 const redisConfig = {
     host: 'localhost',
     port: 6379
+}
+
+
+const mysqlStoreOptions = {
+    connection: {
+        host: mysqlConfig.host,
+        port: mysqlConfig.port,
+        user: mysqlConfig.user,
+        password: mysqlConfig.password,
+        database: mysqlConfig.database
+    },
+    pool: {
+        min: mysqlConfig.connectionPoolLimit,
+        max: mysqlConfig.connectionPoolLimit
+    }
 }
 
 const RedisFactory = function() {
@@ -308,6 +327,8 @@ zbench('bench eventstore-projection', (z) => {
     let redisFactory;
     let projectionConfig;
     let projectionConfigurations = [];
+    let mysqlPlaybackListStore;
+    let mysqlStateListStore;
     z.setup(async (done, b) => {
         try {
             if (!redisFactory) {
@@ -399,7 +420,6 @@ zbench('bench eventstore-projection', (z) => {
                         }
                     },
                     vehicle_created: async function(state, event, funcs) {
-                        // console.time('vehicle_created');
                         const eventPayload = event.payload.payload;
                         const stateList = await funcs.getStateList(`vehicle_domain_state_list`);
 
@@ -496,6 +516,13 @@ zbench('bench eventstore-projection', (z) => {
             projectionConfigurations.push(projectionConfig1);
             projectionConfigurations.push(projectionConfig2);
 
+
+            mysqlPlaybackListStore = new EventstorePlaybackListMysqlStore(mysqlStoreOptions);
+            mysqlStateListStore = new EventstoreStateListListMysqlStore(mysqlStoreOptions);
+
+            await mysqlPlaybackListStore.init();
+            await mysqlStateListStore.init();
+
             for (let i = 0; i < projectionConfigurations.length; i++) {
                 const projectionConfig = projectionConfigurations[i];
 
@@ -504,6 +531,18 @@ zbench('bench eventstore-projection', (z) => {
                 }
                 await eventstore._initStateList(projection);
                 await eventstore._initPlaybackList(projection);
+
+                
+                if (projectionConfig.playbackList) {
+                    await mysqlPlaybackListStore.createList(projectionConfig.playbackList);
+                }
+                
+                if (projectionConfig.stateList) {
+                    for (let j = 0; j < projectionConfig.stateList.length; j++) {
+                        const stateListConfig = projectionConfig.stateList[j];
+                        await mysqlStateListStore.createList(stateListConfig);
+                    }
+                }
             }
 
             debug('setup complete');
@@ -514,7 +553,23 @@ zbench('bench eventstore-projection', (z) => {
         }
     });
     z.teardown(async (done) => {
-        console.log('number of keys in state list', eventstore._stateListStore._lists['vehicle_domain_state_list'].length);
+        debug('TEARDOWN start');
+        console.time('teardown');
+        const playbackListStoreKeys = Object.keys(eventstore._playbackListStore._lists);
+
+        for (let index = 0; index < playbackListStoreKeys.length; index++) {
+            const listName = playbackListStoreKeys[index];
+            const list = eventstore._playbackListStore._lists[listName];
+            const listKeys = Object.keys(list);
+            
+            for (let j = 0; j < listKeys.length; j++) {
+                const itemKey = listKeys[j];
+                const item = list[itemKey];
+
+                await mysqlPlaybackListStore.add(listName, itemKey, 0, item.data, item.meta);
+            }
+        }
+        console.timeEnd('teardown');
         debug('TEARDOWN complete');
         done();
     });
@@ -552,7 +607,9 @@ zbench('bench eventstore-projection', (z) => {
             for (let i = 0; i < projectionConfigurations.length; i++) {
                 const projectionConfig = projectionConfigurations[i];
                 if (projectionConfig.query.aggregate == event.aggregate && projectionConfig.query.context == event.context) {
+                    // NOTE: can be improved by creating one queue per projection
                     await eventstore._playbackEvent(event, projectionConfig, 100);
+                    // TODO: call eventstore._projectionStore.setOffset to update the last offset of the projection
                 }
             }
 
