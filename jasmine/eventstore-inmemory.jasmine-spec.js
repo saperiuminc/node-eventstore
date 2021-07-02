@@ -55,7 +55,7 @@ const sleep = function(timeout) {
     })
 }
 
-fdescribe('evenstore inmemory classicist tests', function() {
+describe('evenstore inmemory classicist tests', function() {
     /**
      * @type {Docker.Container}
      */

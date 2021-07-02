@@ -8,9 +8,10 @@ const _ = require('lodash');
 const nanoid = require('nanoid');
 const Redis = require('ioredis');
 const async = require('async');
-const fs = require('fs/promises');
+const fs = require('fs');
 const EventstorePlaybackListMysqlStore = require('../../lib/eventstore-projections/playbacklist/eventstore-playbacklist-mysql-store');
 const EventstoreStateListListMysqlStore = require('../../lib/eventstore-projections/state-list/databases/eventstore-statelist-mysql-store');
+const EventstoreProjectionListMysqlStore = require('../../lib/eventstore-projections/projection/eventstore-projection-mysql-store');
 
 
 
@@ -49,6 +50,65 @@ const mysqlStoreOptions = {
     }
 }
 
+const genericMySqlConnection = {
+    host: mysqlConfig.host,
+    port: mysqlConfig.port,
+    user: mysqlConfig.user,
+    password: mysqlConfig.password
+}
+
+const createFile = async function(filePath) {
+  return new Promise((resolve, reject) => {
+      fs.writeFile(filePath, '', function (err) {
+          if (err) {
+              console.log(err);
+              reject(err);
+          }
+          resolve();
+      });
+  });
+}
+const writeFile = async function(filePath, data) {
+  return new Promise((resolve, reject) => {
+      fs.writeFile(filePath, data, { flag: 'a+' }, function (err) {
+          if (err) {
+              console.log(err);
+              reject(err);
+          }
+          resolve();
+      });
+  });
+}
+
+const query = async function(connection, sql, params, streamFunc, streamParam) {
+  return new Promise((resolve, reject) => {
+      // timeout 2 hours per query
+      const res = [];
+      let count = 0;
+      const query = connection.query({ sql: sql, timeout: 7200000, values: params || []});
+      query
+          .on('error', function(err) {
+              console.error(err);
+              resolve(err);
+          })
+          .on('fields', function(fields) {
+          })
+          .on('result', async function(row) {
+              if(streamFunc) {
+                  count++;
+                  (streamParam || {}).count = count;
+                  await streamFunc(row, streamParam);
+              } else {
+                  res.push(row);
+              }
+          })
+          .on('end', function(rows) {
+              resolve(res);
+          });
+  });
+};
+
+
 const RedisFactory = function() {
     const options = redisConfig;
     const redisClient = new Redis(options);
@@ -60,16 +120,18 @@ const RedisFactory = function() {
         switch (type) {
             case 'client':
                 return redisClient;
-            case 'bclient':
-                const bRedis = new Redis(options);
-                blockingClients.push(bRedis);
-                return bRedis;
+            case 'bclient': {
+              const bRedis = new Redis(options);
+              blockingClients.push(bRedis);
+              return bRedis;
+            }
             case 'subscriber':
                 return redisSubscriber;
-            default:
-                const redis = new Redis(options);
-                otherClients.push(redis);
-                return redis;
+            default: {
+              const redis = new Redis(options);
+              otherClients.push(redis);
+              return redis;
+            }
         }
     };
 
@@ -202,7 +264,7 @@ zbench('bench eventstore-projection', (z) => {
 
             const setupRedis = async function() {
                 redisContainer = await docker.createContainer({
-                    Image: 'redis:5.0',
+                    Image: 'redis:latest',
                     Tty: true,
                     HostConfig: {
                         PortBindings: {
@@ -329,6 +391,7 @@ zbench('bench eventstore-projection', (z) => {
     let projectionConfigurations = [];
     let mysqlPlaybackListStore;
     let mysqlStateListStore;
+    let mysqlProjectionListStore;
     z.setup(async (done, b) => {
         try {
             if (!redisFactory) {
@@ -519,9 +582,11 @@ zbench('bench eventstore-projection', (z) => {
 
             mysqlPlaybackListStore = new EventstorePlaybackListMysqlStore(mysqlStoreOptions);
             mysqlStateListStore = new EventstoreStateListListMysqlStore(mysqlStoreOptions);
+            mysqlProjectionListStore = new EventstoreProjectionListMysqlStore(mysqlStoreOptions);
 
             await mysqlPlaybackListStore.init();
             await mysqlStateListStore.init();
+            await mysqlProjectionListStore.init();
 
             for (let i = 0; i < projectionConfigurations.length; i++) {
                 const projectionConfig = projectionConfigurations[i];
@@ -531,6 +596,13 @@ zbench('bench eventstore-projection', (z) => {
                 }
                 await eventstore._initStateList(projection);
                 await eventstore._initPlaybackList(projection);
+                const projectionCreateObj = {
+                  projectionId: projectionConfig.projectionId,
+                  projectionName: projectionConfig.projectionName,
+                  configuration: projection.configuration,
+                  context: projectionConfig.query.context
+                }
+                await eventstore._projectionStore.createProjection(projectionCreateObj);
 
                 
                 if (projectionConfig.playbackList) {
@@ -543,6 +615,8 @@ zbench('bench eventstore-projection', (z) => {
                         await mysqlStateListStore.createList(stateListConfig);
                     }
                 }
+
+                await mysqlProjectionListStore.createProjection(projectionCreateObj)
             }
 
             debug('setup complete');
@@ -554,22 +628,106 @@ zbench('bench eventstore-projection', (z) => {
     });
     z.teardown(async (done) => {
         debug('TEARDOWN start');
-        console.time('teardown');
+        const numOfRows = 1000;
+        let rowsString = ``;
+        console.time('tocsv');
+        // playbacklist
         const playbackListStoreKeys = Object.keys(eventstore._playbackListStore._lists);
-
         for (let index = 0; index < playbackListStoreKeys.length; index++) {
             const listName = playbackListStoreKeys[index];
             const list = eventstore._playbackListStore._lists[listName];
+            await createFile(`${__dirname}/playbacklists/${listName}.csv`);
             const listKeys = Object.keys(list);
-            
             for (let j = 0; j < listKeys.length; j++) {
                 const itemKey = listKeys[j];
                 const item = list[itemKey];
-
-                await mysqlPlaybackListStore.add(listName, itemKey, 0, item.data, item.meta);
+                const rowString = `"${itemKey}"|0|${item.data ? JSON.stringify(item.data): null}|${item.meta ? JSON.stringify(item.meta) : null}\r\n`;
+                rowsString += rowString;
+                if (j % numOfRows === 0) {
+                  await writeFile(`${__dirname}/playbacklists/${listName}.csv`, rowsString);
+                  rowsString = ``;
+                };
+                // await mysqlPlaybackListStore.add(listName, itemKey, 0, item.data, item.meta);
+            }
+            if (rowsString) {
+              await writeFile(`${__dirname}/playbacklists/${listName}.csv`, rowsString);
+              rowsString = ``;
             }
         }
-        console.timeEnd('teardown');
+
+        // statelist
+        const stateListStoreKeys = Object.keys(eventstore._stateListStore._lists);
+        for (let index = 0; index < stateListStoreKeys.length; index++) {
+            const listName = stateListStoreKeys[index];
+            const list = eventstore._stateListStore._lists[listName];
+            await createFile(`${__dirname}/state-lists/${listName}.csv`);
+            const listKeys = Object.keys(list);
+            for (let j = 0; j < listKeys.length; j++) {
+                const itemKey = listKeys[j];
+                const item = list[itemKey];
+                const rowString = `"UPDATE"|"${itemKey}"|${item.state ? JSON.stringify(item.state): null}|${item.meta ? JSON.stringify(item.meta) : null}\r\n`;
+                rowsString += rowString;
+                if (j % numOfRows === 0) {
+                  await writeFile(`${__dirname}/state-lists/${listName}.csv`, rowsString);
+                  rowsString = ``;
+                };
+                // await mysqlPlaybackListStore.add(listName, itemKey, 0, item.data, item.meta);
+            }
+            if (rowsString) {
+              await writeFile(`${__dirname}/state-lists/${listName}.csv`, rowsString);
+              rowsString = ``;
+            }
+        }
+
+        // projections
+        let queryString = ``;
+        let params = [];
+        const projectionListStoreKeys = Object.keys(eventstore._projectionStore._projections);
+        for (let index = 0; index < projectionListStoreKeys.length; index++) {
+            const projectionId = projectionListStoreKeys[index];
+            const projection = eventstore._projectionStore._projections[projectionId];
+            if (projection.processedDate || projection.offset) {
+              queryString += `UPDATE eventstore.projections SET processed_date = ?, offset = ?, is_idle = ? WHERE projection_id = ?; `;
+              params.push(projection.processedDate || 0);
+              params.push(projection.offset || 0);
+              params.push(projection.isIdle || 0);
+              params.push(projection.projectionId);
+            }
+        }
+
+
+        console.timeEnd('tocsv');
+
+        console.time('localinfile');
+        try {
+          const newConn = mysql.createConnection(genericMySqlConnection);
+          const projectionFiles = await fs.promises.readdir(`${__dirname}/playbacklists`);
+          for( const file of projectionFiles ) {
+            const tableName = file.split('.')[0];
+            await query(newConn,
+            `LOAD DATA LOCAL INFILE '${__dirname}/playbacklists/${file}' INTO TABLE eventstore.${tableName} FIELDS TERMINATED BY '|' ENCLOSED BY '"' LINES TERMINATED BY '\r\n' (row_id, row_revision, row_json, meta_json);`);
+          }
+
+          const stateListFiles = await fs.promises.readdir(`${__dirname}/state-lists`);
+          for( const file of stateListFiles ) {
+            const tableName = file.split('.')[0];
+            await query(newConn,
+            `LOAD DATA LOCAL INFILE '${__dirname}/state-lists/${file}' INTO TABLE eventstore.${tableName} FIELDS TERMINATED BY '|' ENCLOSED BY '"' LINES TERMINATED BY '\r\n' (row_type, row_index, state_json, meta_json);`);
+          }
+
+          if (queryString) {
+            await query(newConn, queryString, params);
+          }
+
+          
+        }
+        catch( e ) {
+            // Catch anything bad that happens
+            console.error( "We've thrown! Whoops!", e );
+        }
+
+        console.timeEnd('localinfile');
+
         debug('TEARDOWN complete');
         done();
     });
@@ -579,7 +737,7 @@ zbench('bench eventstore-projection', (z) => {
         try {
             b.start();
             const vehicleId = nanoid();
-            const event = {
+            const events = [{
                 id: autoIncrementId++,
                 context: 'vehicle',
                 payload: {
@@ -602,16 +760,31 @@ zbench('bench eventstore-projection', (z) => {
                 streamRevision: 0,
                 restInCommitStream: 0,
                 eventSequence: 0
-            }
+            }]
 
-            for (let i = 0; i < projectionConfigurations.length; i++) {
-                const projectionConfig = projectionConfigurations[i];
-                if (projectionConfig.query.aggregate == event.aggregate && projectionConfig.query.context == event.context) {
-                    // NOTE: can be improved by creating one queue per projection
-                    await eventstore._playbackEvent(event, projectionConfig, 100);
-                    // TODO: call eventstore._projectionStore.setOffset to update the last offset of the projection
-                }
-            }
+            for (const event of events) {
+              for (let i = 0; i < projectionConfigurations.length; i++) {
+                  const projectionConfig = projectionConfigurations[i];
+                  if (projectionConfig.query.aggregate == event.aggregate && projectionConfig.query.context == event.context) {
+                      // NOTE: can be improved by creating one queue per projection
+                      try {
+                        await eventstore._playbackEvent(event, projectionConfig, 100);
+                        await eventstore._projectionStore.setProcessed(projectionConfig.projectionId, Date.now(), events.length ? events.length : undefined, !(events.length > 0));
+                      } catch (error) {
+                          console.error('error in playing back event in partitioned queue with params and error', event, projectionConfig.projectionId, error);
+                          // send to an error stream for this projection with streamid: ${projectionId}-errors.
+                          // this lets us see the playback errors as a stream and resolve it manually
+
+                          const errorFault = error;
+                          const errorEvent = event;
+                          const errorOffset = event.eventSequence;
+
+                          await eventstore._projectionStore.setState(projectionConfig.projectionId, 'faulted');
+                          await eventstore._projectionStore.setError(projectionConfig.projectionId, errorFault, errorEvent, errorOffset);
+                      }
+                  }
+              }
+            };
 
             b.end();
         } catch (error) {
