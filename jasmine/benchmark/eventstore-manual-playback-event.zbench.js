@@ -561,10 +561,15 @@ zbench('bench eventstore-projection', (z) => {
                         await playbackList.add(event.aggregateId, event.streamRevision, eventPayload, {});
                     }
                 },
-                query: {
-                    context: 'vehicle',
-                    aggregate: 'vehicleListItem'
+                query: [
+                {
+                  context: 'vehicle',
+                  aggregate: 'vehicleListItem'
                 },
+                {
+                  context: 'salesChannelInstanceVehicle',
+                  aggregate: 'salesChannelInstanceVehicleListItem'
+                }],
                 partitionBy: '',
                 outputState: 'false',
                 playbackList: {
@@ -600,7 +605,7 @@ zbench('bench eventstore-projection', (z) => {
                   projectionId: projectionConfig.projectionId,
                   projectionName: projectionConfig.projectionName,
                   configuration: projection.configuration,
-                  context: projectionConfig.query.context
+                  context: 'text-context'
                 }
                 await eventstore._projectionStore.createProjection(projectionCreateObj);
 
@@ -765,7 +770,17 @@ zbench('bench eventstore-projection', (z) => {
             for (const event of events) {
               for (let i = 0; i < projectionConfigurations.length; i++) {
                   const projectionConfig = projectionConfigurations[i];
-                  if (projectionConfig.query.aggregate == event.aggregate && projectionConfig.query.context == event.context) {
+                  // projectionConfig.query can be an array
+                  let aggregates = [];
+                  let context = [];
+                  if (Array.isArray(projectionConfig.query)) {
+                    aggregates = projectionConfig.query.map((a) => a.aggregate);
+                    context = projectionConfig.query.map((c) => c.context);
+                  } else {
+                    aggregates.push(projectionConfig.query.aggregate);
+                    context.push(projectionConfig.query.context);
+                  }
+                  if (aggregates.includes(event.aggregate) && context.includes(event.context)) {
                       // NOTE: can be improved by creating one queue per projection
                       try {
                         await eventstore._playbackEvent(event, projectionConfig, 100);
