@@ -697,7 +697,14 @@ describe('evenstore classicist tests', function() {
         expect(pollCounter).toBeLessThan(10);
 
         const playbackList = eventstore.getPlaybackList('vehicle_list');
-        const result = await playbackList.get(vehicleId);
+
+        const filteredResults = await playbackList.query(0, 1, [{
+            field: 'vehicleId',
+            operator: 'is',
+            value: vehicleId
+        }], null);
+
+        const result = filteredResults.rows[0];
         expect(result.data).toEqual(event.payload);
     });
 
@@ -809,7 +816,15 @@ describe('evenstore classicist tests', function() {
         expect(pollCounter).toBeLessThan(10);
 
         const playbackList = eventstore.getPlaybackList('vehicle_list');
-        const result = await playbackList.get(vehicleId);
+
+        const filteredResults = await playbackList.query(0, 1, [{
+            field: 'vehicleId',
+            operator: 'is',
+            value: vehicleId
+        }], null);
+
+        const result = filteredResults.rows[0];
+        
         expect(result.data).toEqual(event2.payload);
     });
 
@@ -905,8 +920,14 @@ describe('evenstore classicist tests', function() {
         expect(pollCounter).toBeLessThan(10);
 
         const playbackList = eventstore.getPlaybackList('vehicle_list');
-        const result = await playbackList.get(vehicleId);
-        expect(result).toBeNull();
+        const filteredResults = await playbackList.query(0, 1, [{
+            field: 'vehicleId',
+            operator: 'is',
+            value: vehicleId
+        }], null);
+
+        const result = filteredResults.rows[0];
+        expect(result).toBeFalsy();
     });
 
     it('should emit playbackError on playback error', async (done) => {
