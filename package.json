@@ -59,6 +59,7 @@
     "memory-cache": "^0.2.0",
     "murmurhash": "^1.0.0",
     "mysql": "^2.18.1",
+    "mysql2": "^2.3.0",
     "nodeify": "^1.0.1",
     "opentracing": "^0.14.4",
     "parent-require": "1.0.0",
