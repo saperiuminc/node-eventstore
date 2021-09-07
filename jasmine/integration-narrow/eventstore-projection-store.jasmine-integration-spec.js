@@ -1,5 +1,5 @@
 const Bluebird = require('bluebird');
-const EventstoreProjectionStore = require('../../lib/eventstore-projections/eventstore-projection-store'); // toggle v2 and v1 mysql
+const EventstoreProjectionStore = require('../../lib/eventstore-projections/projection/eventstore-projection-mysql-store'); // toggle v2 and v1 mysql
 const shortid = require('shortid');
 const _ = require('lodash');
 
