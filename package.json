@@ -59,6 +59,7 @@
     "memory-cache": "^0.2.0",
     "murmurhash": "^1.0.0",
     "mysql": "^2.18.1",
+    "mysql2": "^2.3.0",
     "nodeify": "^1.0.1",
     "opentracing": "^0.14.4",
     "parent-require": "1.0.0",
@@ -66,8 +67,8 @@
     "redlock": "^4.1.0",
     "save": "^2.4.0",
     "serialize-javascript": "^5.0.1",
-    "shortid": "^2.2.15",
     "shimmer": "^1.2.1",
+    "shortid": "^2.2.15",
     "tolerance": "1.0.0",
     "uuid": "3.3.3"
   },
