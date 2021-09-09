@@ -55,7 +55,7 @@ const sleep = function(timeout) {
     })
 }
 
-describe('evenstore redis classicist tests', function() {
+xdescribe('evenstore redis classicist tests', function() {
     /**
      * @type {Docker.Container}
      */
@@ -687,8 +687,8 @@ describe('evenstore redis classicist tests', function() {
 
         expect(pollCounter).toBeLessThan(10);
 
-        const playbackList = eventstore.getPlaybackList('vehicle_list');
-        // const state = await stateList.find([{ field: 'year', value: event.payload.year }]);
+        
+        const playbackList = eventstore._playbackLists['vehicle_list'];
         const result = await playbackList.get(vehicleId);
         expect(result.data).toEqual(event.payload);
     });
@@ -800,7 +800,8 @@ describe('evenstore redis classicist tests', function() {
 
         expect(pollCounter).toBeLessThan(10);
 
-        const playbackList = eventstore.getPlaybackList('vehicle_list');
+        
+        const playbackList = eventstore._playbackLists['vehicle_list'];
         const result = await playbackList.get(vehicleId);
         expect(result.data).toEqual(event2.payload);
     });
@@ -896,7 +897,8 @@ describe('evenstore redis classicist tests', function() {
 
         expect(pollCounter).toBeLessThan(10);
 
-        const playbackList = eventstore.getPlaybackList('vehicle_list');
+        
+        const playbackList = eventstore._playbackLists['vehicle_list'];
         const result = await playbackList.get(vehicleId);
         expect(result).toBeNull();
     });
