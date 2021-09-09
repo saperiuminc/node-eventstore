@@ -39,7 +39,7 @@
     "node": ">=0.8.0"
   },
   "dependencies": {
-    "@saperiuminc/mysql-shared-pool": "1.0.10",
+    "@saperiuminc/mysql2-shared-pool": "^1.0.1",
     "@saperiuminc/waitables": "^1.0.3",
     "async": "2.6.2",
     "aws-xray-sdk": "^3.2.0",

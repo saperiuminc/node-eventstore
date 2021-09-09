@@ -55,7 +55,7 @@ const sleep = function(timeout) {
     })
 }
 
-describe('evenstore redis classicist tests', function() {
+xdescribe('evenstore redis classicist tests', function() {
     /**
      * @type {Docker.Container}
      */
