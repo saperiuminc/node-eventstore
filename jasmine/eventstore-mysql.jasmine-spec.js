@@ -82,7 +82,8 @@ describe('evenstore mysql classicist tests', function() {
 
     beforeAll(async function() {
 
-        debug(`pulling ${mySqlImageName}`);
+        try {
+            debug(`pulling ${mySqlImageName}`);
         await docker.pull(mySqlImageName);
         debug(`pulling ${redisImageName}`);
         await docker.pull(redisImageName);
@@ -166,6 +167,7 @@ describe('evenstore mysql classicist tests', function() {
             // projections-specific configuration below
             redisCreateClient: redisFactory().createClient,
             listStore: {
+                type: 'mysql',
                 connection: {
                     host: mysqlConfig.host,
                     port: mysqlConfig.port,
@@ -179,6 +181,7 @@ describe('evenstore mysql classicist tests', function() {
                 }
             }, // required
             projectionStore: {
+                type: 'mysql',
                 connection: {
                     host: mysqlConfig.host,
                     port: mysqlConfig.port,
@@ -204,6 +207,10 @@ describe('evenstore mysql classicist tests', function() {
 
         Bluebird.promisifyAll(eventstore);
         await eventstore.initAsync();
+        } catch (error) {
+            console.error('error in beforeAll', error);
+        }
+        
     });
 
     beforeEach(async function() {
@@ -614,6 +621,147 @@ describe('evenstore mysql classicist tests', function() {
         expect(projection.offset).toEqual(2);
         expect(projection.state).toEqual('running');
         expect(projection.isIdle).toEqual(0);
+    });
+
+    it('should add and update data to the stateList', async function() {
+        const projectionConfig = {
+            projectionId: 'vehicle-list',
+            projectionName: 'Vehicle Listing',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                },
+                VEHICLE_CREATED: async function(state, event, funcs) {
+                    const eventPayload = event.payload.payload;
+                    const data = {
+                        vehicleId: eventPayload.vehicleId,
+                        year: eventPayload.year,
+                        make: eventPayload.make,
+                        model: eventPayload.model,
+                        mileage: eventPayload.mileage
+                    };
+                
+                    const stateList = await funcs.getStateList('vehicle_state_list');
+
+                    await stateList.push(data);
+                },
+                VEHICLE_UPDATED: async function(state, event, funcs) {
+                    const eventPayload = event.payload.payload;
+                
+                    const stateList = await funcs.getStateList('vehicle_state_list');
+
+                    const filters = [{
+                        field: 'vehicleId',
+                        operator: 'is',
+                        value: event.aggregateId
+                    }];
+        
+                    const row = await stateList.find(filters);
+
+                    if (!row || !row.value) {
+                        throw new Error('statelist test error. vehicle not inserted to state list');
+                    } else {
+                        const updatedStateData = row.value;
+                        updatedStateData.year = eventPayload.year;
+                        updatedStateData.make = eventPayload.make;
+                        updatedStateData.model = eventPayload.model;
+                        updatedStateData.mileage = eventPayload.mileage;
+
+                        await stateList.set(row.index, updatedStateData, row.meta);
+
+                        const playbackList = await funcs.getPlaybackList('vehicle_list');
+                        await playbackList.add(event.aggregateId, event.streamRevision, updatedStateData, {});
+                    }
+                }
+            },
+            query: {
+                context: 'vehicle',
+                aggregate: 'vehicle'
+            },
+            partitionBy: '',
+            outputState: 'true',
+            stateList: [{
+                name: 'vehicle_state_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }]
+            }],
+            playbackList: {
+                name: 'vehicle_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }]
+            }
+        };
+
+        await eventstore.projectAsync(projectionConfig);
+        await eventstore.startAllProjectionsAsync();
+
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
+
+
+        const vehicleId = shortid.generate();
+        const stream = await eventstore.getLastEventAsStreamAsync({
+            context: 'vehicle',
+            aggregate: 'vehicle',
+            aggregateId: vehicleId
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const event = {
+            name: "VEHICLE_CREATED",
+            payload: {
+                vehicleId: vehicleId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
+        stream.addEvent(event);
+        await stream.commitAsync();
+
+        const event2 = {
+            name: "VEHICLE_UPDATED",
+            payload: {
+                vehicleId: vehicleId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 9999
+            }
+        }
+        stream.addEvent(event2);
+        await stream.commitAsync();
+
+        let pollCounter = 0;
+        while (pollCounter < 10) {
+            const projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+            if (projection.processedDate && projection.state == 'running') {
+                break;
+            } else {
+                debug(`projection has not processed yet. trying again in 1000ms`);
+                await sleep(1000);
+            }
+        }
+
+        expect(pollCounter).toBeLessThan(10);
+
+        const playbackList = eventstore.getPlaybackList('vehicle_list');
+
+        const filteredResults = await playbackList.query(0, 1, [{
+            field: 'vehicleId',
+            operator: 'is',
+            value: vehicleId
+        }], null);
+
+        const result = filteredResults.rows[0];
+        expect(result.data).toEqual(event2.payload);
     });
 
     it('should add data to the playbacklist', async function() {
@@ -1077,6 +1225,7 @@ describe('evenstore mysql classicist tests', function() {
             // projections-specific configuration below
             redisCreateClient: redisFactory().createClient,
             listStore: {
+                type: 'mysql',
                 connection: {
                     host: mysqlConfig.host,
                     port: mysqlConfig.port,
@@ -1090,6 +1239,7 @@ describe('evenstore mysql classicist tests', function() {
                 }
             }, // required
             projectionStore: {
+                type: 'mysql',
                 connection: {
                     host: mysqlConfig.host,
                     port: mysqlConfig.port,
