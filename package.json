@@ -1,7 +1,7 @@
 {
   "author": "adrai",
   "name": "@saperiuminc/eventstore",
-  "version": "1.15.13-alpha.93",
+  "version": "1.15.13-alpha.94",
   "contributors": [
     "Ryan Goce <ryan@saperium.com>",
     "Gabby Sanchez <gabby@saperium.com>",
@@ -91,7 +91,7 @@
     "tingodb": ">=0.0.1"
   },
   "scripts": {
-    "test": "npm run test:adrai && npm run test:extensions",
+    "test": "npm run test:extensions:lint && npm run test:extensions:unit",
     "test:adrai": "mocha",
     "test:extensions": "npm run test:extensions:lint && npm run test:extensions:unit",
     "test:extensions:unit": "jasmine jasmine/*.jasmine-spec.js",

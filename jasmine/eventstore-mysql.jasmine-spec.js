@@ -761,98 +761,6 @@ describe('evenstore mysql classicist tests', function() {
         expect(result.data).toEqual(event2.payload);
     });
 
-    it('should add data to the playbacklist', async function() {
-        const projectionConfig = {
-            projectionId: 'vehicle-list',
-            projectionName: 'Vehicle Listing',
-            playbackInterface: {
-                $init: function() {
-                    return {
-                        count: 0
-                    }
-                },
-                VEHICLE_CREATED: async function(state, event, funcs) {
-                    const playbackList = await funcs.getPlaybackList('vehicle_list');
-                    const eventPayload = event.payload.payload;
-                    const data = {
-                        vehicleId: eventPayload.vehicleId,
-                        year: eventPayload.year,
-                        make: eventPayload.make,
-                        model: eventPayload.model,
-                        mileage: eventPayload.mileage
-                    };
-                    console.log('adding', event.aggregateId);
-                    await playbackList.add(event.aggregateId, event.streamRevision, data, {});
-                }
-            },
-            query: {
-                context: 'vehicle',
-                aggregate: 'vehicle'
-            },
-            partitionBy: '',
-            outputState: 'true',
-            playbackList: {
-                name: 'vehicle_list',
-                fields: [{
-                    name: 'vehicleId',
-                    type: 'string'
-                }]
-            }
-        };
-
-        await eventstore.projectAsync(projectionConfig);
-        await eventstore.startAllProjectionsAsync();
-
-        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
-
-
-        const vehicleId = shortid.generate();
-        const stream = await eventstore.getLastEventAsStreamAsync({
-            context: 'vehicle',
-            aggregate: 'vehicle',
-            aggregateId: vehicleId
-        });
-
-        Bluebird.promisifyAll(stream);
-
-        const event = {
-            name: "VEHICLE_CREATED",
-            payload: {
-                vehicleId: vehicleId,
-                year: 2012,
-                make: "Honda",
-                model: "Jazz",
-                mileage: 1245
-            }
-        }
-        stream.addEvent(event);
-        await stream.commitAsync();
-
-        let pollCounter = 0;
-        while (pollCounter < 10) {
-            const projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
-            if (projection.processedDate) {
-                break;
-            } else {
-                debug(`projection has not processed yet. trying again in 1000ms`);
-                await sleep(1000);
-            }
-        }
-
-        expect(pollCounter).toBeLessThan(10);
-
-        const playbackList = eventstore.getPlaybackList('vehicle_list');
-
-        const filteredResults = await playbackList.query(0, 1, [{
-            field: 'vehicleId',
-            operator: 'is',
-            value: vehicleId
-        }], null);
-
-        const result = filteredResults.rows[0];
-        expect(result.data).toEqual(event.payload);
-    });
-
     it('should update the playbacklist data', async function() {
         const projectionConfig = {
             projectionId: 'vehicle-list',
@@ -1095,7 +1003,6 @@ describe('evenstore mysql classicist tests', function() {
                         model: eventPayload.model,
                         mileage: eventPayload.mileage
                     };
-                    console.log('adding', event.aggregateId);
                     await playbackList.add(event.aggregateId, event.streamRevision, data, {});
                 }
             },
@@ -1308,6 +1215,222 @@ describe('evenstore mysql classicist tests', function() {
 
         stream.addEvent(event);
         await stream.commitAsync();
+    });
+
+    it('should add a projection with a proper offset if the configured fromOffset is set to latest', async function() {
+        const initialProjectionConfig = {
+            projectionId: 'vehicle-list',
+            projectionName: 'Vehicle Listing',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                },
+                VEHICLE_CREATED: async function(state, event, funcs) {
+                    const playbackList = await funcs.getPlaybackList('vehicle_list');
+                    const eventPayload = event.payload.payload;
+                    const data = {
+                        vehicleId: eventPayload.vehicleId,
+                        year: eventPayload.year,
+                        make: eventPayload.make,
+                        model: eventPayload.model,
+                        mileage: eventPayload.mileage
+                    };
+                    await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+                }
+            },
+            query: {
+                context: 'vehicle',
+                aggregate: 'vehicle'
+            },
+            partitionBy: '',
+            outputState: 'true',
+            playbackList: {
+                name: 'vehicle_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }]
+            }
+        };
+
+        await eventstore.projectAsync(initialProjectionConfig);
+        await eventstore.startAllProjectionsAsync();
+        await eventstore.runProjectionAsync(initialProjectionConfig.projectionId, false);
+
+        const vehicleId = shortid.generate();
+        const stream = await eventstore.getLastEventAsStreamAsync({
+            context: 'vehicle',
+            aggregate: 'vehicle',
+            aggregateId: vehicleId
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const initialEvents = [
+            {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            },
+            {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2014,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1265
+                }
+            }
+        ]
+        stream.addEvent(initialEvents[0]);
+        stream.addEvent(initialEvents[1]);
+        await stream.commitAsync();
+        
+        let pollCounter = 0;
+        while (pollCounter < 10) {
+            const initialProjection = await eventstore.getProjectionAsync(initialProjectionConfig.projectionId);
+            if (initialProjection.processedDate) {
+                break;
+            } else {
+                debug(`projection has not processed yet. trying again in 1000ms`);
+                await sleep(1000);
+            }
+        }
+        expect(pollCounter).toBeLessThan(10);
+
+        const projectionWithLatestOffsetConfig = {
+            projectionId: 'auction-list',
+            projectionName: 'Auction Listing',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                }
+            },
+            query: {
+                context: 'auction',
+                aggregate: 'auction-listing'
+            },
+            partitionBy: '',
+            outputState: 'true',
+            fromOffset: 'latest',
+            playbackList: {
+                name: 'auction_list',
+                fields: [{
+                    name: 'auctionId',
+                    type: 'string'
+                }]
+            }
+        };
+
+        await eventstore.projectAsync(projectionWithLatestOffsetConfig);
+
+        const projection = await eventstore.getProjectionAsync(projectionWithLatestOffsetConfig.projectionId);
+        expect(projection.offset).toEqual(2);
+    });
+
+    it('should process events even if multiple concurrency exists', async function() {
+        const initialProjectionConfig = {
+            projectionId: 'initial-list-1',
+            projectionName: 'Initial Listing',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                },
+                VEHICLE_CREATED: async function(state, event, funcs) {
+                    const eventPayload = event.payload.payload;
+                    const data = {
+                        vehicleId: eventPayload.vehicleId,
+                        year: eventPayload.year,
+                        make: eventPayload.make,
+                        model: eventPayload.model,
+                        mileage: eventPayload.mileage
+                    };
+
+                    const promises = [];
+                    const targetQuery = {
+                        context: 'test',
+                        aggregate: 'concurrent',
+                        aggregateId: event.aggregateId
+                    };
+                    const newEvent = {
+                        name: 'test2_concurrent_event_added',
+                        payload: data
+                    };
+                    promises.push(funcs.emit(targetQuery, newEvent));
+                    promises.push(funcs.emit(targetQuery, newEvent));
+
+                    await Promise.all(promises);
+                }
+            },
+            query: {
+                context: 'vehicle',
+                aggregate: 'vehicle'
+            },
+            partitionBy: '',
+            outputState: 'true',
+            playbackList: {
+                name: 'initial_list_1',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }]
+            }
+        };
+
+        await eventstore.projectAsync(initialProjectionConfig);
+        await eventstore.startAllProjectionsAsync();
+        await eventstore.runProjectionAsync(initialProjectionConfig.projectionId, false);
+
+        const vehicleId = shortid.generate();
+        const stream = await eventstore.getLastEventAsStreamAsync({
+            context: 'vehicle',
+            aggregate: 'vehicle',
+            aggregateId: vehicleId
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const initialEvents = [
+            {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+        ]
+        stream.addEvent(initialEvents[0]);
+        await stream.commitAsync();
+        
+        let pollCounter = 0;
+        let projection;
+        while (pollCounter < 10) {
+            projection = await eventstore.getProjectionAsync(initialProjectionConfig.projectionId);
+            if (projection.processedDate) {
+                break;
+            } else {
+                debug(`projection has not processed yet. trying again in 1000ms`);
+                await sleep(1000);
+            }
+        }
+        expect(pollCounter).toBeLessThan(10);
+        expect(projection.error).toBeNull();
+        expect(projection.offset).toEqual(1);
     });
 
     xit('should close the eventstore projection', async (done) => {
