@@ -209,8 +209,7 @@ describe('evenstore mysql classicist tests', function () {
     } catch (error) {
       console.error('error in beforeAll', error);
     }
-
-  });
+  }, 60000);
 
   beforeEach(async function () {
     Bluebird.promisifyAll(eventstore.store);
@@ -221,7 +220,7 @@ describe('evenstore mysql classicist tests', function () {
       const projection = projections[index];
       await eventstore.deleteProjectionAsync(projection.projectionId);
     }
-  });
+  }, 60000);
 
   it('should create the projection', async function () {
     const projectionConfig = {
