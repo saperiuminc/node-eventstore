@@ -194,6 +194,7 @@ describe('evenstore mysql classicist tests', function () {
           }
         }, // required
         enableProjection: true,
+        enableProjectionEventStreamBuffer: true,
         eventCallbackTimeout: 1000,
         lockTimeToLive: 1000,
         pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
@@ -214,6 +215,7 @@ describe('evenstore mysql classicist tests', function () {
   beforeEach(async function () {
     Bluebird.promisifyAll(eventstore.store);
     await eventstore.store.clearAsync();
+    await eventstore.closeProjectionEventStreamBuffersAsync();
 
     const projections = await eventstore.getProjectionsAsync();
     for (let index = 0; index < projections.length; index++) {
@@ -1498,6 +1500,217 @@ describe('evenstore mysql classicist tests', function () {
     expect(pollCounter).toBeLessThan(10);
     expect(projection.error).toBeNull();
     expect(projection.offset).toEqual(1);
+  });
+
+  it('should process events when there are multiple projections with the same query', async function () {
+    const firstProjectionConfig = {
+      projectionId: 'first-list',
+      projectionName: 'First Listing',
+      playbackInterface: {
+        $init: function () {
+          return {
+            count: 0
+          }
+        },
+        VEHICLE_CREATED: async function (state, event, funcs) {
+          const playbackList = await funcs.getPlaybackList('first_list');
+          const eventPayload = event.payload.payload;
+          const data = {
+            vehicleId: eventPayload.vehicleId,
+            year: eventPayload.year,
+            make: eventPayload.make,
+            model: eventPayload.model,
+            mileage: eventPayload.mileage
+          };
+          await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+        }
+      },
+      query: {
+        context: 'vehicle',
+        aggregate: 'vehicle'
+      },
+      partitionBy: '',
+      outputState: 'true',
+      playbackList: {
+        name: 'first_list',
+        fields: [{
+          name: 'vehicleId',
+          type: 'string'
+        }]
+      }
+    };
+    const secondProjectionConfig = {
+      projectionId: 'second-list',
+      projectionName: 'Second Listing',
+      playbackInterface: {
+        $init: function () {
+          return {
+            count: 0
+          }
+        },
+        VEHICLE_CREATED: async function (state, event, funcs) {
+          const playbackList = await funcs.getPlaybackList('second_list');
+          const eventPayload = event.payload.payload;
+          const data = {
+            vehicleId: eventPayload.vehicleId,
+            year: eventPayload.year,
+            make: eventPayload.make,
+            model: eventPayload.model,
+            mileage: eventPayload.mileage
+          };
+          await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+        }
+      },
+      query: {
+        context: 'vehicle',
+        aggregate: 'vehicle'
+      },
+      partitionBy: '',
+      outputState: 'true',
+      playbackList: {
+        name: 'second_list',
+        fields: [{
+          name: 'vehicleId',
+          type: 'string'
+        }]
+      }
+    };
+
+    await eventstore.projectAsync(firstProjectionConfig);
+    await eventstore.startAllProjectionsAsync();
+    await eventstore.runProjectionAsync(firstProjectionConfig.projectionId, false);
+
+    const vehicleId = shortid.generate();
+    const vehicleId2 = shortid.generate();
+    const scivId = shortid.generate();
+    const vehicleStream = await eventstore.getLastEventAsStreamAsync({
+      context: 'vehicle',
+      aggregate: 'vehicle',
+      aggregateId: vehicleId
+    });
+    const vehicleStream2 = await eventstore.getLastEventAsStreamAsync({
+      context: 'vehicle',
+      aggregate: 'vehicle',
+      aggregateId: vehicleId2
+    });
+    const scivStream = await eventstore.getLastEventAsStreamAsync({
+      context: 'auction',
+      aggregate: 'salesChannelInstanceVehicle',
+      aggregateId: scivId
+    });
+
+    Bluebird.promisifyAll(vehicleStream);
+    Bluebird.promisifyAll(vehicleStream2);
+    Bluebird.promisifyAll(scivStream);
+
+    const initialVehicleEvents = [{
+      name: "VEHICLE_CREATED",
+      payload: {
+        vehicleId: vehicleId,
+        year: 2012,
+        make: "Honda",
+        model: "Jazz",
+        mileage: 1245
+      }
+    },{
+      name: "VEHICLE_CREATED",
+      payload: {
+        vehicleId: vehicleId,
+        year: 2013,
+        make: "Honda",
+        model: "Jazz",
+        mileage: 1246
+      }
+    },{
+      name: "VEHICLE_CREATED",
+      payload: {
+        vehicleId: vehicleId2,
+        year: 2014,
+        make: "Honda",
+        model: "Jazz",
+        mileage: 1247
+      }
+    }];
+    const initialSCIVEvents = [{
+      name: "SCIV_CREATED",
+      payload: {
+        vehicleId: scivId,
+        year: 2012,
+        make: "Honda",
+        model: "Jazz",
+        mileage: 1245
+      }
+    },{
+      name: "VEHICLE_CREATED",
+      payload: {
+        vehicleId: scivId,
+        year: 2013,
+        make: "Honda",
+        model: "Jazz",
+        mileage: 1246
+      }
+    },{
+      name: "VEHICLE_CREATED",
+      payload: {
+        vehicleId: scivId,
+        year: 2014,
+        make: "Honda",
+        model: "Jazz",
+        mileage: 1247
+      }
+    }];
+    vehicleStream.addEvent(initialVehicleEvents[0]);
+    await vehicleStream.commitAsync();
+    vehicleStream.addEvent(initialVehicleEvents[1]);
+    await vehicleStream.commitAsync();
+    scivStream.addEvent(initialSCIVEvents[0]);
+    await scivStream.commitAsync();
+
+    let pollCounter = 0;
+    let projection;
+    while (pollCounter < 10) {
+      projection = await eventstore.getProjectionAsync(firstProjectionConfig.projectionId);
+      if (projection.processedDate) {
+        break;
+      } else {
+        debug(`projection has not processed yet. trying again in 1000ms`);
+        await sleep(1000);
+      }
+    }
+
+    expect(pollCounter).toBeLessThan(10);
+    expect(projection.error).toBeNull();
+    expect(projection.offset).toEqual(2);
+
+    await eventstore.projectAsync(secondProjectionConfig);
+    await eventstore.runProjectionAsync(secondProjectionConfig.projectionId, false);
+
+    scivStream.addEvent(initialSCIVEvents[1]);
+    await scivStream.commitAsync();
+    scivStream.addEvent(initialSCIVEvents[2]);
+    await scivStream.commitAsync();
+    vehicleStream2.addEvent(initialVehicleEvents[2]);
+    await vehicleStream2.commitAsync();
+
+    let secondProjection;
+    while (pollCounter < 10) {
+      projection = await eventstore.getProjectionAsync(firstProjectionConfig.projectionId);
+      secondProjection = await eventstore.getProjectionAsync(secondProjectionConfig.projectionId);
+      if (projection.processedDate && secondProjection.processedDate) {
+        break;
+      } else {
+        debug(`both projections have not processed yet. trying again in 1000ms`);
+        await sleep(1000);
+      }
+    }
+
+    expect(pollCounter).toBeLessThan(10);
+    expect(projection.error).toBeNull();
+    expect(projection.offset).toEqual(6);
+    expect(secondProjection.error).toBeNull();
+    expect(secondProjection.offset).toEqual(6);
+
+    // TODO: expect playback list as well
   });
 
   xit('should close the eventstore projection', async (done) => {

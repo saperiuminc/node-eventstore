@@ -1,4 +1,4 @@
-const EventStreamBuffer = require('../lib/eventStreamBuffer');
+const SubscriptionEventStreamBuffer = require('../lib/subscriptionEventStreamBuffer');
 const EventStream = require('../lib/eventStream');
 
 describe('eventStreamBuffer', () => {
@@ -27,7 +27,7 @@ describe('eventStreamBuffer', () => {
     describe('initialization', () => {
         it('should set all provided options and instantiate the buffer and pool', () => {
             const now = new Date().getTime();
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
 
             expect(eventStreamBuffer._streamBuffer).toBeDefined();
             expect(eventStreamBuffer._offeredEventsPool).toBeDefined();
@@ -60,7 +60,7 @@ describe('eventStreamBuffer', () => {
             const now = new Date().getTime();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
 
             eventStreamBuffer.offerEvent(mockEvent);
@@ -89,7 +89,7 @@ describe('eventStreamBuffer', () => {
             const now = new Date().getTime();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[2]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[3]);
@@ -126,7 +126,7 @@ describe('eventStreamBuffer', () => {
             const now = new Date().getTime();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[2]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[3]);
@@ -161,7 +161,7 @@ describe('eventStreamBuffer', () => {
             const now = new Date().getTime();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
             eventStreamBuffer._streamBuffer.push(mockEvents[1]);
@@ -196,7 +196,7 @@ describe('eventStreamBuffer', () => {
             const now = new Date().getTime();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[3]);
@@ -238,7 +238,7 @@ describe('eventStreamBuffer', () => {
             const now = new Date().getTime();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[3]);
@@ -274,7 +274,7 @@ describe('eventStreamBuffer', () => {
             }];
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
 
@@ -333,7 +333,7 @@ describe('eventStreamBuffer', () => {
             };
             spyOn(mockOptionsWithLowBufferCapacity, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptionsWithLowBufferCapacity);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptionsWithLowBufferCapacity);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
             eventStreamBuffer._streamBuffer.push(mockEvents[1]);
@@ -379,7 +379,7 @@ describe('eventStreamBuffer', () => {
             const now = new Date().getTime();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[1]);
@@ -414,7 +414,7 @@ describe('eventStreamBuffer', () => {
             spyOn(mockOptions, 'onOfferEventError').and.callThrough();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0;
             eventStreamBuffer._streamBuffer.push(mockEvents[1]);
             eventStreamBuffer._streamBuffer.push(mockEvents[2]);
@@ -449,7 +449,7 @@ describe('eventStreamBuffer', () => {
             spyOn(mockOptions, 'onOfferEventError').and.callThrough();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._streamBuffer.push(mockEvents[1]);
             eventStreamBuffer._streamBuffer.push(mockEvents[2]);
@@ -484,7 +484,7 @@ describe('eventStreamBuffer', () => {
             spyOn(mockOptions, 'onOfferEventError').and.callThrough();
             spyOn(mockOptions, 'onOfferEvent').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer.updatedAt = 0; // Force set the updatedAt to properly assert later
             eventStreamBuffer._streamBuffer.push(mockEvents[1]);
             eventStreamBuffer._streamBuffer.push(mockEvents[2]);
@@ -528,7 +528,7 @@ describe('eventStreamBuffer', () => {
             };
             spyOn(mockOptionsWithTestTTL, 'onInactive').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptionsWithTestTTL);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptionsWithTestTTL);
 
             eventStreamBuffer.offerEvent(mockEvents[0]);
 
@@ -558,7 +558,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 3
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
             eventStreamBuffer._streamBuffer.push(mockEvents[1]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[2]);
@@ -582,7 +582,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 3
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[2]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[3]);
 
@@ -590,7 +590,7 @@ describe('eventStreamBuffer', () => {
         });
 
         it('should return -1 if the buffer has been cleaned up', () => {
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
 
             eventStreamBuffer.close();
 
@@ -614,7 +614,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 3
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
             eventStreamBuffer._streamBuffer.push(mockEvents[1]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[2]);
@@ -638,7 +638,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 3
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[2]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[3]);
 
@@ -646,7 +646,7 @@ describe('eventStreamBuffer', () => {
         });
 
         it('should return -1 if the buffer has been cleaned up', () => {
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
 
             eventStreamBuffer.close();
 
@@ -670,7 +670,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 3
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
             eventStreamBuffer._streamBuffer.push(mockEvents[1]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[2]);
@@ -680,13 +680,13 @@ describe('eventStreamBuffer', () => {
         });
 
         it('should return an empty array if the buffer has no events', () => {
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
 
             expect(eventStreamBuffer.getAllEventsInBuffer()).toEqual([]);
         });
 
         it('should return an empty array if the buffer has been cleaned up', () => {
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
 
             eventStreamBuffer.close();
 
@@ -719,7 +719,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 6
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
 
             const result = eventStreamBuffer.getEventsInBuffer(2, 5);
@@ -751,7 +751,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 6
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
 
             const result = eventStreamBuffer.getEventsInBuffer(4, 10);
@@ -783,7 +783,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 11
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
 
             const result = eventStreamBuffer.getEventsInBuffer(3, 8);
@@ -806,7 +806,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 11
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
 
             const result = eventStreamBuffer.getEventsInBuffer(3, 6);
@@ -829,7 +829,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 11
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
 
             const result = eventStreamBuffer.getEventsInBuffer(13, 16);
@@ -863,7 +863,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 6
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
             const expectedEventStream = new EventStream(mockOptions.es, mockOptions.query, mockEvents.slice(2, 5));
 
@@ -896,7 +896,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 6
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
             const expectedEventStream = new EventStream(mockOptions.es, mockOptions.query, mockEvents.slice(4, 7));
 
@@ -929,7 +929,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 11
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
             const expectedEventStream = new EventStream(mockOptions.es, mockOptions.query, []);
 
@@ -953,7 +953,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 11
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
             const expectedEventStream = new EventStream(mockOptions.es, mockOptions.query, []);
 
@@ -977,7 +977,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 11
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer = mockEvents;
             const expectedEventStream = new EventStream(mockOptions.es, mockOptions.query, []);
 
@@ -1003,7 +1003,7 @@ describe('eventStreamBuffer', () => {
                 streamRevision: 3
             }];
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
             eventStreamBuffer._streamBuffer.push(mockEvents[0]);
             eventStreamBuffer._streamBuffer.push(mockEvents[1]);
             eventStreamBuffer._offeredEventsPool.queue(mockEvents[2]);
@@ -1017,7 +1017,7 @@ describe('eventStreamBuffer', () => {
 
         it('should trigger onClose callback if it is defined in the options', () => {
             spyOn(mockOptions, 'onClose').and.callThrough();
-            const eventStreamBuffer = new EventStreamBuffer(mockOptions);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptions);
 
             eventStreamBuffer.close();
 
@@ -1047,7 +1047,7 @@ describe('eventStreamBuffer', () => {
             };
             spyOn(mockOptionsWithTestTTL, 'onClose').and.callThrough();
 
-            const eventStreamBuffer = new EventStreamBuffer(mockOptionsWithTestTTL);
+            const eventStreamBuffer = new SubscriptionEventStreamBuffer(mockOptionsWithTestTTL);
 
             eventStreamBuffer.offerEvent(mockEvents[0]);
             eventStreamBuffer.close();
