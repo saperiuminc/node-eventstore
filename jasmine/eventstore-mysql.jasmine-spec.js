@@ -1502,7 +1502,7 @@ describe('evenstore mysql classicist tests', function () {
     expect(projection.offset).toEqual(1);
   });
 
-  it('should process events when there are multiple projections with the same query', async function () {
+  fit('should process events when there are multiple projections with the same query', async function () {
     const firstProjectionConfig = {
       projectionId: 'first-list',
       projectionName: 'First Listing',
