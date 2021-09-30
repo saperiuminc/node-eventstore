@@ -13,7 +13,8 @@ export interface TaskAssignmentGroupOptions {
 
 export class TaskAssignmentGroup extends EventEmitter {
     constructor(options: TaskAssignmentGroupOptions);
-    initialize(): Promise<void>;
     join(): Promise<void>;
     leave(): Promise<void>;
+    addTasks(tasks: Array<string>): Promise<void>;
+    removeTasks(tasks: Array<string>): Promise<void>;
 }
