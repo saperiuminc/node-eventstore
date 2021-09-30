@@ -2,7 +2,7 @@ const BufferedEventSubscription = require('../lib/bufferedEventSubscription');
 const PubSub = require('pubsub-js');
 const DistributedSignal = require('./test-doubles/fakes/distributed-signal.fake');
 
-xdescribe('bufferedEventSubscription', () => {
+describe('bufferedEventSubscription', () => {
     let mockOptions;
     let mockES;
     let mockStreamBuffer;
