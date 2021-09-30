@@ -132,7 +132,8 @@ const esFunction = function(options) {
             const DistributedSignal = require('./lib/eventstore-projections/distributed-signal');
             distributedSignal = new DistributedSignal({
                 createClient: redisCreateClient,
-                ttlDuration: options.lockTimeToLive
+                ttlDuration: options.lockTimeToLive,
+                processingTimeout: options.eventCallbackTimeout
             });
         } else {
             throw new Error('redisCreateClient is required when enableProjection is true');
