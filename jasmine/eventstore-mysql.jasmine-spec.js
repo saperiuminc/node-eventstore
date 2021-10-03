@@ -1713,7 +1713,7 @@ describe('evenstore mysql classicist tests', function () {
     // TODO: expect playback list as well
   });
 
-  xit('should close the eventstore projection', async (done) => {
+  it('should close the eventstore projection', async (done) => {
     const eventstore2 = require('../index')({
       type: 'mysql',
       host: mysqlConfig.host,
