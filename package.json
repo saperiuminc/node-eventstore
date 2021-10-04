@@ -1,7 +1,7 @@
 {
   "author": "adrai",
   "name": "@saperiuminc/eventstore",
-  "version": "1.15.13-alpha.104",
+  "version": "1.15.13-alpha.105",
   "contributors": [
     "Ryan Goce <ryan@saperium.com>",
     "Gabby Sanchez <gabby@saperium.com>",
@@ -74,7 +74,7 @@
   },
   "devDependencies": {
     "@c4312/matcha": "^1.3.1",
-    "@saperiuminc/zbench": "^0.1.16",
+    "@saperiuminc/zbench": "^0.1.19",
     "aws-sdk": ">=2.4.9",
     "azure-storage": ">=0.10.0",
     "cradle": ">=0.7.1",
