@@ -132,7 +132,7 @@ describe('evenstore mysql classicist tests', function () {
 
       const retryInterval = 1000;
       let connectCounter = 0;
-      while (connectCounter < 10) {
+      while (connectCounter < 30) {
         try {
           const mysqlConnection = knex.createConnection({
             user: 'root',
