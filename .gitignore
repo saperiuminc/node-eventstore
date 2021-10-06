@@ -22,3 +22,4 @@ coverage
 npm-debug.log
 jasmine/benchmark/users.csv
 jasmine/benchmark/playbacklist-vehicles.csv
+jasmine/benchmark/vehicle-created-events.csv
