@@ -182,7 +182,8 @@ xdescribe('evenstore inmemory classicist tests', function() {
             errorMaxRetryCount: 2,
             errorRetryExponent: 2,
             playbackEventJobCount: 10,
-            context: 'vehicle'
+            context: 'vehicle',
+            projectionGroup: 'default'
         });
         Bluebird.promisifyAll(eventstore);
         await eventstore.initAsync();
@@ -1077,7 +1078,8 @@ xdescribe('evenstore inmemory classicist tests', function() {
             errorMaxRetryCount: 2,
             errorRetryExponent: 2,
             playbackEventJobCount: 10,
-            context: 'vehicle'
+            context: 'vehicle',
+            projectionGroup: 'default'
         });
 
         Bluebird.promisifyAll(eventstore2);
