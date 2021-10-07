@@ -4,6 +4,6 @@ import { WaitableProducer } from "./waitable-producer";
 
 export class WaitableFactory {
     constructor(options: WaitableFactoryOptions);
-    createWaitableConsumer(topics: string[]): Promise<WaitableConsumer>;
+    createWaitableConsumer(topics: string[]): WaitableConsumer;
     createWaitableProducer(): WaitableProducer;
 }
