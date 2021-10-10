@@ -92,6 +92,7 @@ export interface ProjectionConfiguration {
     partitionBy: '' | 'stream' | 'function';
     outputState: boolean;
     playbackList: PlaybackListConfiguration;
+    eventCallbackTimeout: number;
 }
 
 // TODO: add EventstoreEvent
