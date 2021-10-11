@@ -22,6 +22,7 @@ import { Redis, RedisOptions } from "ioredis";
     errorRetryExponent: number;
     playbackEventJobCount: number;
     context: string;
+    stopOnFaulted: boolean;
 }
 
 export class Eventstore {
@@ -92,6 +93,7 @@ export interface ProjectionConfiguration {
     partitionBy: '' | 'stream' | 'function';
     outputState: boolean;
     playbackList: PlaybackListConfiguration;
+    eventCallbackTimeout: number;
 }
 
 // TODO: add EventstoreEvent
