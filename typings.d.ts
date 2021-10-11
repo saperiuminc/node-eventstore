@@ -22,6 +22,7 @@ import { Redis, RedisOptions } from "ioredis";
     errorRetryExponent: number;
     playbackEventJobCount: number;
     context: string;
+    stopOnFaulted: boolean;
 }
 
 export class Eventstore {
