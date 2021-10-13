@@ -571,14 +571,17 @@ describe('evenstore mysql classicist tests', function () {
     while (pollCounter < 10) {
       projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
       if (projection.state == 'faulted') {
+        debug('projection.state is faulted. continuing with test');
         break;
       } else {
         debug(`projection.state ${projection.state} is not faulted. trying again in 1000ms`);
         await sleep(1000);
       }
     }
+    
+    debug('got projection', projection);
 
-    expect(pollCounter).toBeLessThan(10);
+    expect(pollCounter).toBeLessThan(20);
     expect(projection.error).toBeTruthy();
     expect(projection.errorEvent).toBeTruthy();
     expect(projection.errorOffset).toBeGreaterThan(0);
@@ -674,18 +677,18 @@ describe('evenstore mysql classicist tests', function () {
 
     await eventstore.runProjectionAsync(projectionConfig.projectionId, true);
 
-    let lastProcessedDate;
+    let lastOffset;
     while (pollCounter < 10) {
       projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
-      if (!lastProcessedDate) {
-        lastProcessedDate = projection.processedDate;
+      if (!lastOffset) {
+        lastOffset = projection.offset;
       }
 
-      debug('projection got', projection);
-      if (projection.processedDate > lastProcessedDate) {
+      if (projection.offset > lastOffset) {
+        debug('offset changed', lastOffset, projection.offset);
         break;
       } else {
-        debug(`projection has not processed yet. trying again in 1000ms`);
+        debug(`projection has not processed yet. trying again in 1000ms`, lastOffset, projection.offset);
         await sleep(1000);
       }
     }
