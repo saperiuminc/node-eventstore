@@ -31,7 +31,7 @@ const redisConfig = {
 }
 
 const seedFileName = 'vehicle-created-events.csv';
-const numberOfVehicles = 1000000;
+const numberOfVehicles = _.isNaN(process.env.NUM_VEHICLES) ? 1000000 : _.parseInt(process.env.NUM_VEHICLES);
 
 // NOTE: remove done callback when Promise returned callback is implemented
 zbench('bench eventstore-projection', (z) => {
@@ -385,8 +385,8 @@ zbench('bench eventstore-projection', (z) => {
                         case 'client':
                             return redisClient;
                     
-                        case 'subscriber': 
-                            return redisSubscriber;
+                        case 'subscriber':
+                            return redisSubscriber; 
                     }
                 },
                 listStore: {
@@ -433,8 +433,9 @@ zbench('bench eventstore-projection', (z) => {
 
             debug('initializing projections');
 
+          
             eventstore.on('rebalance', function(assignments) {
-                console.log('got assignments', assignments, projectionId);
+                debug('got assignments', assignments, projectionId);
             });
             
             const projectionConfig = {
@@ -447,8 +448,8 @@ zbench('bench eventstore-projection', (z) => {
                         }
                     },
                     VEHICLE_CREATED: async function(state, event, funcs) {
-                        // const vehicleId = event.aggregateId;
-                        // funcs.end(vehicleId);
+                        const vehicleId = event.aggregateId;
+                        funcs.end(vehicleId);
                     }
                 },
                 query: {
@@ -492,15 +493,22 @@ zbench('bench eventstore-projection', (z) => {
                             m.start(); 
                             const vehicleId = nanoid();
 
-                            const onPlaybackSuccess = async function() {
-                                if (eventstore) {
-                                    eventstore.off('playbackSuccess', onPlaybackSuccess);
+                            // const onPlaybackSuccess = async function() {
+                            //     if (eventstore) {
+                            //         eventstore.off('playbackSuccess', onPlaybackSuccess);
+                            //         m.end();
+                            //         resolve();
+                            //     }
+                            // }
+
+                            // eventstore.on('playbackSuccess', onPlaybackSuccess);
+
+                            eventstore.registerFunction('end', function(aggregateId) {
+                                if (aggregateId == vehicleId) {
                                     m.end();
                                     resolve();
                                 }
-                            }
-
-                            eventstore.on('playbackSuccess', onPlaybackSuccess);
+                            })
                             
                             const stream = await eventstore.getLastEventAsStreamAsync({
                                 context: 'vehicle',
