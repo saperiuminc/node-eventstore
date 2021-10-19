@@ -493,16 +493,6 @@ zbench('bench eventstore-projection', (z) => {
                             m.start(); 
                             const vehicleId = nanoid();
 
-                            // const onPlaybackSuccess = async function() {
-                            //     if (eventstore) {
-                            //         eventstore.off('playbackSuccess', onPlaybackSuccess);
-                            //         m.end();
-                            //         resolve();
-                            //     }
-                            // }
-
-                            // eventstore.on('playbackSuccess', onPlaybackSuccess);
-
                             eventstore.registerFunction('end', function(aggregateId) {
                                 if (aggregateId == vehicleId) {
                                     m.end();
@@ -535,7 +525,6 @@ zbench('bench eventstore-projection', (z) => {
                             } catch (error) {
                                 b.incrStat(`Duplicate inserts`);
                             }
-                            
                         })
                     });
                     
