@@ -35,6 +35,7 @@ const numberOfVehicles = _.isNaN(process.env.NUM_VEHICLES) ? 1000000 : _.parseIn
 
 // NOTE: remove done callback when Promise returned callback is implemented
 zbench('bench eventstore-projection', (z) => {
+    let mysqlContainer;
     let mysqlConnection;
     let redisContainer;
     let redisConnection;
@@ -42,16 +43,35 @@ zbench('bench eventstore-projection', (z) => {
     z.setupOnce(async (done, b) => {
         try {
             const setupMysql = async function() {
+                mysqlContainer = await docker.createContainer({
+                    Image: 'mysql:5.7.32',
+                    Tty: true,
+                    Cmd: '--default-authentication-plugin=mysql_native_password',
+                    Env: [
+                        `MYSQL_ROOT_PASSWORD=${mysqlConfig.password}`,
+                        `MYSQL_DATABASE=${mysqlConfig.database}`
+                    ],
+                    HostConfig: {
+                        Binds: [`${__dirname}/conf.d:/etc/mysql/conf.d`],
+                        PortBindings: {
+                            '3306/tcp': [{
+                                HostPort: mysqlConfig.port
+                            }]
+                        }
+                    },
+                    name: 'local-mysql'
+                });
+
+                await mysqlContainer.start();
+
                 const retryInterval = 1000;
                 let connectCounter = 0;
                 const retryLimit = 20;
                 while (connectCounter < retryLimit) {
                     try {
                         mysqlConnection = mysql.createConnection({
-                            host: mysqlConfig.host,
                             user: mysqlConfig.user,
-                            password: mysqlConfig.password,
-                            database: mysqlConfig.database
+                            password: mysqlConfig.password
                         });
                         Bluebird.promisifyAll(mysqlConnection);
                         await mysqlConnection.connectAsync();
@@ -118,14 +138,29 @@ zbench('bench eventstore-projection', (z) => {
             }
 
             const setupRedis = async function() {
+                redisContainer = await docker.createContainer({
+                    Image: 'redis:6.2',
+                    Tty: true,
+                    HostConfig: {
+                        PortBindings: {
+                            '6379/tcp': [{
+                                HostPort: `${redisConfig.port}`
+                            }]
+                        }
+                    },
+                    name: 'local-redis'
+                });
+
+                await redisContainer.start();
+
                 const retryInterval = 1000;
                 let connectCounter = 0;
                 const retryLimit = 20;
                 while (connectCounter < retryLimit) {
                     try {
                         redisConnection = new Redis({
-                            host: redisConfig.host,
-                            port: redisConfig.port
+                            host: 'localhost',
+                            port: 6379
                         });
                         await redisConnection.get('probeForReadyKey');
                         break;
@@ -292,7 +327,13 @@ zbench('bench eventstore-projection', (z) => {
             mysqlConnection = undefined;
             await redisConnection.quit();
             redisConnection = undefined;
+            // await redisFactory.destroy();
+            // await eventstoreSetup.destroyAsync();
             b.clearStats();
+            // await mysqlContainer.stop();
+            // await mysqlContainer.remove();
+            // await redisContainer.stop();
+            // await redisContainer.remove();
             debug('teardown once done')
             done();
         } catch (error) {
