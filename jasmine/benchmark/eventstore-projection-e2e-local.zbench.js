@@ -22,7 +22,7 @@ const mysqlConfig = {
     user: process.env.RDS_USER || 'root',
     password: process.env.RDS_PASS || 'root',
     database: process.env.RDS_DBNAME || 'eventstore',
-    connectionLimit: process.env.CONN_LIMIT || 1
+    connectionLimit: process.env.CONN_LIMIT || 4
 };
 
 const redisConfig = {
@@ -436,11 +436,6 @@ zbench('bench eventstore-projection', (z) => {
 
             debug('initializing projections');
 
-
-            eventstore.on('rebalance', function(assignments) {
-                debug('got assignments', assignments, projectionTypeAId);
-            });
-
             const projectionConfigTypeA = {
                 projectionId: projectionTypeAId,
                 projectionName: `Vehicle Domain ${projectionIndex} Projection`,
@@ -514,13 +509,6 @@ zbench('bench eventstore-projection', (z) => {
                         }]
                     }
                 }],
-                playbackList: {
-                    name: `${projectionTypeAId}_list`,
-                    fields: [{
-                        name: 'vehicleId',
-                        type: 'string'
-                    }]
-                },
                 fromOffset: 'latest'
             };
 
@@ -536,6 +524,9 @@ zbench('bench eventstore-projection', (z) => {
                     },
                     VEHICLE_ITEM_CREATED: async function(state, event, funcs) {
                         const vehicleId = event.aggregateId;
+
+                        const playbacklist = await funcs.getPlaybackList(`${this.projectionId}_list`);
+                        await playbacklist.add(event.aggregateId, event.streamRevision, event.payload.payload, {});
 
                         funcs.end(vehicleId);
                     }
@@ -564,8 +555,20 @@ zbench('bench eventstore-projection', (z) => {
 
             await eventstore.startAllProjectionsAsync();
 
+            const waitForRebalance = function() {
+                return new Promise((resolve) => {
+                    eventstore.on('rebalance', function(assignments) {
+                        debug('got assignments', assignments, projectionTypeAId);
+                        resolve();
+                    });
+                })
+            }
+
+            await waitForRebalance();
+            
             // so that measurement will start when rebalanced
-            await sleep(2000);
+            // await sleep(2000);
+            debug('running measurement');
 
             while (eventstore) {
                 const measureAsync = async function() {
