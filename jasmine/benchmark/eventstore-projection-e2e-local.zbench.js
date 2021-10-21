@@ -35,6 +35,7 @@ const numberOfVehicles = _.isNaN(process.env.NUM_VEHICLES) ? 1000000 : _.parseIn
 
 // NOTE: remove done callback when Promise returned callback is implemented
 zbench('bench eventstore-projection', (z) => {
+    let mysqlContainer;
     let mysqlConnection;
     let redisContainer;
     let redisConnection;
@@ -42,16 +43,35 @@ zbench('bench eventstore-projection', (z) => {
     z.setupOnce(async (done, b) => {
         try {
             const setupMysql = async function() {
+                mysqlContainer = await docker.createContainer({
+                    Image: 'mysql:5.7.32',
+                    Tty: true,
+                    Cmd: '--default-authentication-plugin=mysql_native_password',
+                    Env: [
+                        `MYSQL_ROOT_PASSWORD=${mysqlConfig.password}`,
+                        `MYSQL_DATABASE=${mysqlConfig.database}`
+                    ],
+                    HostConfig: {
+                        Binds: [`${__dirname}/conf.d:/etc/mysql/conf.d`],
+                        PortBindings: {
+                            '3306/tcp': [{
+                                HostPort: mysqlConfig.port
+                            }]
+                        }
+                    },
+                    name: 'local-mysql'
+                });
+
+                await mysqlContainer.start();
+
                 const retryInterval = 1000;
                 let connectCounter = 0;
                 const retryLimit = 20;
                 while (connectCounter < retryLimit) {
                     try {
                         mysqlConnection = mysql.createConnection({
-                            host: mysqlConfig.host,
                             user: mysqlConfig.user,
-                            password: mysqlConfig.password,
-                            database: mysqlConfig.database
+                            password: mysqlConfig.password
                         });
                         Bluebird.promisifyAll(mysqlConnection);
                         await mysqlConnection.connectAsync();
@@ -118,14 +138,29 @@ zbench('bench eventstore-projection', (z) => {
             }
 
             const setupRedis = async function() {
+                redisContainer = await docker.createContainer({
+                    Image: 'redis:6.2',
+                    Tty: true,
+                    HostConfig: {
+                        PortBindings: {
+                            '6379/tcp': [{
+                                HostPort: `${redisConfig.port}`
+                            }]
+                        }
+                    },
+                    name: 'local-redis'
+                });
+
+                await redisContainer.start();
+
                 const retryInterval = 1000;
                 let connectCounter = 0;
                 const retryLimit = 20;
                 while (connectCounter < retryLimit) {
                     try {
                         redisConnection = new Redis({
-                            host: redisConfig.host,
-                            port: redisConfig.port
+                            host: 'localhost',
+                            port: 6379
                         });
                         await redisConnection.get('probeForReadyKey');
                         break;
@@ -292,7 +327,13 @@ zbench('bench eventstore-projection', (z) => {
             mysqlConnection = undefined;
             await redisConnection.quit();
             redisConnection = undefined;
+            // await redisFactory.destroy();
+            // await eventstoreSetup.destroyAsync();
             b.clearStats();
+            // await mysqlContainer.stop();
+            // await mysqlContainer.remove();
+            // await redisContainer.stop();
+            // await redisContainer.remove();
             debug('teardown once done')
             done();
         } catch (error) {
@@ -327,11 +368,8 @@ zbench('bench eventstore-projection', (z) => {
 
         b.hold(async () => {
             const projectionIndex = await redisClient.incr('projection-id');
-            const projectionTypeAId = `vehicle_projection_a_${projectionIndex}`;
-            const projectionTypeBId = `vehicle_projection_b_${projectionIndex}`;
-            const aggregateTypeA = `vehicle_aggregate_a_${projectionIndex}`;
-            const aggregateTypeB = `vehicle_aggregate_b_${projectionIndex}`;
-            const projectionGroup = `vehicle_projection_group_${projectionIndex}`;
+            const projectionId = `vehicle-projection-${projectionIndex}`;
+            const aggregate = `vehicle-aggregate-${projectionIndex}`;
 
             eventstore = require('../../index')({
                 type: 'mysql',
@@ -346,9 +384,9 @@ zbench('bench eventstore-projection', (z) => {
                     switch (type) {
                         case 'client':
                             return redisClient;
-
+                    
                         case 'subscriber':
-                            return redisSubscriber;
+                            return redisSubscriber; 
                     }
                 },
                 listStore: {
@@ -381,12 +419,12 @@ zbench('bench eventstore-projection', (z) => {
                 eventCallbackTimeout: 1000,
                 lockTimeToLive: 1000,
                 pollingTimeout: 1000, // optional,
-                pollingMaxRevisions: 10,
+                pollingMaxRevisions: 1,
                 errorMaxRetryCount: 2,
                 errorRetryExponent: 2,
                 playbackEventJobCount: 10,
-                context: projectionGroup,
-                projectionGroup: projectionGroup
+                context: projectionId,
+                projectionGroup: projectionId
             });
 
             Bluebird.promisifyAll(eventstore);
@@ -395,73 +433,33 @@ zbench('bench eventstore-projection', (z) => {
 
             debug('initializing projections');
 
-
+          
             eventstore.on('rebalance', function(assignments) {
-                debug('got assignments', assignments, projectionTypeAId);
+                debug('got assignments', assignments, projectionId);
             });
-
-            const projectionConfigTypeA = {
-                projectionId: projectionTypeAId,
+            
+            const projectionConfig = {
+                projectionId: projectionId,
                 projectionName: `Vehicle Domain ${projectionIndex} Projection`,
                 playbackInterface: {
-                    projectionId: projectionTypeAId,
-                    aggregateTypeB: aggregateTypeB,
                     $init: function() {
                         return {
                             count: 0
                         }
                     },
                     VEHICLE_CREATED: async function(state, event, funcs) {
-                        const eventPayload = event.payload.payload;
                         const vehicleId = event.aggregateId;
-
-                        const stateList = await funcs.getStateList(`${this.projectionId}_state_list`);
-
-                        const newStateData = {
-                            vehicleId: eventPayload.vehicleId,
-                            year: eventPayload.year,
-                            make: eventPayload.make,
-                            model: eventPayload.model,
-                            mileage: eventPayload.mileage
-                        }
-
-                        await stateList.push(newStateData);
-
-                        const filters = [{
-                            field: 'vehicleId',
-                            operator: 'is',
-                            value: eventPayload.vehicleId
-                        }];
-
-                        await Promise.all[
-                            stateList.find(filters),
-                            stateList.find(filters),
-                            stateList.find(filters),
-                            stateList.find(filters)
-                        ];
-
-                        const targetQuery = {
-                            context: 'vehicle',
-                            aggregate: this.aggregateTypeB,
-                            aggregateId: vehicleId
-                        };
-
-                        const newEvent = {
-                            name: 'VEHICLE_ITEM_CREATED',
-                            payload: eventPayload
-                        };
-
-                        await funcs.emit(targetQuery, newEvent);
+                        funcs.end(vehicleId);
                     }
                 },
                 query: {
                     context: 'vehicle',
-                    aggregate: aggregateTypeA
+                    aggregate: aggregate
                 },
                 partitionBy: '',
                 outputState: 'false',
                 stateList: [{
-                    name: `${projectionTypeAId}_state_list`,
+                    name: `vehicle_domain_${projectionIndex}_state_list`,
                     fields: [{
                         name: 'vehicleId',
                         type: 'string'
@@ -474,7 +472,7 @@ zbench('bench eventstore-projection', (z) => {
                     }
                 }],
                 playbackList: {
-                    name: `${projectionTypeAId}_list`,
+                    name: `vehicle_${projectionIndex}_list`,
                     fields: [{
                         name: 'vehicleId',
                         type: 'string'
@@ -483,54 +481,16 @@ zbench('bench eventstore-projection', (z) => {
                 fromOffset: 'latest'
             };
 
-            const projectionConfigTypeB = {
-                projectionId: projectionTypeBId,
-                projectionName: `Vehicle Playback ${projectionIndex} Projection`,
-                playbackInterface: {
-                    projectionId: projectionTypeBId,
-                    $init: function() {
-                        return {
-                            count: 0
-                        }
-                    },
-                    VEHICLE_ITEM_CREATED: async function(state, event, funcs) {
-                        const vehicleId = event.aggregateId;
-
-                        funcs.end(vehicleId);
-                    }
-                },
-                query: {
-                    context: 'vehicle',
-                    aggregate: aggregateTypeB
-                },
-                partitionBy: '',
-                outputState: 'false',
-                playbackList: {
-                    name: `${projectionTypeBId}_list`,
-                    fields: [{
-                        name: 'vehicleId',
-                        type: 'string'
-                    }]
-                },
-                fromOffset: 'latest'
-            };
-
-            await eventstore.projectAsync(projectionConfigTypeA);
-            await eventstore.runProjectionAsync(projectionConfigTypeA.projectionId, false);
-
-            await eventstore.projectAsync(projectionConfigTypeB);
-            await eventstore.runProjectionAsync(projectionConfigTypeB.projectionId, false);
+            await eventstore.projectAsync(projectionConfig);
+            await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
             await eventstore.startAllProjectionsAsync();
-
-            // so that measurement will start when rebalanced
-            await sleep(2000);
 
             while (eventstore) {
                 const measureAsync = async function() {
                     return new Promise((resolve) => {
                         b.measure(async (m) => {
-                            m.start();
+                            m.start(); 
                             const vehicleId = nanoid();
 
                             eventstore.registerFunction('end', function(aggregateId) {
@@ -539,15 +499,15 @@ zbench('bench eventstore-projection', (z) => {
                                     resolve();
                                 }
                             })
-
+                            
                             const stream = await eventstore.getLastEventAsStreamAsync({
                                 context: 'vehicle',
-                                aggregate: aggregateTypeA,
+                                aggregate: aggregate,
                                 aggregateId: vehicleId
                             });
-
+                        
                             Bluebird.promisifyAll(stream);
-
+                        
                             const event = {
                                 name: "VEHICLE_CREATED",
                                 payload: {
@@ -558,7 +518,7 @@ zbench('bench eventstore-projection', (z) => {
                                     mileage: 1245
                                 }
                             }
-
+                        
                             try {
                                 stream.addEvent(event);
                                 await stream.commitAsync();
@@ -567,12 +527,12 @@ zbench('bench eventstore-projection', (z) => {
                             }
                         })
                     });
-
+                    
                 };
 
                 await measureAsync();
             }
-
+            
         }, async (done) => {
             // await redisFactory.destroy();
             // await eventstore.destroyAsync();

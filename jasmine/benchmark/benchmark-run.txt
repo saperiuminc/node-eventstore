@@ -1,1 +1,5 @@
 CONCURRENCY=1 PARALLELISM=1 MAX_TIME=10000 WARMUP_TIME=500 DEBUG=DEBUG NUM_VEHICLES=1000000 node jasmine/benchmark/eventstore-projection-signaling.zbench.js
+
+RDS_HOSTNAME=benchmark-signalling-instance-1.cikkogo5zcwz.us-west-2.rds.amazonaws.com RDS_USER=admin RDS_PASS=Password123 \
+CACHE_HOSTNAME=cw-benchmark.p9pzsn.0001.usw2.cache.amazonaws.com \
+CONCURRENCY=1 PARALLELISM=1 MAX_TIME=30000 WARMUP_TIME=500 DEBUG=DEBUG NUM_VEHICLES=1000000 node jasmine/benchmark/eventstore-projection-e2e.zbench.js
