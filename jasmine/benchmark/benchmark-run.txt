@@ -1,1 +1,1 @@
-CONCURRENCY=5 PARALLELISM=10 MAX_TIME=30000 WARMUP_TIME=500 DEBUG=DEBUG NUM_VEHICLES=1000000 node jasmine/benchmark/eventstore-projection-e2e.zbench.js
+CONCURRENCY=1 PARALLELISM=1 MAX_TIME=10000 WARMUP_TIME=500 DEBUG=DEBUG NUM_VEHICLES=1000000 node jasmine/benchmark/eventstore-projection-signaling.zbench.js

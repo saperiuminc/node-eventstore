@@ -489,32 +489,31 @@ zbench('bench eventstore-projection', (z) => {
                             }
                         },
                         VEHICLE_CREATED: async function(state, event, funcs) {
-                            // const eventPayload = event.payload.payload;
-                            // const stateList = await funcs.getStateList(`vehicle_domain_${this.i}_state_list`);
+                            const eventPayload = event.payload.payload;
+                            const stateList = await funcs.getStateList(`vehicle_domain_${this.i}_state_list`);
 
-                            // const newStateData = {
-                            //     vehicleId: eventPayload.vehicleId,
-                            //     year: eventPayload.year,
-                            //     make: eventPayload.make,
-                            //     model: eventPayload.model,
-                            //     mileage: eventPayload.mileage
-                            // }
+                            const newStateData = {
+                                vehicleId: eventPayload.vehicleId,
+                                year: eventPayload.year,
+                                make: eventPayload.make,
+                                model: eventPayload.model,
+                                mileage: eventPayload.mileage
+                            }
 
+                            await stateList.push(newStateData);
 
-                            // await stateList.push(newStateData);
+                            const filters = [{
+                                field: 'vehicleId',
+                                operator: 'is',
+                                value: eventPayload.vehicleId
+                            }];
 
-                            // const filters = [{
-                            //     field: 'vehicleId',
-                            //     operator: 'is',
-                            //     value: eventPayload.vehicleId
-                            // }];
-
-                            // await Promise.all[
-                            //     stateList.find(filters),
-                            //     stateList.find(filters),
-                            //     stateList.find(filters),
-                            //     stateList.find(filters)
-                            // ];
+                            await Promise.all[
+                                stateList.find(filters),
+                                stateList.find(filters),
+                                stateList.find(filters),
+                                stateList.find(filters)
+                            ];
                         }
                     },
                     query: {
