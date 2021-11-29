@@ -959,6 +959,142 @@ describe('evenstore mysql classicist tests', function() {
         expect(result.data).toEqual(event2.payload);
     });
 
+    it('should batch update the playbacklist data', async function() {
+        const projectionConfig = {
+            projectionId: 'vehicle-list',
+            projectionName: 'Vehicle Listing',
+            playbackInterface: {
+                $init: function() {
+                    return {
+                        count: 0
+                    }
+                },
+                VEHICLE_CREATED: async function(state, event, funcs) {
+                    const playbackList = await funcs.getPlaybackList('vehicle_batch_list');
+                    const eventPayload = event.payload.payload;
+                    const data = {
+                        vehicleId: eventPayload.vehicleId,
+                        year: eventPayload.year,
+                        make: eventPayload.make,
+                        model: eventPayload.model,
+                        mileage: eventPayload.mileage,
+                        dealershipId: eventPayload.dealershipId,
+                        dealershipName: eventPayload.dealershipName
+                    };
+                    await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+                },
+                DEALERSHIP_UPDATED: async function(state, event, funcs) {
+                    const eventPayload = event.payload.payload;
+                    const playbackList = await funcs.getPlaybackList('vehicle_batch_list');
+
+                    const filters = [{
+                        field: 'dealershipId',
+                        operator: 'is',
+                        value: eventPayload.dealershipId
+                    }];
+
+                    await playbackList.batchUpdate(filters, {
+                        dealershipName: eventPayload.dealershipName
+                    });
+                }
+            },
+            query: [{
+                context: 'vehicle',
+                aggregate: 'vehicle'
+            }, {
+                context: 'profile',
+                aggregate: 'dealership'
+            }],
+            partitionBy: '',
+            outputState: 'true',
+            playbackList: {
+                name: 'vehicle_batch_list',
+                fields: [{
+                    name: 'vehicleId',
+                    type: 'string'
+                }, {
+                    name: 'dealershipId',
+                    type: 'string'
+                }]
+            }
+        };
+
+        await eventstore.projectAsync(projectionConfig);
+        await eventstore.startAllProjectionsAsync();
+
+        await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
+
+        const dealershipId = 'CARWAVE';
+        const newDealershipName = 'NEW Carwave Auctions';
+        for (let i = 0; i < 2; i++) {
+            const vehicleId = shortid.generate();
+
+            const stream = await eventstore.getLastEventAsStreamAsync({
+                context: 'vehicle',
+                aggregate: 'vehicle',
+                aggregateId: vehicleId
+            });
+
+            Bluebird.promisifyAll(stream);
+
+            const vehicleEvent = {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245,
+                    dealershipId: 'CARWAVE',
+                    dealershipName: 'Carwave Auctions'
+                }
+            }
+            stream.addEvent(vehicleEvent);
+
+            await stream.commitAsync();
+        }
+
+        const dealershipStream = await eventstore.getLastEventAsStreamAsync({
+            context: 'profile',
+            aggregate: 'dealership',
+            aggregateId: dealershipId
+        });
+
+        Bluebird.promisifyAll(dealershipStream);
+
+        const dealershipEvent = {
+            name: "DEALERSHIP_UPDATED",
+            payload: {
+                dealershipId: dealershipId,
+                dealershipName: newDealershipName
+            }
+        }
+        dealershipStream.addEvent(dealershipEvent);
+
+        await dealershipStream.commitAsync();
+
+        let pollCounter = 0;
+        while (pollCounter < 10) {
+            const projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+            if (projection.processedDate) {
+                break;
+            } else {
+                debug(`projection has not processed yet. trying again in 1000ms`);
+                await sleep(1000);
+            }
+        }
+
+        expect(pollCounter).toBeLessThan(10);
+
+        const playbackList = eventstore.getPlaybackList('vehicle_batch_list');
+
+        const filteredResults = await playbackList.query(0, 2, [], null);
+
+        expect(filteredResults.rows[0].data.dealershipName).toEqual(newDealershipName);
+        expect(filteredResults.rows[1].data.dealershipName).toEqual(newDealershipName);
+    });
+
+
     it('should delete the playbacklist data', async function() {
         const projectionConfig = {
             projectionId: 'vehicle-list',
