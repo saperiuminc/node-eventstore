@@ -24,8 +24,11 @@ class EventstoreService {
         const redisClient = new Redis(redisConfig.port, redisConfig.host);
         const redisSubscriber = new Redis(redisConfig.port, redisConfig.host);
 
+        const esFunc = require('../../../../clustered-eventstore');
+
         // initialize the eventstore
-        const eventstore = require('@saperiuminc/eventstore')({
+        const eventstore = require('../../../../clustered-eventstore')({
+        // const eventstore = require('@saperiuminc/eventstore')({
             type: 'mysql',
             host: mysqlConfig.host,
             port: mysqlConfig.port,
