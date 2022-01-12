@@ -26,7 +26,7 @@ class ClusteredEventStore {
                     database,
                     connectionPoolLimit
                 }
-            ]
+            ],
             numberOfPartitions: 80
         };
         this._eventstores = [];
@@ -85,6 +85,68 @@ class ClusteredEventStore {
         this._doOnShardedEventstore(aggregateId, 'subscribe', arguments);
     }
 
+    defineEventMappings() {
+        this._doOnAllEventstoreNoCallback('defineEventMappings', arguments);
+    }
+
+    useEventPublisher() {
+        this._doOnAllEventstoreNoCallback('useEventPublisher', arguments);
+    }
+
+    getLastEvent(query, callback) {
+        if (typeof query === 'string') {
+            query = { aggregateId: query };
+        }
+
+        const aggregateId = query.aggregateId;
+        this._doOnShardedEventstore(aggregateId, 'getLastEvent', arguments);
+    }
+
+    getLastEventAsStream(query, callback) {
+        if (typeof query === 'string') {
+            query = { aggregateId: query };
+        }
+
+        const aggregateId = query.aggregateId;
+        this._doOnShardedEventstore(aggregateId, 'getLastEventAsStream', arguments);
+    }
+
+    getEventStream(query, revMin, revMax, callback) {
+        if (typeof query === 'string') {
+            query = { aggregateId: query };
+        }
+
+        const aggregateId = query.aggregateId;
+        this._doOnShardedEventstore(aggregateId, 'getEventStream', arguments);
+    }
+
+    getFromSnapshot(query, revMax, callback) {
+        if (typeof query === 'string') {
+            query = { aggregateId: query };
+        }
+
+        const aggregateId = query.aggregateId;
+        this._doOnShardedEventstore(aggregateId, 'getFromSnapshot', arguments);
+    }
+
+    createSnapshot(obj, callback) {
+        const aggregateId = obj.aggregateId;
+        this._doOnShardedEventstore(aggregateId, 'createSnapshot', arguments);
+    }
+
+    getUndispatchedEvents(query, revMax, callback) {
+        if (typeof query === 'string') {
+            query = { aggregateId: query };
+        }
+
+        const aggregateId = query.aggregateId;
+        this._doOnShardedEventstore(aggregateId, 'getUndispatchedEvents', arguments);
+    }
+
+    setEventToDispatched() {
+        this._doOnAllEventstore('setEventToDispatched', arguments);
+    }
+
     _doOnAnyEventstore(methodName, args) {
         const eventstore = this._eventstores[`shard_${Math.random(this.options.numberOfShards)}`];
         eventstore[methodName].apply(args)
@@ -98,6 +160,12 @@ class ClusteredEventStore {
             promises.push(eventstore[asyncMethodName].apply(arg));
         }
         Promise.all(promises).then(callback).catch(callback);
+    }
+
+    _doOnAllEventstoreNoCallback(asyncMethodName, args) {
+        for (const eventstore in this._eventstores) {
+            eventstore[asyncMethodName].apply(args)
+        }
     }
 
     _doOnShardedEventstore(aggregateId, methodName, args) {
@@ -127,19 +195,17 @@ class ClusteredEventStore {
     /* EVENTSTORE.JS */
 
     // // for all shards
-    // defineEventMappings
-    // useEventPublisher
+    // defineEventMappings - DONE
+    // useEventPublisher - DONE
+    // setEventToDispatched - DONE
 
     // // for specific shard
-    // getLastEvent
-    // getLastEventAsStream
-    // getEventStream
-    // getFromSnapshot
-    // createSnapshot
-    // getUndispatchedEvents
-    // setEventToDispatched
-
-
+    // getLastEvent - DONE
+    // getLastEventAsStream - DONE
+    // getEventStream - DONE
+    // getFromSnapshot - DONE
+    // createSnapshot - DONE
+    // getUndispatchedEvents - DONE
 
     /* EVENTSTORE-PROJECTION.JS */
 
