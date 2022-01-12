@@ -1,34 +1,19 @@
 const util = require('util');
 const murmurhash = require('murmurhash');
 const Bluebird = require('bluebird');
+const _ = require('lodash');
 
 class ClusteredEventStore {
     constructor(options, mappingStore) {
         this._mappingStore = mappingStore;
-        this._options = options;
 
-        const options = {
+        const defaults = {
             type: 'clusteredMysql',
-            clusteredStores: [
-                {
-                    host: ,
-                    port,
-                    user,
-                    password,
-                    database,
-                    connectionPoolLimit
-                },
-                {
-                    host: ,
-                    port,
-                    user,
-                    password,
-                    database,
-                    connectionPoolLimit
-                }
-            ],
+            clusteredStores: [],
             numberOfPartitions: 80
         };
+    
+        this._options = this.options = _.defaults(options, defaults);
         this._eventstores = [];
     }
 
@@ -36,29 +21,17 @@ class ClusteredEventStore {
         try {
             const promises = [];
             this.options.clusteredStores.forEach((storeConfig, index) => {
-                const config = {
+                let config = {
                     host: storeConfig.host,
                     port: storeConfig.port,
                     user: storeConfig.user,
                     password: storeConfig.password,
                     database: storeConfig.database,
                     connectionPoolLimit: storeConfig.connectionPoolLimit,
-                        
-                    // todo: just merge this with original options
-                    enableProjection: this.options.enableProjection,
-                    enableProjectionEventStreamBuffer: this.options.enableProjectionEventStreamBuffer,
-                    eventCallbackTimeout: this.options.,
-                    lockTimeToLive: 1000,
-                    pollingTimeout: 1000,
-                    pollingMaxRevisions: 100,
-                    errorMaxRetryCount: 2,
-                    errorRetryExponent: 2,
-                    playbackEventJobCount: 10,
-                    context: 'vehicle',
-                    projectionGroup: 'default'
-                }
+                };
+                const esConfig = _.defaults(config, this._options);
 
-                const eventstore = require('../index')(config);
+                const eventstore = require('../index')(esConfig);
                 Bluebird.promisifyAll(eventstore);
                 this._eventstores[`shard_${index}`] = eventstore;
 
