@@ -1,12 +1,177 @@
 const util = require('util');
 const murmurhash = require('murmurhash');
+const Bluebird = require('bluebird');
 
 class ClusteredEventStore {
-    constructor(options) {
-        this._mappingStore = null;
+    constructor(options, mappingStore) {
+        this._mappingStore = mappingStore;
         this._options = options;
+
+        const options = {
+            type: 'clusteredMysql',
+            clusteredStores: [
+                {
+                    host: ,
+                    port,
+                    user,
+                    password,
+                    database,
+                    connectionPoolLimit
+                },
+                {
+                    host: ,
+                    port,
+                    user,
+                    password,
+                    database,
+                    connectionPoolLimit
+                }
+            ]
+            numberOfPartitions: 80
+        };
         this._eventstores = [];
     }
+
+    init(callback) {
+        try {
+            const promises = [];
+            this.options.clusteredStores.forEach((storeConfig, index) => {
+                const config = {
+                    host: storeConfig.host,
+                    port: storeConfig.port,
+                    user: storeConfig.user,
+                    password: storeConfig.password,
+                    database: storeConfig.database,
+                    connectionPoolLimit: storeConfig.connectionPoolLimit,
+                        
+                    // todo: just merge this with original options
+                    enableProjection: this.options.enableProjection,
+                    enableProjectionEventStreamBuffer: this.options.enableProjectionEventStreamBuffer,
+                    eventCallbackTimeout: this.options.,
+                    lockTimeToLive: 1000,
+                    pollingTimeout: 1000,
+                    pollingMaxRevisions: 100,
+                    errorMaxRetryCount: 2,
+                    errorRetryExponent: 2,
+                    playbackEventJobCount: 10,
+                    context: 'vehicle',
+                    projectionGroup: 'default'
+                }
+
+                const eventstore = require('../index')(config);
+                Bluebird.promisifyAll(eventstore);
+                this._eventstores[`shard_${index}`] = eventstore;
+
+                promises.push(eventstore.initAsync());
+            });
+
+            Promise.all(promises).then(callback).catch(callback);
+        } catch (error) {
+            callback(error);
+        }
+    }
+
+    startAllProjections(callback) {
+        this._doOnAllEventstore('startAllProjectionAsync', arguments);
+    }
+
+    project() {
+        this._doOnAllEventstore('projectAsync', arguments);
+    }
+
+    subscribe(query, revision, onEventCallback, onErrorCallback) {
+        const aggregateId = query.aggregateId;
+
+        this._doOnShardedEventstore(aggregateId, 'subscribe', arguments);
+    }
+
+    _doOnAnyEventstore(methodName, args) {
+        const eventstore = this._eventstores[`shard_${Math.random(this.options.numberOfShards)}`];
+        eventstore[methodName].apply(args)
+    }
+
+    _doOnAllEventstore(asyncMethodName, args) {
+        const promises = [];
+        const callback = args[args.length-1];
+        const arg = args.splice(0, args.length-1);
+        for (const eventstore in this._eventstores) {
+            promises.push(eventstore[asyncMethodName].apply(arg));
+        }
+        Promise.all(promises).then(callback).catch(callback);
+    }
+
+    _doOnShardedEventstore(aggregateId, methodName, args) {
+        // NOTE: our usage always have aggregateId in query
+        let shardPartition = await this.getShardAndPartition(aggregateId);
+
+        if (!shardPartition) {
+            // numberOfPartitions = 80
+            // 0 - 79
+            const partition = this.getPartition(aggregateId, numberOfPartitions);
+
+            // 10 % 4 == 2
+            const shard = partition % this._options.numberOfShards;
+
+            shardPartition = {
+                shard: shard,
+                partition: partition
+            }
+
+            await this._mappingStore.addShardPartition(aggregateId, shardPartition);
+        }
+
+        const eventstore = this._eventstores[shardId];
+        return eventstore[methodName].apply(args);
+    }
+
+    /* EVENTSTORE.JS */
+
+    // // for all shards
+    // defineEventMappings
+    // useEventPublisher
+
+    // // for specific shard
+    // getLastEvent
+    // getLastEventAsStream
+    // getEventStream
+    // getFromSnapshot
+    // createSnapshot
+    // getUndispatchedEvents
+    // setEventToDispatched
+
+
+
+    /* EVENTSTORE-PROJECTION.JS */
+
+    // deactivatePolling
+    // activatePolling
+    // close
+    // stopAllProjections
+    // closeSubscriptionEventStreamBuffers
+    // closeProjectionEventStreamBuffers
+    // // startAllProjections
+    // // project
+    // unsubscribe // unique token
+    // registerPlaybackListView
+    // registerFunction
+
+    // // for first/any shard
+    // getPlaybackList
+    // getStateList
+    // getPlaybackListView
+    // getProjections
+    // getProjection
+    // getProjectionByName
+    // pauseProjection
+    // resetProjection
+    // deleteProjection
+
+    // // for specific shard
+    // subscribe
+
+    // // undecided
+    // runProjection // taskGroup
+
 
     async getShardAndPartition(aggregateId) {
         let shard = await this._mappingStore.getShard(aggregateId);
@@ -23,6 +188,8 @@ class ClusteredEventStore {
     }
 
     async _getEventStream(query, revMin, revMax) {
+        const aggregateId = query.aggregateId;
+
         // NOTE: our usage always have aggregateId in query
         let shardPartition = await this.getShardAndPartition(aggregateId);
 
