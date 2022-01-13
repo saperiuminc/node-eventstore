@@ -2,7 +2,7 @@ const compose = require('docker-compose');
 const path = require('path');
 const debug = require('debug')('eventstore:clustering:mysql');
 const mysql2 = require('mysql2/promise');
-const clustedEs = require('../clustered/index');
+const clusteredEs = require('../clustered/index');
 const Bluebird = require('bluebird');
 const shortId = require('shortid');
 
@@ -68,7 +68,7 @@ fdescribe('eventstore clustering mysql tests', () => {
 
     it('should implement init', async () => {
         // TODO: add the options
-        const clustedEventstore = clustedEs({});
+        const clustedEventstore = clusteredEs({});
 
         Bluebird.promisifyAll(clustedEventstore);
         await clustedEventstore.initAsync();
@@ -76,7 +76,7 @@ fdescribe('eventstore clustering mysql tests', () => {
 
     it('should be able to add event to the stream', async () => {
         // TODO: add the options
-        const clustedEventstore = clustedEs({});
+        const clustedEventstore = clusteredEs({});
 
         Bluebird.promisifyAll(clustedEventstore);
         await clustedEventstore.initAsync();
