@@ -14,6 +14,8 @@ class ClusteredEventStore {
         };
     
         this._options = this.options = _.defaults(options, defaults);
+        this._options.numberOfShards = this._options.clusteredStores.length;
+
         this._eventstores = [];
     }
 
@@ -29,7 +31,8 @@ class ClusteredEventStore {
                     database: storeConfig.database,
                     connectionPoolLimit: storeConfig.connectionPoolLimit,
                 };
-                const esConfig = _.defaults(config, this._options);
+                let esConfig = _.defaults(config, _.cloneDeep(this._options));
+                delete esConfig.clusteredStores;
 
                 const eventstore = require('../index')(esConfig);
                 Bluebird.promisifyAll(eventstore);
