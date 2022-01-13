@@ -89,9 +89,9 @@ fdescribe('eventstore clustering mysql tests', () => {
 
     afterAll(async () => {
         debug('docker compose down started');
-        // await compose.down({
-        //     cwd: path.join(__dirname)
-        // })
+        await compose.down({
+            cwd: path.join(__dirname)
+        })
         debug('docker compose down finished');
     });
 
