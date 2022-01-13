@@ -4,17 +4,13 @@ const Bluebird = require('bluebird');
 const _ = require('lodash');
 
 class ClusteredEventStore {
-    constructor(options, mappingStore) {
-        this._mappingStore = mappingStore;
-
+    constructor(options) {
         const defaults = {
-            type: 'clusteredMysql',
-            clusteredStores: [],
-            numberOfPartitions: 80
+            clusters: []
         };
 
         this._options = this.options = _.defaults(options, defaults);
-        this._options.numberOfShards = this._options.clusteredStores.length;
+        this._options.numberOfShards = this._options.clusters.length;
 
         this._eventstores = [];
     }
@@ -22,8 +18,9 @@ class ClusteredEventStore {
     init(callback) {
         try {
             const promises = [];
-            this.options.clusteredStores.forEach((storeConfig, index) => {
+            this.options.clusters.forEach((storeConfig, index) => {
                 let config = {
+                    type: storeConfig.type,
                     host: storeConfig.host,
                     port: storeConfig.port,
                     user: storeConfig.user,
@@ -32,7 +29,7 @@ class ClusteredEventStore {
                     connectionPoolLimit: storeConfig.connectionPoolLimit
                 };
                 let esConfig = _.defaults(config, _.cloneDeep(this._options));
-                delete esConfig.clusteredStores;
+                delete esConfig.clusters;
 
                 const eventstore = require('../index')(esConfig);
                 Bluebird.promisifyAll(eventstore);
@@ -41,7 +38,9 @@ class ClusteredEventStore {
                 promises.push(eventstore.initAsync());
             });
 
-            Promise.all(promises).then(callback).catch(callback);
+            Promise.all(promises).then((data) => {
+                callback(null ,data);
+            }).catch(callback);
         } catch (error) {
             callback(error);
         }
@@ -158,7 +157,7 @@ class ClusteredEventStore {
         // NOTE: our usage always have aggregateId in query
         let shard = this.#getShard(aggregateId);
         const eventstore = this._eventstores[shard];
-        return eventstore[methodName].apply(args);
+        return eventstore[methodName].apply(eventstore, args);
     }
 
     /* EVENTSTORE.JS */
@@ -208,12 +207,7 @@ class ClusteredEventStore {
     // runProjection // taskGroup
 
 
-    async getShardAndPartition(aggregateId) {
-        let shard = await this._mappingStore.getShard(aggregateId);
-        return shard;
-    }
-
-    async #getShard(aggregateId) {
+    #getShard(aggregateId) {
         let shard = murmurhash(aggregateId) % this._options.numberOfShards;
         return shard;
     }

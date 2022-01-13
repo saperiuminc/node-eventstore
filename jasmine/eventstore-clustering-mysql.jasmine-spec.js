@@ -5,6 +5,35 @@ const mysql2 = require('mysql2/promise');
 const clusteredEs = require('../clustered/index');
 const Bluebird = require('bluebird');
 const shortId = require('shortid');
+const Redis = require('ioredis');
+
+const redisConfig = {
+    host: 'localhost',
+    port: 6379
+}
+
+const mysqlConfig = {
+    host: 'localhost',
+    port: 3306,
+    user: 'root',
+    password: 'root',
+    database: 'eventstore',
+    connectionPoolLimit: 10
+}
+
+
+const mysqlConfig2 = {
+    host: 'localhost',
+    port: 3307,
+    user: 'root',
+    password: 'root',
+    database: 'eventstore',
+    connectionPoolLimit: 10
+}
+
+const eventstoreConfig = {
+    pollingTimeout: 1000
+}
 
 fdescribe('eventstore clustering mysql tests', () => {
     const sleep = function(timeout) {
@@ -67,16 +96,54 @@ fdescribe('eventstore clustering mysql tests', () => {
     });
 
     it('should implement init', async () => {
-        // TODO: add the options
-        const clustedEventstore = clusteredEs({});
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+
+        const clustedEventstore = clusteredEs(config);
 
         Bluebird.promisifyAll(clustedEventstore);
         await clustedEventstore.initAsync();
+        
     })
 
     it('should be able to add event to the stream', async () => {
-        // TODO: add the options
-        const clustedEventstore = clusteredEs({});
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+        const clustedEventstore = clusteredEs(config);
 
         Bluebird.promisifyAll(clustedEventstore);
         await clustedEventstore.initAsync();
