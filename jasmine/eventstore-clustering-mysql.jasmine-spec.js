@@ -351,4 +351,45 @@ fdescribe('eventstore clustering mysql tests', () => {
         stream.addEvent(event);
         await stream.commitAsync();
     })
+
+    it('should be able to call defineEventMappings', async () => {
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+
+        clustedEventstore.defineEventMappings({
+            id: 'id',
+            commitId: 'commitId',
+            commitSequence: 'commitSequence',
+            commitStamp: 'commitStamp',
+            streamRevision: 'streamRevision'
+          });
+    })
+
+    // getFromSnapshot
+    // createSnapshot
+    // getUndispatchedEvents
+    // setEventToDispatched
+    // subscribe
+    // project
+    // startAllProjections
 })

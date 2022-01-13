@@ -9,12 +9,12 @@ class ClusteredEventStore {
             clusters: []
         };
 
-        this._options = this.options = _.defaults(options, defaults);
+        this._options = _.defaults(options, defaults);
         this._options.numberOfShards = this._options.clusters.length;
 
         this._eventstores = [];
 
-        this.options.clusters.forEach((storeConfig, index) => {
+        this._options.clusters.forEach((storeConfig, index) => {
             let config = {
                 type: storeConfig.type,
                 host: storeConfig.host,
@@ -33,16 +33,17 @@ class ClusteredEventStore {
         });
     }
 
+
     init() {
         this.#doOnAllEventstores('init', arguments);
     }
 
     startAllProjections(callback) {
-        this.#doOnAllEventstores('startAllProjectionAsync', arguments);
+        this.#doOnAllEventstores('startAllProjection', arguments);
     }
 
     project() {
-        this.#doOnAllEventstores('projectAsync', arguments);
+        this.#doOnAllEventstores('project', arguments);
     }
 
     subscribe(query, revision, onEventCallback, onErrorCallback) {
@@ -51,9 +52,11 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'subscribe', arguments);
     }
 
+
     defineEventMappings() {
         this.#doOnAllEventstoresNoCallback('defineEventMappings', arguments);
     }
+
 
     useEventPublisher() {
         // NOTE: callback of useEventPublisher is not a callback when useEventPublisher is finished being called
@@ -62,7 +65,7 @@ class ClusteredEventStore {
         this.#doOnAllEventstoresNoCallback('useEventPublisher', arguments);
     }
 
-    // OK
+
     getLastEvent(query, callback) {
         if (typeof query === 'string') {
             query = {
@@ -74,7 +77,7 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'getLastEvent', arguments);
     }
 
-    // OK
+
     getLastEventAsStream(query, callback) {
         if (typeof query === 'string') {
             query = {
@@ -86,8 +89,8 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'getLastEventAsStream', arguments);
     }
 
-    // OK
-    getEventStream(query, revMin, revMax, callback) {
+
+    getEventStream(query) {
         if (typeof query === 'string') {
             query = {
                 aggregateId: query
@@ -129,12 +132,12 @@ class ClusteredEventStore {
         this.#doOnAllEventstores('setEventToDispatched', arguments);
     }
 
-    #doOnAnyEventstore(methodName, args) {
-        const eventstore = this._eventstores[Math.random(this.options.numberOfShards)];
+    # doOnAnyEventstore(methodName, args) {
+        const eventstore = this._eventstores[Math.random(this._options.numberOfShards)];
         eventstore[methodName].apply(eventstore, args)
     }
 
-    #doOnAllEventstores(methodname, args) {
+    # doOnAllEventstores(methodname, args) {
         const promises = [];
         const callback = args[args.length - 1];
         for (const eventstore of this._eventstores) {
@@ -145,13 +148,13 @@ class ClusteredEventStore {
         }).catch(callback);
     }
 
-    #doOnAllEventstoresNoCallback(asyncMethodName, args) {
+    # doOnAllEventstoresNoCallback(asyncMethodName, args) {
         for (const eventstore of this._eventstores) {
             eventstore[asyncMethodName].apply(eventstore, args)
         }
     }
 
-    #doOnShardedEventstore(aggregateId, methodName, args) {
+    # doOnShardedEventstore(aggregateId, methodName, args) {
         // NOTE: our usage always have aggregateId in query
         let shard = this.#getShard(aggregateId);
         const eventstore = this._eventstores[shard];
@@ -205,14 +208,9 @@ class ClusteredEventStore {
     // runProjection // taskGroup
 
 
-    #getShard(aggregateId) {
+    # getShard(aggregateId) {
         let shard = murmurhash(aggregateId) % this._options.numberOfShards;
         return shard;
-    }
-
-    getPartition(aggregateId, numberOfPartitions) {
-        const partition = murmurhash(aggregateId) % numberOfPartitions;
-        return partition;
     }
 }
 module.exports = ClusteredEventStore;
