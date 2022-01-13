@@ -382,13 +382,187 @@ fdescribe('eventstore clustering mysql tests', () => {
             commitSequence: 'commitSequence',
             commitStamp: 'commitStamp',
             streamRevision: 'streamRevision'
-          });
+        });
     })
 
-    // getFromSnapshot
-    // createSnapshot
-    // getUndispatchedEvents
-    // setEventToDispatched
+    it('should be able to call createSnapshot', async () => {
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+
+        await clustedEventstore.initAsync();
+
+        await clustedEventstore.createSnapshotAsync({
+            aggregateId: 'myAggregateId',
+            aggregate: 'person',
+            context: 'hr',
+            data: {
+                name: 'ryan'
+            },
+            revision: 1,
+            version: 1 // optional
+        });
+
+    })
+
+    it('should be able to call getSnapshot', async () => {
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+
+        await clustedEventstore.initAsync();
+
+        const newSnapshot = {
+            name: 'ryan'
+        };
+        await clustedEventstore.createSnapshotAsync({
+            aggregateId: 'myAggregateId',
+            aggregate: 'person',
+            context: 'hr',
+            data: newSnapshot,
+            revision: 1,
+            version: 1 // optional
+        });
+
+        const savedSnapshot = await clustedEventstore.getFromSnapshotAsync({
+            aggregateId: 'myAggregateId',
+            aggregate: 'person',
+            context: 'hr'
+        });
+
+        expect(savedSnapshot.data).toEqual(newSnapshot);
+
+    })
+
+    it('should be able to call getUndispatchedEvents', async () => {
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+
+        await clustedEventstore.initAsync();
+
+        // TODO: implement getUndispatchedEvents back
+        await clustedEventstore.getUndispatchedEventsAsync({
+            aggregateId: 'test'
+        });
+    })
+
+    it('should be able to call setEventToDispatched', async () => {
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+
+        await clustedEventstore.initAsync();
+
+        const aggregateId = shortId.generate();
+
+        const stream = await clustedEventstore.getLastEventAsStreamAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle'
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const event = {
+            name: "VEHICLE_CREATED",
+            payload: {
+                vehicleId: aggregateId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
+
+        stream.addEvent(event);
+        await stream.commitAsync();
+
+        const lastEvent = await clustedEventstore.getLastEventAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle'
+        })
+
+        await clustedEventstore.setEventToDispatchedAsync(lastEvent);
+    })
+
     // subscribe
     // project
     // startAllProjections

@@ -43,7 +43,6 @@ class ClusteredEventStore {
 
     startAllProjections(callback) {
         const promises = [];
-        const callback = args[args.length - 1];
         const arg = args.splice(0, args.length - 1);
         for (const eventstore in this._eventstores) {
             promises.push(eventstore[asyncMethodName].apply(arg));
@@ -64,7 +63,9 @@ class ClusteredEventStore {
             }
             return this.#doTaskAssignment(this._options.projectionGroup, allProjectionsInAllShards);
         })
-        .then(callback)
+        .then((data) => {
+            callback(null, data)
+        })
         .catch(callback);
     }
 
@@ -257,7 +258,7 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'createSnapshot', arguments);
     }
 
-    getUndispatchedEvents(query, revMax, callback) {
+    getUndispatchedEvents(query, callback) {
         if (typeof query === 'string') {
             query = {
                 aggregateId: query
@@ -268,8 +269,9 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'getUndispatchedEvents', arguments);
     }
 
-    setEventToDispatched() {
-        this.#doOnAllEventstores('setEventToDispatched', arguments);
+    setEventToDispatched(event) {
+        const aggregateId = event.aggregateId;
+        this.#doOnShardedEventstore(aggregateId, 'setEventToDispatched', arguments);
     }
 
     #doOnAnyEventstore(methodName, args) {
@@ -301,24 +303,10 @@ class ClusteredEventStore {
         return eventstore[methodName].apply(eventstore, args);
     }
 
-    async #getShardAndPartition(aggregateId) {
-        let shard = await this._mappingStore.getShard(aggregateId);
-        return shard;
-    }
-
-    async #getShard(aggregateId) {
-        let shard = murmurhash(aggregateId) % this._options.numberOfShards;
-        return shard;
-    }
-
-    #getPartition(aggregateId, numberOfPartitions) {
-        const partition = murmurhash(aggregateId) % numberOfPartitions;
-        return partition;
-    }
-
     #getShard(aggregateId) {
         let shard = murmurhash(aggregateId) % this._options.numberOfShards;
         return shard;
     }
+
 }
 module.exports = ClusteredEventStore;
