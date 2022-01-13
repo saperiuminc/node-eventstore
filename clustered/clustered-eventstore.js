@@ -23,8 +23,11 @@ class ClusteredEventStore {
                 user: storeConfig.user,
                 password: storeConfig.password,
                 database: storeConfig.database,
-                connectionPoolLimit: storeConfig.connectionPoolLimit
+                connectionPoolLimit: storeConfig.connectionPoolLimit,
+                shard: index,
+                shouldDoTaskAssignment: false
             };
+
             let esConfig = _.defaults(config, _.cloneDeep(this._options));
             delete esConfig.clusters;
 
@@ -34,34 +37,8 @@ class ClusteredEventStore {
         });
     }
 
-    init(callback) {
-        try {
-            const promises = [];
-            this.options.clusteredStores.forEach((storeConfig, index) => {
-                let config = {
-                    host: storeConfig.host,
-                    port: storeConfig.port,
-                    user: storeConfig.user,
-                    password: storeConfig.password,
-                    database: storeConfig.database,
-                    connectionPoolLimit: storeConfig.connectionPoolLimit,
-                    shard: index,
-                    shouldDoTaskAssignment: false
-                };
-                let esConfig = _.defaults(config, _.cloneDeep(this._options));
-                delete esConfig.clusteredStores;
-
-                const eventstore = require('../index')(esConfig);
-                Bluebird.promisifyAll(eventstore);
-                this._eventstores[index] = eventstore;
-
-                promises.push(eventstore.initAsync());
-            });
-
-            Promise.all(promises).then(callback).catch(callback);
-        } catch (error) {
-            callback(error);
-        }
+    init() {
+        this.#doOnAllEventstores('init', arguments);
     }
 
     startAllProjections(callback) {
@@ -72,7 +49,6 @@ class ClusteredEventStore {
             promises.push(eventstore[asyncMethodName].apply(arg));
         }
 
-        // Promise.all(promises).then(callback).catch(callback);
         Promise.all(promises)
         .then(() => {
             const projectionPromises = [];
