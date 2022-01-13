@@ -89,9 +89,9 @@ fdescribe('eventstore clustering mysql tests', () => {
 
     afterAll(async () => {
         debug('docker compose down started');
-        await compose.down({
-            cwd: path.join(__dirname)
-        })
+        // await compose.down({
+        //     cwd: path.join(__dirname)
+        // })
         debug('docker compose down finished');
     });
 
@@ -120,10 +120,9 @@ fdescribe('eventstore clustering mysql tests', () => {
 
         Bluebird.promisifyAll(clustedEventstore);
         await clustedEventstore.initAsync();
-        
     })
 
-    it('should be able to add event to the stream', async () => {
+    it('should be able to call getEventStream', async () => {
         const config = {
             clusters: [{
                 type: 'mysql',
@@ -179,5 +178,177 @@ fdescribe('eventstore clustering mysql tests', () => {
         });
 
         expect(savedStream.events[0].payload).toEqual(event);
+    })
+
+    it('should be able to call getLastEventAsStream', async () => {
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+        await clustedEventstore.initAsync();
+
+        const aggregateId = shortId.generate();
+
+        const stream = await clustedEventstore.getLastEventAsStreamAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle'
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const event = {
+            name: "VEHICLE_CREATED",
+            payload: {
+                vehicleId: aggregateId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
+
+        stream.addEvent(event);
+        await stream.commitAsync();
+
+        const savedStream = await clustedEventstore.getLastEventAsStreamAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle'
+        });
+
+        expect(savedStream.events[0].payload).toEqual(event);
+    })
+
+    it('should be able to call getLastEvent', async () => {
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+        await clustedEventstore.initAsync();
+
+        const aggregateId = shortId.generate();
+
+        const stream = await clustedEventstore.getLastEventAsStreamAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle'
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const event = {
+            name: "VEHICLE_CREATED",
+            payload: {
+                vehicleId: aggregateId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
+
+        stream.addEvent(event);
+        await stream.commitAsync();
+
+        const lastEvent = await clustedEventstore.getLastEventAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle'
+        });
+
+        expect(lastEvent.payload).toEqual(event);
+    })
+
+    it('should be able to call useEventPublisher', async (done) => {
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }]
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+
+        clustedEventstore.useEventPublisher(function(event, callback) {
+            callback();
+            done();
+        });
+
+        await clustedEventstore.initAsync();
+
+        const aggregateId = shortId.generate();
+
+        const stream = await clustedEventstore.getLastEventAsStreamAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle'
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const event = {
+            name: "VEHICLE_CREATED",
+            payload: {
+                vehicleId: aggregateId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245
+            }
+        }
+
+        stream.addEvent(event);
+        await stream.commitAsync();
     })
 })
