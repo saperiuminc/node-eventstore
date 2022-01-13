@@ -5,18 +5,33 @@ const _ = require('lodash');
 const debug = require('debug')('eventstore:clustered');
 
 class ClusteredEventStore {
-    constructor(options, mappingStore) {
-        this._mappingStore = mappingStore;
-
+    constructor(options) {
         const defaults = {
-            type: 'clusteredMysql',
-            clusteredStores: [],
-            numberOfPartitions: 80
+            clusters: []
         };
 
-        this._options = this.options = _.defaults(options, defaults);
-        this._options.numberOfShards = this._options.clusteredStores.length;
+        this._options = _.defaults(options, defaults);
+        this._options.numberOfShards = this._options.clusters.length;
+
         this._eventstores = [];
+
+        this._options.clusters.forEach((storeConfig, index) => {
+            let config = {
+                type: storeConfig.type,
+                host: storeConfig.host,
+                port: storeConfig.port,
+                user: storeConfig.user,
+                password: storeConfig.password,
+                database: storeConfig.database,
+                connectionPoolLimit: storeConfig.connectionPoolLimit
+            };
+            let esConfig = _.defaults(config, _.cloneDeep(this._options));
+            delete esConfig.clusters;
+
+            const eventstore = require('../index')(esConfig);
+            Bluebird.promisifyAll(eventstore);
+            this._eventstores[index] = eventstore;
+        });
     }
 
     init(callback) {
@@ -50,7 +65,6 @@ class ClusteredEventStore {
     }
 
     startAllProjections(callback) {
-        // this.#doOnAllEventstore('startAllProjectionsAsync', arguments);
         const promises = [];
         const callback = args[args.length - 1];
         const arg = args.splice(0, args.length - 1);
@@ -206,11 +220,14 @@ class ClusteredEventStore {
     }
 
     defineEventMappings() {
-        this.#doOnAllEventstoreNoCallback('defineEventMappings', arguments);
+        this.#doOnAllEventstoresNoCallback('defineEventMappings', arguments);
     }
 
     useEventPublisher() {
-        this.#doOnAllEventstoreNoCallback('useEventPublisher', arguments);
+        // NOTE: callback of useEventPublisher is not a callback when useEventPublisher is finished being called
+        // it is a callback for when an event is to be published. 
+        // hence we are using the no callback method
+        this.#doOnAllEventstoresNoCallback('useEventPublisher', arguments);
     }
 
     getLastEvent(query, callback) {
@@ -224,6 +241,7 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'getLastEvent', arguments);
     }
 
+
     getLastEventAsStream(query, callback) {
         if (typeof query === 'string') {
             query = {
@@ -235,7 +253,8 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'getLastEventAsStream', arguments);
     }
 
-    getEventStream(query, revMin, revMax, callback) {
+
+    getEventStream(query) {
         if (typeof query === 'string') {
             query = {
                 aggregateId: query
@@ -274,27 +293,28 @@ class ClusteredEventStore {
     }
 
     setEventToDispatched() {
-        this.#doOnAllEventstore('setEventToDispatched', arguments);
+        this.#doOnAllEventstores('setEventToDispatched', arguments);
     }
 
     #doOnAnyEventstore(methodName, args) {
-        const eventstore = this._eventstores[`shard_${Math.random(this.options.numberOfShards)}`];
-        eventstore[methodName].apply(args)
+        const eventstore = this._eventstores[Math.random(this._options.numberOfShards)];
+        eventstore[methodName].apply(eventstore, args)
     }
 
-    #doOnAllEventstore(asyncMethodName, args) {
+    #doOnAllEventstores(methodname, args) {
         const promises = [];
         const callback = args[args.length - 1];
-        const arg = args.splice(0, args.length - 1);
-        for (const eventstore in this._eventstores) {
-            promises.push(eventstore[asyncMethodName].apply(arg));
+        for (const eventstore of this._eventstores) {
+            promises.push(eventstore[methodname].apply(eventstore, args));
         }
-        Promise.all(promises).then(callback).catch(callback);
+        Promise.all(promises).then(function(...data) {
+            callback(null, ...data);
+        }).catch(callback);
     }
 
-    #doOnAllEventstoreNoCallback(asyncMethodName, args) {
-        for (const eventstore in this._eventstores) {
-            eventstore[asyncMethodName].apply(args)
+    #doOnAllEventstoresNoCallback(asyncMethodName, args) {
+        for (const eventstore of this._eventstores) {
+            eventstore[asyncMethodName].apply(eventstore, args)
         }
     }
 
@@ -302,7 +322,7 @@ class ClusteredEventStore {
         // NOTE: our usage always have aggregateId in query
         let shard = this.#getShard(aggregateId);
         const eventstore = this._eventstores[shard];
-        return eventstore[methodName].apply(args);
+        return eventstore[methodName].apply(eventstore, args);
     }
 
     async #getShardAndPartition(aggregateId) {
@@ -318,6 +338,11 @@ class ClusteredEventStore {
     #getPartition(aggregateId, numberOfPartitions) {
         const partition = murmurhash(aggregateId) % numberOfPartitions;
         return partition;
+    }
+
+    #getShard(aggregateId) {
+        let shard = murmurhash(aggregateId) % this._options.numberOfShards;
+        return shard;
     }
 }
 module.exports = ClusteredEventStore;
