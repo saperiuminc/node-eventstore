@@ -253,8 +253,8 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'getFromSnapshot', arguments);
     }
 
-    createSnapshot(obj, callback) {
-        const aggregateId = obj.aggregateId;
+    createSnapshot(query, callback) {
+        const aggregateId = query.aggregateId;
         this.#doOnShardedEventstore(aggregateId, 'createSnapshot', arguments);
     }
 
@@ -283,16 +283,16 @@ class ClusteredEventStore {
         const promises = [];
         const callback = args[args.length - 1];
         for (const eventstore of this._eventstores) {
-            promises.push(eventstore[methodname].apply(eventstore, args));
+            promises.push(eventstore[methodname + 'Async'].apply(eventstore, args));
         }
         Promise.all(promises).then(function(...data) {
             callback(null, ...data);
         }).catch(callback);
     }
 
-    #doOnAllEventstoresNoCallback(asyncMethodName, args) {
+    #doOnAllEventstoresNoCallback(methodName, args) {
         for (const eventstore of this._eventstores) {
-            eventstore[asyncMethodName].apply(eventstore, args)
+            eventstore[methodName].apply(eventstore, args)
         }
     }
 

@@ -459,7 +459,7 @@ fdescribe('eventstore clustering mysql tests', () => {
             context: 'hr',
             data: newSnapshot,
             revision: 1,
-            version: 1 // optional
+            version: 1
         });
 
         const savedSnapshot = await clustedEventstore.getFromSnapshotAsync({
