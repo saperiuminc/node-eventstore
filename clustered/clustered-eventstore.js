@@ -299,6 +299,18 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'setEventToDispatched', arguments);
     }
 
+    getPlaybackList(listName) {
+        this.#doOnAnyEventstore('getPlaybacklist', arguments)
+    }
+
+    getStateList(listName, state) {
+        this.#doOnAnyEventstore('getStateList', arguments)
+    }
+
+    getPlaybackListView(listName, done) {
+        this.#doOnAnyEventstore('getPlaybackListView', arguments)
+    }
+
     #doOnAnyEventstore(methodName, args) {
         const eventstore = this._eventstores[Math.random(this._options.numberOfShards)];
         eventstore[methodName].apply(eventstore, args)
