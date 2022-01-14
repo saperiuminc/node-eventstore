@@ -1,8 +1,8 @@
-const util = require('util');
 const murmurhash = require('murmurhash');
 const Bluebird = require('bluebird');
 const _ = require('lodash');
 const debug = require('debug')('eventstore:clustered');
+const TaskAssignmentGroup = require('../lib/eventstore-projections/task-assignment').TaskAssignmentGroup;
 
 class ClusteredEventStore {
     constructor(options) {
@@ -41,17 +41,25 @@ class ClusteredEventStore {
         this.#doOnAllEventstores('init', arguments);
     }
 
-    startAllProjections(callback) {
+    startAllProjections() {
+        const self = this;
         const promises = [];
-        const arg = args.splice(0, args.length - 1);
-        for (const eventstore in this._eventstores) {
-            promises.push(eventstore['startAllProjectionsAsync'].apply(arg));
+        let args = arguments;
+        const callback = args[args.length - 1];
+
+        debug('will startAllProjections');
+
+        for (const eventstore of self._eventstores) {
+            promises.push(eventstore['startAllProjectionsAsync'].apply(eventstore, {}));
         }
 
+        debug('wait startAllProjections');
+
         Promise.all(promises)
-        .then(() => {
+        .then(function(data) {
+            debug('did startAllProjections');
             const projectionPromises = [];
-            for (const eventstore in this._eventstores) {
+            for (const eventstore of self._eventstores) {
                 projectionPromises.push(eventstore.getProjectionsAsync());
             }
             return Promise.all(projectionPromises);
@@ -61,20 +69,33 @@ class ClusteredEventStore {
             for (const projectionsOfAShard of promiseAllResponse) {
               allProjectionsInAllShards = allProjectionsInAllShards.concat(projectionsOfAShard);
             }
-            return this.#doTaskAssignment(this._options.projectionGroup, allProjectionsInAllShards);
+
+            const filterByDictionary = {};
+            let allProjectionIdsInAllShards = [];
+            for(const projConfig of allProjectionsInAllShards) {
+                filterByDictionary[projConfig.configuration.projectionId] = projConfig.configuration.projectionId;
+            }
+            allProjectionIdsInAllShards = Object.values(filterByDictionary);
+
+            return self.#doTaskAssignment(self._options.projectionGroup, allProjectionIdsInAllShards);
         })
-        .then((data) => {
-            callback(null, data)
+        .then(function(...data) {
+            callback(null, ...data);
         })
-        .catch(callback);
+        .catch((err) => {
+            console.error(err);
+            callback();
+        });
     }
 
     #doTaskAssignment = async function(projectionGroup, allProjectionsInAllShards) {
         const self = this;
         const tasks = [];
     
-        for (let projection in allProjectionsInAllShards) {
-            tasks.push(projection.projectionId);
+        debug('doTaskAssignment');
+        debug(allProjectionsInAllShards);
+        for (let projectionId of allProjectionsInAllShards) {
+            tasks.push(projectionId);
         }
 
         // create distributed lock
@@ -94,16 +115,25 @@ class ClusteredEventStore {
             distributedLock: self._distributedLock
         });
     
+        debug('self._taskGroup.join()');
         await self._taskGroup.join();
         self._taskGroup.on('rebalance', async (updatedAssignments, rebalanceId) => {
+            debug('rebalancing');
+            debug(rebalanceId);
+            debug(updatedAssignments);
             // distribute to shards
             const distributedAssignments = {};
-            for(const projectionId in updatedAssignments) {
+            for(const projectionId of updatedAssignments) {
+                debug('for each', projectionId);
                 const splitProjectionId = projectionId.split(':');
                 if(splitProjectionId.length > 1 && splitProjectionId[1]) {
                     const shardString = splitProjectionId[1];
                     const stringIndex = shardString.replace('shard', '');
                     const shard = parseInt(stringIndex);
+
+                    debug('shardString', shardString);
+                    debug('shard', shard);
+
                     if (!distributedAssignments[shard]) {
                         distributedAssignments[shard] = [];
                     }
@@ -111,10 +141,14 @@ class ClusteredEventStore {
                 }
             }
 
-            if(distributedAssignments.length > 0) {
-                for (const eventstore in this._eventstores) {
-                    const updatedEventStoreAssignment = distributedAssignments[eventstore.shard];
+            debug('distributedAssignments:', distributedAssignments);
+            const distributedAssignmentsLength = Object.keys(distributedAssignments).length;
+            debug('distributedAssignments.length:', distributedAssignmentsLength);  
+            if(distributedAssignmentsLength > 0) {
+                for (const eventstore of this._eventstores) {
+                    const updatedEventStoreAssignment = distributedAssignments[eventstore.options.shard];
                     if (updatedEventStoreAssignment) {
+                        debug('assigning updatedEventStoreAssignment', updatedEventStoreAssignment);
                         eventstore.rebalance(updatedEventStoreAssignment, rebalanceId);
                     } else {
                         // NOTE: still update but with empty assignment
@@ -129,18 +163,26 @@ class ClusteredEventStore {
         // TODO: review projectionId, config
         // also review adding partitioning here
         const promises = [];
-        for (const eventstore in this._eventstores) {
+        for (const eventstore of this._eventstores) {
             const projectionConfigClone = _.cloneDeep(projectionConfig);
-            projectionConfigClone.projectionId = `${projectionConfigClone.projectionId}:shard${eventstore.shard}`
+            projectionConfigClone.projectionId = `${projectionConfigClone.projectionId}:shard${eventstore.options.shard}`;
             promises.push(eventstore.projectAsync(projectionConfigClone));
         }
-        Promise.all(promises).then(callback).catch(callback);
+
+        Promise.all(promises)
+        .then((data) => {
+            callback();
+        })
+        .catch((err) => {
+            console.error(err);
+            callback();
+        });
     }
 
     stopAllProjections(callback) {
         const self = this;
         const promises = [];
-        for (const eventstore in this._eventstores) {
+        for (const eventstore of this._eventstores) {
             promises.push(eventstore.stopAllProjectionsAsync());
         }
         
@@ -150,8 +192,13 @@ class ClusteredEventStore {
                 self._taskGroup.leave();
             }
         })
-        .then(callback)
-        .catch(callback);
+        .then((data) => {
+            callback();
+        })
+        .catch((err) => {
+            console.error(err);
+            callback();
+        });
     }
 
     runProjection(projectionId, forced, done) {
@@ -159,9 +206,9 @@ class ClusteredEventStore {
         const promises = [];
         const newTasks = [];
 
-        for (const eventstore in this._eventstores) {
-            const clonedProjectionId = _.clone(projectionId);
-            clonedProjectionId = `${clonedProjectionId}:shard${eventstore.shard}`
+        for (const eventstore of this._eventstores) {
+            let clonedProjectionId = _.clone(projectionId);
+            clonedProjectionId = `${clonedProjectionId}:shard${eventstore.options.shard}`
             newTasks.push(clonedProjectionId);
             promises.push(eventstore.runProjectionAsync(clonedProjectionId, forced));
         }
@@ -173,22 +220,48 @@ class ClusteredEventStore {
             }
         })
         .then((data) => done(null, data))
-        .catch(callback);
+        .catch((err) => {
+            console.error(err);
+            done();
+        });
+    }
+
+    getProjection(projectionId, done) {
+        const self = this;
+        const promises = [];
+
+        for (const eventstore of this._eventstores) {
+            let clonedProjectionId = _.clone(projectionId);
+            clonedProjectionId = `${clonedProjectionId}:shard${eventstore.options.shard}`
+            promises.push(eventstore.getProjectionAsync(clonedProjectionId));
+        }
+        
+        Promise.all(promises)
+        .then((data) => done(null, data))
+        .catch((err) => {
+            console.error(err);
+            done();
+        });
     }
 
     deleteProjection(projectionId, done) {
         const self = this;
         const promises = [];
 
-        for (const eventstore in this._eventstores) {
-            const clonedProjectionId = _.clone(projectionId);
-            clonedProjectionId = `${clonedProjectionId}:shard${eventstore.shard}`
+        for (const eventstore of this._eventstores) {
+            let clonedProjectionId = _.clone(projectionId);
+            clonedProjectionId = `${clonedProjectionId}:shard${eventstore.options.shard}`
  
             self._taskGroup.removeTasks([clonedProjectionId]);
             promises.push(eventstore.deleteProjectionAsync(clonedProjectionId));
         }
         
-        Promise.all(promises).then((data) => done(null, data)).catch(callback);
+        Promise.all(promises)
+        .then((data) => done(null, data))
+        .catch((err) => {
+            console.error(err);
+            callback();
+        });
     }
 
     subscribe(query, revision, onEventCallback, onErrorCallback) {
@@ -229,7 +302,6 @@ class ClusteredEventStore {
         const aggregateId = query.aggregateId;
         this.#doOnShardedEventstore(aggregateId, 'getLastEventAsStream', arguments);
     }
-
 
     getEventStream(query) {
         if (typeof query === 'string') {
