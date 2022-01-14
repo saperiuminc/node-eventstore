@@ -311,6 +311,38 @@ class ClusteredEventStore {
         this.#doOnAnyEventstore('getPlaybackListView', arguments)
     }
 
+    registerPlaybackListView(listName, listQuery, totalCountQuery, opts, done) {
+        this.#doOnAllEventstores('registerPlaybackListView', arguments);
+    }
+
+    registerFunction(functionName, theFunction) {
+        this.#doOnAllEventstoresNoCallback('registerFunction', arguments);
+    }
+
+    unsubscribe(token) {
+        this.#doOnAllEventstoresNoCallback('unsubscribe', arguments);
+    }
+
+    closeSubscriptionEventStreamBuffers(done) {
+        this.#doOnAllEventstores('closeSubscriptionEventStreamBuffers', arguments);
+    }
+
+    closeProjectionEventStreamBuffers(done) {
+        this.#doOnAllEventstores('closeProjectionEventStreamBuffers', arguments);
+    }
+
+    deactivatePolling() {
+        this.#doOnAllEventstoresNoCallback('deactivatePolling', arguments);
+    }
+
+    activatePolling() {
+        this.#doOnAllEventstoresNoCallback('activatePolling', arguments);
+    }
+
+    close(callback) {
+        this.#doOnAllEventstores('close', arguments);
+    }
+
     #doOnAnyEventstore(methodName, args) {
         const eventstore = this._eventstores[Math.random(this._options.numberOfShards)];
         eventstore[methodName].apply(eventstore, args)
