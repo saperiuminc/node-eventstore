@@ -45,7 +45,7 @@ class ClusteredEventStore {
         const promises = [];
         const arg = args.splice(0, args.length - 1);
         for (const eventstore in this._eventstores) {
-            promises.push(eventstore[asyncMethodName].apply(arg));
+            promises.push(eventstore['startAllProjectionsAsync'].apply(arg));
         }
 
         Promise.all(promises)
@@ -207,7 +207,7 @@ class ClusteredEventStore {
         this.#doOnAllEventstoresNoCallback('useEventPublisher', arguments);
     }
 
-    getLastEvent(query, callback) {
+    getLastEvent(query) {
         if (typeof query === 'string') {
             query = {
                 aggregateId: query
