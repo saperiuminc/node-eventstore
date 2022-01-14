@@ -296,6 +296,81 @@ fdescribe('eventstore clustering mysql tests', () => {
         expect(lastEvent.payload).toEqual(event);
     })
 
+    it('should be able to call getEvents', async () => {
+        const partitionCount = 25;
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }],
+            partitions: partitionCount
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+        await clustedEventstore.initAsync();
+
+        const aggregate = `aggregate_${shortId.generate()}`;
+        const context = `context_${shortId.generate()}`;
+
+        const numberOfEventsToWrite = 100;
+
+        for (let i = 0; i < numberOfEventsToWrite; i++) {
+            const aggregateId = `aggregate_${i}`;
+            const stream = await clustedEventstore.getLastEventAsStreamAsync({
+                aggregateId: aggregateId,
+                aggregate: aggregate,
+                context: context
+            });
+    
+            Bluebird.promisifyAll(stream);
+    
+            const event = {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: aggregateId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+    
+            stream.addEvent(event);
+            await stream.commitAsync();
+        }
+
+        let gotEventsCount = 0;
+
+        for (let shard = 0; shard < config.clusters.length; shard++) {
+            for (let partition = 0; partition < partitionCount; partition++) {
+                const events = await clustedEventstore.getEventsAsync({
+                    aggregate: aggregate,
+                    context: context,
+                    shard: shard,
+                    partition: partition
+                });
+    
+                gotEventsCount += events.length;
+            }
+        }
+
+        expect(gotEventsCount).toEqual(numberOfEventsToWrite);
+    })
+
     it('should be able to call useEventPublisher', async (done) => {
         const config = {
             clusters: [{
