@@ -7,7 +7,8 @@ const TaskAssignmentGroup = require('../lib/eventstore-projections/task-assignme
 class ClusteredEventStore {
     constructor(options) {
         const defaults = {
-            clusters: []
+            clusters: [],
+            partitions: 25
         };
 
         this._options = _.defaults(options, defaults);
@@ -25,6 +26,7 @@ class ClusteredEventStore {
                 database: storeConfig.database,
                 connectionPoolLimit: storeConfig.connectionPoolLimit,
                 shard: index,
+                partitions: this._options.partitions,
                 shouldDoTaskAssignment: false
             };
 
@@ -106,7 +108,7 @@ class ClusteredEventStore {
             redis: redisClient,
             lock: self._options.lock
         });
-    
+
         self._taskGroup = new TaskAssignmentGroup({
             initialTasks: tasks,
             createRedisClient: self._options.redisCreateClient,
@@ -126,7 +128,7 @@ class ClusteredEventStore {
             for(const projectionId of updatedAssignments) {
                 debug('for each', projectionId);
                 const splitProjectionId = projectionId.split(':');
-                if(splitProjectionId.length > 1 && splitProjectionId[1]) {
+                if (splitProjectionId.length > 1 && splitProjectionId[1]) {
                     const shardString = splitProjectionId[1];
                     const stringIndex = shardString.replace('shard', '');
                     const shard = parseInt(stringIndex);
@@ -185,7 +187,7 @@ class ClusteredEventStore {
         for (const eventstore of this._eventstores) {
             promises.push(eventstore.stopAllProjectionsAsync());
         }
-        
+
         Promise.all(promises)
         .then(() => {
             if (self._taskGroup) {
@@ -212,7 +214,7 @@ class ClusteredEventStore {
             newTasks.push(clonedProjectionId);
             promises.push(eventstore.runProjectionAsync(clonedProjectionId, forced));
         }
-        
+
         Promise.all(promises)
         .then(() => {
             if (self._taskGroup) {
@@ -291,6 +293,29 @@ class ClusteredEventStore {
         this.#doOnShardedEventstore(aggregateId, 'getLastEvent', arguments);
     }
 
+    getEvents(query, callback) {
+        if (!query) {
+            throw new Error('query should be defined');
+        }
+
+        if (isNaN(parseInt(query.shard))) {
+            throw new Error('shard should be a number');
+        }
+
+        if (isNaN(parseInt(query.partition))) {
+            throw new Error('partition should be a number');
+        }
+
+        try {
+            let shard = query.shard;
+            const eventstore = this._eventstores[shard];
+            eventstore.getEventsAsync(query).then((data) => {
+                callback(null, data);
+            }).catch(callback);
+        } catch (error) {
+            callback(error);
+        }
+    }
 
     getLastEventAsStream(query, callback) {
         if (typeof query === 'string') {
@@ -344,6 +369,50 @@ class ClusteredEventStore {
     setEventToDispatched(event) {
         const aggregateId = event.aggregateId;
         this.#doOnShardedEventstore(aggregateId, 'setEventToDispatched', arguments);
+    }
+
+    getPlaybackList(listName) {
+        this.#doOnAnyEventstore('getPlaybacklist', arguments)
+    }
+
+    getStateList(listName, state) {
+        this.#doOnAnyEventstore('getStateList', arguments)
+    }
+
+    getPlaybackListView(listName, done) {
+        this.#doOnAnyEventstore('getPlaybackListView', arguments)
+    }
+
+    registerPlaybackListView(listName, listQuery, totalCountQuery, opts, done) {
+        this.#doOnAllEventstores('registerPlaybackListView', arguments);
+    }
+
+    registerFunction(functionName, theFunction) {
+        this.#doOnAllEventstoresNoCallback('registerFunction', arguments);
+    }
+
+    unsubscribe(token) {
+        this.#doOnAllEventstoresNoCallback('unsubscribe', arguments);
+    }
+
+    closeSubscriptionEventStreamBuffers(done) {
+        this.#doOnAllEventstores('closeSubscriptionEventStreamBuffers', arguments);
+    }
+
+    closeProjectionEventStreamBuffers(done) {
+        this.#doOnAllEventstores('closeProjectionEventStreamBuffers', arguments);
+    }
+
+    deactivatePolling() {
+        this.#doOnAllEventstoresNoCallback('deactivatePolling', arguments);
+    }
+
+    activatePolling() {
+        this.#doOnAllEventstoresNoCallback('activatePolling', arguments);
+    }
+
+    close(callback) {
+        this.#doOnAllEventstores('close', arguments);
     }
 
     #doOnAnyEventstore(methodName, args) {
