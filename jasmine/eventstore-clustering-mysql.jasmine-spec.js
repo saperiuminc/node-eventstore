@@ -6,6 +6,7 @@ const clusteredEs = require('../clustered/index');
 const Bluebird = require('bluebird');
 const shortId = require('shortid');
 const Redis = require('ioredis');
+const { isNumber } = require('lodash');
 
 const redisConfig = {
     host: 'localhost',
@@ -41,6 +42,24 @@ fdescribe('eventstore clustering mysql tests', () => {
             setTimeout(resolve, timeout);
         })
     }
+
+    const redisFactory = function() {
+        const options = redisConfig;
+        return {
+            createClient: function(type) {
+                switch (type) {
+                    case 'client':
+                        return new Redis(options);
+                    case 'bclient':
+                        return new Redis(options); // always create a new one
+                    case 'subscriber':
+                        return new Redis(options);
+                    default:
+                        return new Redis(options);
+                }
+            }
+        };
+    };
 
     beforeAll(async () => {
         await compose.upAll({
@@ -112,7 +131,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
 
@@ -139,7 +158,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
         const clustedEventstore = clusteredEs(config);
@@ -197,7 +216,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
         const clustedEventstore = clusteredEs(config);
@@ -255,7 +274,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
         const clustedEventstore = clusteredEs(config);
@@ -388,7 +407,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
         const clustedEventstore = clusteredEs(config);
@@ -444,7 +463,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
         const clustedEventstore = clusteredEs(config);
@@ -477,7 +496,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
         const clustedEventstore = clusteredEs(config);
@@ -516,7 +535,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
         const clustedEventstore = clusteredEs(config);
@@ -544,7 +563,6 @@ fdescribe('eventstore clustering mysql tests', () => {
         });
 
         expect(savedSnapshot.data).toEqual(newSnapshot);
-
     })
 
     it('should be able to call getUndispatchedEvents', async () => {
@@ -564,7 +582,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
         const clustedEventstore = clusteredEs(config);
@@ -596,7 +614,7 @@ fdescribe('eventstore clustering mysql tests', () => {
                 user: mysqlConfig2.user,
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
-                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
             }]
         };
         const clustedEventstore = clusteredEs(config);
@@ -638,7 +656,189 @@ fdescribe('eventstore clustering mysql tests', () => {
         await clustedEventstore.setEventToDispatchedAsync(lastEvent);
     })
 
-    // subscribe
-    // project
-    // startAllProjections
+    describe('projections', () => {
+        let clustedEventstore;
+        let context = `vehicle${shortId.generate()}`
+        beforeAll(async function() {
+            const config = {
+                clusters: [{
+                    type: 'mysql',
+                    host: mysqlConfig.host,
+                    port: mysqlConfig.port,
+                    user: mysqlConfig.user,
+                    password: mysqlConfig.password,
+                    database: mysqlConfig.database,
+                    connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                }, {
+                    type: 'mysql',
+                    host: mysqlConfig2.host,
+                    port: mysqlConfig2.port,
+                    user: mysqlConfig2.user,
+                    password: mysqlConfig2.password,
+                    database: mysqlConfig2.database,
+                    connectionPoolLimit: mysqlConfig2.connectionPoolLimit
+                }],
+                 // projections-specific configuration below
+                 redisCreateClient: redisFactory().createClient,
+                 listStore: {
+                     type: 'mysql',
+                     connection: {
+                         host: mysqlConfig.host,
+                         port: mysqlConfig.port,
+                         user: mysqlConfig.user,
+                         password: mysqlConfig.password,
+                         database: mysqlConfig.database
+                     },
+                     pool: {
+                         min: 10,
+                         max: 10
+                     }
+                 }, // required
+                 projectionStore: {
+                     type: 'mysql',
+                     connection: {
+                         host: mysqlConfig.host,
+                         port: mysqlConfig.port,
+                         user: mysqlConfig.user,
+                         password: mysqlConfig.password,
+                         database: mysqlConfig.database
+                     },
+                     pool: {
+                         min: 10,
+                         max: 10
+                     }
+                 }, // required
+                 enableProjection: true,
+                 enableProjectionEventStreamBuffer: false,
+                 eventCallbackTimeout: 1000,
+                 lockTimeToLive: 1000,
+                 pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
+                 pollingMaxRevisions: 100,
+                 errorMaxRetryCount: 2,
+                 errorRetryExponent: 2,
+                 playbackEventJobCount: 10,
+                 context: context,
+                 projectionGroup: 'default'
+            };
+            clustedEventstore = clusteredEs(config);
+            Bluebird.promisifyAll(clustedEventstore);
+            await clustedEventstore.initAsync();
+        }, 60000);
+
+        // beforeEach(async function() {
+        //     for(const eventstore of clustedEventstore._eventstores) {
+        //         Bluebird.promisifyAll(eventstore.store);
+        //         await eventstore.store.clearAsync();
+        //     }
+
+        //     const projections = await clustedEventstore.getProjectionsAsync();
+        //     for (const projection of projections[0]) {
+        //         const splitProjectionId = projection.projectionId.split(':');
+        //         await clustedEventstore.deleteProjectionAsync(splitProjectionId[0]);
+        //     }
+        // }, 60000);
+
+        it('should run the projection with sharding', async function() {
+            const projectionConfig = {
+                projectionId: 'vehicle-list',
+                projectionName: 'Vehicle Listing',
+                playbackInterface: {
+                    $init: function() {
+                        return {
+                            count: 0
+                        }
+                    },
+                    VEHICLE_CREATED: async function(state, event, funcs) {
+    
+                    }
+                },
+                query: [{
+                    context: context
+                }],
+                partitionBy: '',
+                outputState: 'true',
+                playbackList: {
+                    name: 'vehicle_list',
+                    fields: [{
+                        name: 'vehicleId',
+                        type: 'string'
+                    }]
+                }
+            };
+    
+            debug('projectAsync');
+            await clustedEventstore.projectAsync(projectionConfig);
+            
+            debug('runProjectionAsync');
+            await clustedEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+    
+            
+            debug('startAllProjectionsAsync');
+            await clustedEventstore.startAllProjectionsAsync();
+    
+    
+            const vehicleId = shortId.generate();
+            const stream = await clustedEventstore.getLastEventAsStreamAsync({
+                context: context,
+                aggregate: 'vehicle',
+                aggregateId: vehicleId
+            });
+    
+            Bluebird.promisifyAll(stream);
+    
+            const event = {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+            stream.addEvent(event);
+            await stream.commitAsync();
+    
+            let pollCounter = 0;
+            let projection;
+            let projectionOffset;
+            while (pollCounter < 10) {
+                debug('polling');
+                projection = await clustedEventstore.getProjectionAsync(projectionConfig.projectionId);
+    
+                let projections = [];
+                if(Array.isArray(projection)) {
+                    projections = projections.concat(projection);
+                } else {
+                    projections.push(projection);
+                }
+    
+                if(projections.length > 0) {
+                    let hasPassed = false;
+                    for(const pj of projections) {
+                        if (pj.processedDate && pj.state == 'running') {
+                            hasPassed = true;
+                        }
+                        if(isNumber(pj.offset)) {
+                            projectionOffset = pj.offset
+                        }
+                    }
+                    if (hasPassed) {
+                        break;
+                    } else {
+                        debug(`projection has not processed yet. trying again in 1000ms`);
+                        await sleep(1000);
+                    }
+                } else {
+                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    await sleep(1000);
+                }
+                
+            }
+    
+            expect(pollCounter).toBeLessThan(10);
+            expect(projectionOffset).toBeGreaterThan(0);
+        });
+    });
+    
 })

@@ -286,7 +286,6 @@ zbench('bench eventstore-projection', (z) => {
                                     }
                                     return result;
                                 }, []);
-                                // console.log('REDIS stats:', stats);
                                 b.addStat('Redis Connected Clients', stats.find(x => x.name === 'connected_clients').value);
                                 b.addStat('Redis Blocked Clients', stats.find(x => x.name === 'blocked_clients').value);
                                 b.addStat('Redis Instantaneous OPS', stats.find(x => x.name === 'instantaneous_ops_per_sec').value);
