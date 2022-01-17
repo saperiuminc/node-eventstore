@@ -112,6 +112,7 @@ class ClusteredEventStore {
     
         await self._taskGroup.join();
         self._taskGroup.on('rebalance', async (updatedAssignments, rebalanceId) => {
+            debug('did rebalance', updatedAssignments);
             // distribute to shards
             const distributedAssignments = {};
             for(const projectionId of updatedAssignments) {
@@ -175,6 +176,7 @@ class ClusteredEventStore {
         Promise.all(promises)
         .then(() => {
             if (self._taskGroup) {
+                debug('self._taskGroup.leave()');
                 self._taskGroup.leave();
             }
         })
@@ -270,7 +272,30 @@ class ClusteredEventStore {
         .then((data) => done(null, data))
         .catch((err) => {
             console.error(err);
-            callback();
+            done();
+        });
+    }
+
+    pauseProjection(projectionId, done) {
+        const self = this;
+        const promises = [];
+
+        for (const eventstore of this._eventstores) {
+            for (let i = 0; i < eventstore.options.partitions; i++) {
+                let clonedProjectionId = _.clone(projectionId);
+                clonedProjectionId = `${clonedProjectionId}:shard${eventstore.options.shard}:partition${i}`;
+                if(self._taskGroup) {
+                    self._taskGroup.removeTasks([clonedProjectionId]);
+                }
+                promises.push(eventstore.pauseProjectionAsync(clonedProjectionId));
+            }
+        }
+        
+        Promise.all(promises)
+        .then((data) => done(null, data))
+        .catch((err) => {
+            console.error(err);
+            done();
         });
     }
 
