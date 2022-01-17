@@ -177,27 +177,27 @@ fdescribe('eventstore clustering mysql projection tests', () => {
                 playbackEventJobCount: 10,
                 context: 'vehicle',
                 projectionGroup: 'default',
-                membershipPollingTimeout: 1000
+                membershipPollingTimeout: 10000
             };
             clustedEventstore = clusteredEs(config);
             Bluebird.promisifyAll(clustedEventstore);
             await clustedEventstore.initAsync();
         }, 60000);
 
-        // afterEach(async function() {
-        //     for(const eventstore of clustedEventstore._eventstores) {
-        //         Bluebird.promisifyAll(eventstore.store);
-        //         await eventstore.store.clearAsync();
-        //     }
+        afterEach(async function() {
+            for(const eventstore of clustedEventstore._eventstores) {
+                Bluebird.promisifyAll(eventstore.store);
+                await eventstore.store.clearAsync();
+            }
 
-        //     const projections = await clustedEventstore.getProjectionsAsync();
-        //     for (const projection of projections[0]) {
-        //         const splitProjectionId = projection.projectionId.split(':');
-        //         await clustedEventstore.deleteProjectionAsync(splitProjectionId[0]);
-        //     }
-        // }, 60000);
+            const projections = await clustedEventstore.getProjectionsAsync();
+            for (const projection of projections[0]) {
+                const splitProjectionId = projection.projectionId.split(':');
+                await clustedEventstore.deleteProjectionAsync(splitProjectionId[0]);
+            }
+        }, 60000);
 
-        fit('should run the projection with sharding', async function() {
+        it('should run the projection with sharding', async function() {
             let context = `vehicle${shortId.generate()}`
 
             const projectionConfig = {
@@ -268,8 +268,6 @@ fdescribe('eventstore clustering mysql projection tests', () => {
                 pollCounter += 1;
                 debug('polling');
                 projection = await clustedEventstore.getProjectionAsync(projectionConfig.projectionId);
-    
-                debug(projection);
 
                 let projections = [];
                 if(Array.isArray(projection)) {
@@ -646,6 +644,55 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             // NOTE: expected not to process since deleted projection
             expect(pollCounter).toEqual(5);
             expect(projectionOffset).toEqual(undefined);
+        });
+
+        xit('should reset the projection', async function() {
+            let context = `vehicle${shortId.generate()}`
+
+            const projectionConfig = {
+                projectionId: context,
+                projectionName: 'Vehicle Listing',
+                playbackInterface: {
+                    $init: function() {
+                        return {
+                            count: 0
+                        }
+                    }
+                },
+                query: {
+                    context: context,
+                    aggregate: 'vehicle'
+                },
+                partitionBy: '',
+                outputState: 'true',
+                playbackList: {
+                    name: 'vehicle_list',
+                    fields: [{
+                        name: 'vehicleId',
+                        type: 'string'
+                    }]
+                }
+            };
+    
+            await clustedEventstore.projectAsync(projectionConfig);
+            await clustedEventstore.resetProjectionAsync(projectionConfig.projectionId);
+
+            const projection = await clustedEventstore.getProjectionAsync(projectionConfig.projectionId);
+    
+            let projections = [];
+            if(Array.isArray(projection)) {
+                projections = projections.concat(projection);
+            } else {
+                projections.push(projection);
+            }
+
+            if(projections.length > 0) {
+                for(const pj of projections) {
+                    if(pj) {
+                        expect(projection.offset).toEqual(0);
+                    }
+                }
+            }
         });
     });
 })
