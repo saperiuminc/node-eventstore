@@ -40,7 +40,7 @@ class ClusteredEventStore {
     }
 
     init() {
-        this.#doOnAllEventstores('init', arguments);
+        this._doOnAllEventstores('init', arguments);
     }
 
     startAllProjections() {
@@ -74,7 +74,7 @@ class ClusteredEventStore {
             }
             allProjectionIdsInAllShards = Object.values(filterByDictionary);
 
-            return self.#doTaskAssignment(self._options.projectionGroup, allProjectionIdsInAllShards);
+            return self._doTaskAssignment(self._options.projectionGroup, allProjectionIdsInAllShards);
         })
         .then(function(...data) {
             callback(null, ...data);
@@ -85,7 +85,7 @@ class ClusteredEventStore {
         });
     }
 
-    #doTaskAssignment = async function(projectionGroup, allProjectionsInAllShards) {
+    _doTaskAssignment = async function(projectionGroup, allProjectionsInAllShards) {
         const self = this;
         const tasks = [];
 
@@ -301,18 +301,18 @@ class ClusteredEventStore {
 
     subscribe(query, revision, onEventCallback, onErrorCallback) {
         const aggregateId = query.aggregateId;
-        this.#doOnShardedEventstore(aggregateId, 'subscribe', arguments);
+        this._doOnShardedEventstore(aggregateId, 'subscribe', arguments);
     }
 
     defineEventMappings() {
-        this.#doOnAllEventstoresNoCallback('defineEventMappings', arguments);
+        this._doOnAllEventstoresNoCallback('defineEventMappings', arguments);
     }
 
     useEventPublisher() {
         // NOTE: callback of useEventPublisher is not a callback when useEventPublisher is finished being called
         // it is a callback for when an event is to be published. 
         // hence we are using the no callback method
-        this.#doOnAllEventstoresNoCallback('useEventPublisher', arguments);
+        this._doOnAllEventstoresNoCallback('useEventPublisher', arguments);
     }
 
     getLastEvent(query) {
@@ -323,7 +323,7 @@ class ClusteredEventStore {
         }
 
         const aggregateId = query.aggregateId;
-        this.#doOnShardedEventstore(aggregateId, 'getLastEvent', arguments);
+        this._doOnShardedEventstore(aggregateId, 'getLastEvent', arguments);
     }
 
     getEvents(query, callback) {
@@ -358,7 +358,7 @@ class ClusteredEventStore {
         }
 
         const aggregateId = query.aggregateId;
-        this.#doOnShardedEventstore(aggregateId, 'getLastEventAsStream', arguments);
+        this._doOnShardedEventstore(aggregateId, 'getLastEventAsStream', arguments);
     }
 
     getEventStream(query) {
@@ -369,7 +369,7 @@ class ClusteredEventStore {
         }
 
         const aggregateId = query.aggregateId;
-        this.#doOnShardedEventstore(aggregateId, 'getEventStream', arguments);
+        this._doOnShardedEventstore(aggregateId, 'getEventStream', arguments);
     }
 
     getFromSnapshot(query, revMax, callback) {
@@ -380,12 +380,12 @@ class ClusteredEventStore {
         }
 
         const aggregateId = query.aggregateId;
-        this.#doOnShardedEventstore(aggregateId, 'getFromSnapshot', arguments);
+        this._doOnShardedEventstore(aggregateId, 'getFromSnapshot', arguments);
     }
 
     createSnapshot(query, callback) {
         const aggregateId = query.aggregateId;
-        this.#doOnShardedEventstore(aggregateId, 'createSnapshot', arguments);
+        this._doOnShardedEventstore(aggregateId, 'createSnapshot', arguments);
     }
 
     getUndispatchedEvents(query, callback) {
@@ -396,64 +396,64 @@ class ClusteredEventStore {
         }
 
         const aggregateId = query.aggregateId;
-        this.#doOnShardedEventstore(aggregateId, 'getUndispatchedEvents', arguments);
+        this._doOnShardedEventstore(aggregateId, 'getUndispatchedEvents', arguments);
     }
 
     setEventToDispatched(event) {
         const aggregateId = event.aggregateId;
-        this.#doOnShardedEventstore(aggregateId, 'setEventToDispatched', arguments);
+        this._doOnShardedEventstore(aggregateId, 'setEventToDispatched', arguments);
     }
 
     getPlaybackList(listName) {
-        this.#doOnAnyEventstore('getPlaybacklist', arguments)
+        this._doOnAnyEventstore('getPlaybacklist', arguments)
     }
 
     getStateList(listName, state) {
-        this.#doOnAnyEventstore('getStateList', arguments)
+        this._doOnAnyEventstore('getStateList', arguments)
     }
 
     getPlaybackListView(listName, done) {
-        this.#doOnAnyEventstore('getPlaybackListView', arguments)
+        this._doOnAnyEventstore('getPlaybackListView', arguments)
     }
 
     registerPlaybackListView(listName, listQuery, totalCountQuery, opts, done) {
-        this.#doOnAllEventstores('registerPlaybackListView', arguments);
+        this._doOnAllEventstores('registerPlaybackListView', arguments);
     }
 
     registerFunction(functionName, theFunction) {
-        this.#doOnAllEventstoresNoCallback('registerFunction', arguments);
+        this._doOnAllEventstoresNoCallback('registerFunction', arguments);
     }
 
     unsubscribe(token) {
-        this.#doOnAllEventstoresNoCallback('unsubscribe', arguments);
+        this._doOnAllEventstoresNoCallback('unsubscribe', arguments);
     }
 
     closeSubscriptionEventStreamBuffers(done) {
-        this.#doOnAllEventstores('closeSubscriptionEventStreamBuffers', arguments);
+        this._doOnAllEventstores('closeSubscriptionEventStreamBuffers', arguments);
     }
 
     closeProjectionEventStreamBuffers(done) {
-        this.#doOnAllEventstores('closeProjectionEventStreamBuffers', arguments);
+        this._doOnAllEventstores('closeProjectionEventStreamBuffers', arguments);
     }
 
     deactivatePolling() {
-        this.#doOnAllEventstoresNoCallback('deactivatePolling', arguments);
+        this._doOnAllEventstoresNoCallback('deactivatePolling', arguments);
     }
 
     activatePolling() {
-        this.#doOnAllEventstoresNoCallback('activatePolling', arguments);
+        this._doOnAllEventstoresNoCallback('activatePolling', arguments);
     }
 
     close(callback) {
-        this.#doOnAllEventstores('close', arguments);
+        this._doOnAllEventstores('close', arguments);
     }
 
-    #doOnAnyEventstore(methodName, args) {
+    _doOnAnyEventstore(methodName, args) {
         const eventstore = this._eventstores[Math.random(this._options.numberOfShards)];
         eventstore[methodName].apply(eventstore, args)
     }
 
-    #doOnAllEventstores(methodname, args) {
+    _doOnAllEventstores(methodname, args) {
         const promises = [];
         const callback = args[args.length - 1];
         for (const eventstore of this._eventstores) {
@@ -464,20 +464,20 @@ class ClusteredEventStore {
         }).catch(callback);
     }
 
-    #doOnAllEventstoresNoCallback(methodName, args) {
+    _doOnAllEventstoresNoCallback(methodName, args) {
         for (const eventstore of this._eventstores) {
             eventstore[methodName].apply(eventstore, args)
         }
     }
 
-    #doOnShardedEventstore(aggregateId, methodName, args) {
+    _doOnShardedEventstore(aggregateId, methodName, args) {
         // NOTE: our usage always have aggregateId in query
-        let shard = this.#getShard(aggregateId);
+        let shard = this._getShard(aggregateId);
         const eventstore = this._eventstores[shard];
         return eventstore[methodName].apply(eventstore, args);
     }
 
-    #getShard(aggregateId) {
+    _getShard(aggregateId) {
         let shard = murmurhash(aggregateId) % this._options.numberOfShards;
         return shard;
     }
