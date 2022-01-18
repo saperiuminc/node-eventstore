@@ -109,9 +109,9 @@ fdescribe('eventstore clustering mysql projection tests', () => {
 
     afterAll(async () => {
         debug('docker compose down started');
-        // await compose.down({
-        //     cwd: path.join(__dirname)
-        // })
+        await compose.down({
+            cwd: path.join(__dirname)
+        })
         debug('docker compose down finished');
     });
 
@@ -194,6 +194,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             const projections = await clusteredEventstore.getProjectionsAsync();
             for (const projection of projections[0]) {
                 const splitProjectionId = projection.projectionId.split(':');
+                await clusteredEventstore.resetProjectionAsync(splitProjectionId[0]);
                 await clusteredEventstore.deleteProjectionAsync(splitProjectionId[0]);
             }
         }, 60000);
@@ -847,7 +848,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             expect(faultedProjection.isIdle).toEqual(0);
         });
 
-        fit('should add and update data to the stateList', async function() {
+        it('should add and update data to the stateList', async function() {
             let context = `vehicle${shortId.generate()}`
             const projectionConfig = {
                 projectionId: context,
@@ -869,7 +870,6 @@ fdescribe('eventstore clustering mysql projection tests', () => {
                         };
     
                         const stateList = await funcs.getStateList('vehicle_state_list');
-    
                         await stateList.push(data);
                     },
                     VEHICLE_UPDATED: async function(state, event, funcs) {
@@ -977,7 +977,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
              const event11 = {
                  name: "VEHICLE_CREATED",
                  payload: {
-                     vehicleId: vehicleId,
+                     vehicleId: vehicleId2,
                      year: 2012,
                      make: "Honda",
                      model: "Jazz",
@@ -990,7 +990,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
              const event22 = {
                  name: "VEHICLE_UPDATED",
                  payload: {
-                     vehicleId: vehicleId,
+                     vehicleId: vehicleId2,
                      year: 2012,
                      make: "Honda",
                      model: "Jazz",
@@ -1038,7 +1038,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             expect(pollCounter).toBeLessThan(10);
 
             const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
-    
+            debug('playbackList', playbackList);
             const filteredResults = await playbackList.query(0, 1, [{
                 field: 'vehicleId',
                 operator: 'is',
