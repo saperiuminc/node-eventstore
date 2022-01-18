@@ -1648,7 +1648,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             expect(result.data).toEqual(event.payload);
         });
 
-        xit('should emit playbackError on playback error', async (done) => {
+        it('should emit playbackError on playback error', async (done) => {
             let context = `vehicle${shortid.generate()}`
             const errorMessage = 'test-error';
             const projectionConfig = {
