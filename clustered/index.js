@@ -1,4 +1,4 @@
-const ClusteredEventStore = require("./clustered-eventstore");
+const ClusteredEventStore = require("../lib/eventstore-projections/clustered-eventstore");
 
 module.exports = function(options) {
     // TODO: subset options
