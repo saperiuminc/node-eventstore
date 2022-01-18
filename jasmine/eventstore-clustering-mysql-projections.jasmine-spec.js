@@ -1715,7 +1715,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             await stream.commitAsync();
         });
 
-        xit('should emit playbackSuccess on playback', async (done) => {
+        it('should emit playbackSuccess on playback', async (done) => {
             let context = `vehicle${shortid.generate()}`
             const errorMessage = 'test-error';
             const projectionConfig = {
@@ -1771,10 +1771,13 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             }
     
             const listener = (data) => {
-                expect(data.projectionId).toEqual(projectionConfig.projectionId);
-                expect(data.eventsCount).toEqual(1);
-                clusteredEventstore.off('playbackSuccess', listener);
-                done();
+                //NOTE: playback success runs on all projections shard partition instance hence need to determine which did run an event
+                if(data.eventsCount > 0) {
+                    expect(data.projectionId).toContain(projectionConfig.projectionId);
+                    expect(data.eventsCount).toEqual(1);
+                    clusteredEventstore.off('playbackSuccess', listener);
+                    done();
+                }
             };
     
             clusteredEventstore.on('playbackSuccess', listener);
@@ -1783,7 +1786,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             await stream.commitAsync();
         });
 
-        xit('should handle batch events', async (done) => {
+        it('should handle batch events', async (done) => {
             let context = `vehicle${shortid.generate()}`
             const errorMessage = 'test-error';
             const projectionConfig = {
@@ -1867,7 +1870,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             await waitForRebalance();
         });
 
-        fit('should add a projection with a proper offset if the configured fromOffset is set to latest', async function() {
+        it('should add a projection with a proper offset if the configured fromOffset is set to latest', async function() {
             let context = `vehicle${shortid.generate()}`
             const initialProjectionConfig = {
                 projectionId: context,
@@ -1944,16 +1947,52 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             stream.addEvent(initialEvents[1]);
             await stream.commitAsync();
     
+            // let pollCounter = 0;
+            // while (pollCounter < 10) {
+            //     const initialProjection = await clusteredEventstore.getProjectionAsync(initialProjectionConfig.projectionId);
+            //     if (initialProjection.processedDate) {
+            //         break;
+            //     } else {
+            //         debug(`projection has not processed yet. trying again in 1000ms`);
+            //         await sleep(1000);
+            //     }
+            // }
+
             let pollCounter = 0;
+            let projectionRunned;
             while (pollCounter < 10) {
-                const initialProjection = await clusteredEventstore.getProjectionAsync(initialProjectionConfig.projectionId);
-                if (initialProjection.processedDate) {
-                    break;
+                pollCounter += 1;
+                debug('polling');
+                let projection = await clusteredEventstore.getProjectionAsync(initialProjectionConfig.projectionId);
+    
+                let projections = [];
+                if(Array.isArray(projection)) {
+                    projections = projections.concat(projection);
+                } else {
+                    projections.push(projection);
+                }
+    
+                if(projections.length > 0) {
+                    for(const pj of projections) {
+                        debug('pj', pj);
+                        if (pj.processedDate && pj.offset > 0) {
+                            projectionRunned = pj;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`);
+                            await sleep(retryInterval);
+                        }
+                    }
                 } else {
                     debug(`projection has not processed yet. trying again in 1000ms`);
-                    await sleep(1000);
+                    await sleep(retryInterval);
+                }
+
+                if(projectionRunned != undefined) {
+                    break;
                 }
             }
+
             expect(pollCounter).toBeLessThan(10);
     
             const projectionWithLatestOffsetConfig = {
@@ -1983,8 +2022,44 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             };
     
             await clusteredEventstore.projectAsync(projectionWithLatestOffsetConfig);
-            const projection = await clusteredEventstore.getProjectionAsync(projectionWithLatestOffsetConfig.projectionId);
-            expect(projection.offset).toEqual(2);
+        
+
+            pollCounter = 0;
+            projectionRunned;
+            while (pollCounter < 10) {
+                pollCounter += 1;
+                debug('polling 2');
+                const projection2 = await clusteredEventstore.getProjectionAsync(projectionWithLatestOffsetConfig.projectionId);
+    
+                let projections = [];
+                if(Array.isArray(projection2)) {
+                    projections = projections.concat(projection2);
+                } else {
+                    projections.push(projection2);
+                }
+    
+                if(projections.length > 0) {
+                    for(const pj of projections) {
+                        debug('pj', pj);
+                        if (pj.processedDate && pj.offset > 0) {
+                            projectionRunned = pj;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`);
+                            await sleep(retryInterval);
+                        }
+                    }
+                } else {
+                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    await sleep(retryInterval);
+                }
+
+                if(projectionRunned != undefined) {
+                    break;
+                }
+            }
+
+            expect(projectionRunned.offset).toEqual(2);
         });
     });
 })  
