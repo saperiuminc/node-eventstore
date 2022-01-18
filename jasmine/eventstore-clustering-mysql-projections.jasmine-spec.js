@@ -108,14 +108,14 @@ fdescribe('eventstore clustering mysql projection tests', () => {
 
     afterAll(async () => {
         debug('docker compose down started');
-        await compose.down({
-            cwd: path.join(__dirname)
-        })
+        // await compose.down({
+        //     cwd: path.join(__dirname)
+        // })
         debug('docker compose down finished');
     });
 
     describe('projections', () => {
-        let clustedEventstore;
+        let clusteredEventstore;
         beforeAll(async function() {
             const config = {
                 clusters: [{
@@ -179,21 +179,21 @@ fdescribe('eventstore clustering mysql projection tests', () => {
                 projectionGroup: 'default',
                 membershipPollingTimeout: 10000
             };
-            clustedEventstore = clusteredEs(config);
-            Bluebird.promisifyAll(clustedEventstore);
-            await clustedEventstore.initAsync();
+            clusteredEventstore = clusteredEs(config);
+            Bluebird.promisifyAll(clusteredEventstore);
+            await clusteredEventstore.initAsync();
         }, 60000);
 
-        afterEach(async function() {
-            for(const eventstore of clustedEventstore._eventstores) {
+        beforeEach(async function() {
+            for(const eventstore of clusteredEventstore._eventstores) {
                 Bluebird.promisifyAll(eventstore.store);
                 await eventstore.store.clearAsync();
             }
 
-            const projections = await clustedEventstore.getProjectionsAsync();
+            const projections = await clusteredEventstore.getProjectionsAsync();
             for (const projection of projections[0]) {
                 const splitProjectionId = projection.projectionId.split(':');
-                await clustedEventstore.deleteProjectionAsync(splitProjectionId[0]);
+                await clusteredEventstore.deleteProjectionAsync(splitProjectionId[0]);
             }
         }, 60000);
 
@@ -228,19 +228,19 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             };
     
             debug('projectAsync');
-            await clustedEventstore.projectAsync(projectionConfig);
+            await clusteredEventstore.projectAsync(projectionConfig);
             
             debug('runProjectionAsync');
-            await clustedEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+            await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
     
             
             debug('startAllProjectionsAsync');
-            await clustedEventstore.startAllProjectionsAsync();
+            await clusteredEventstore.startAllProjectionsAsync();
     
     
             const vehicleId = shortId.generate();
             // const vehicleId = 'QPvvZubzuMg';
-            const stream = await clustedEventstore.getLastEventAsStreamAsync({
+            const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                 context: context,
                 aggregate: 'vehicle',
                 aggregateId: vehicleId
@@ -267,7 +267,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                projection = await clustedEventstore.getProjectionAsync(projectionConfig.projectionId);
+                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
 
                 let projections = [];
                 if(Array.isArray(projection)) {
@@ -334,19 +334,19 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             };
     
             debug('projectAsync');
-            await clustedEventstore.projectAsync(projectionConfig);
+            await clusteredEventstore.projectAsync(projectionConfig);
             
             debug('runProjectionAsync');
-            await clustedEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+            await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
     
             
             debug('startAllProjectionsAsync');
-            await clustedEventstore.startAllProjectionsAsync();
+            await clusteredEventstore.startAllProjectionsAsync();
     
     
             const vehicleId = shortId.generate();
             // const vehicleId = 'QPvvZubzuMg';
-            const stream = await clustedEventstore.getLastEventAsStreamAsync({
+            const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                 context: context,
                 aggregate: 'vehicle',
                 aggregateId: vehicleId
@@ -388,7 +388,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                projection = await clustedEventstore.getProjectionAsync(projectionConfig.projectionId);
+                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
     
                 let projections = [];
                 if(Array.isArray(projection)) {
@@ -424,229 +424,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             expect(projectionOffset).toBeLessThanOrEqual(2);
         });
 
-        it('should not run projections when deleted', async function() {
-            let context = `vehicle${shortId.generate()}`
-
-            const projectionConfig = {
-                projectionId: context,
-                projectionName: 'Vehicle Listing',
-                playbackInterface: {
-                    $init: function() {
-                        return {
-                            count: 0
-                        }
-                    },
-                    VEHICLE_CREATED: async function(state, event, funcs) {
-    
-                    }
-                },
-                query: [{
-                    context: context
-                }],
-                partitionBy: '',
-                outputState: 'true',
-                playbackList: {
-                    name: 'vehicle_list',
-                    fields: [{
-                        name: 'vehicleId',
-                        type: 'string'
-                    }]
-                }
-            };
-    
-            debug('projectAsync');
-            await clustedEventstore.projectAsync(projectionConfig);
-            
-            debug('runProjectionAsync');
-            await clustedEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-    
-            debug('deleteProjectionAsync');
-            await clustedEventstore.deleteProjectionAsync(projectionConfig.projectionId);
-
-            debug('startAllProjectionsAsync');
-            await clustedEventstore.startAllProjectionsAsync();
-    
-    
-            const vehicleId = shortId.generate();
-            // const vehicleId = 'QPvvZubzuMg';
-            const stream = await clustedEventstore.getLastEventAsStreamAsync({
-                context: context,
-                aggregate: 'vehicle',
-                aggregateId: vehicleId
-            });
-    
-            Bluebird.promisifyAll(stream);
-    
-            const event = {
-                name: "VEHICLE_CREATED",
-                payload: {
-                    vehicleId: vehicleId,
-                    year: 2012,
-                    make: "Honda",
-                    model: "Jazz",
-                    mileage: 1245
-                }
-            }
-            stream.addEvent(event);
-            await stream.commitAsync();
-    
-            let pollCounter = 0;
-            let projection;
-            let projectionOffset;
-            while (pollCounter < 5) {
-                pollCounter += 1;
-                debug('polling');
-                projection = await clustedEventstore.getProjectionAsync(projectionConfig.projectionId);
-    
-                let projections = [];
-                if(Array.isArray(projection)) {
-                    projections = projections.concat(projection);
-                } else {
-                    projections.push(projection);
-                }
-    
-                if(projections.length > 0) {
-                    let hasPassed = false;
-                    for(const pj of projections) {
-                        if(pj) {
-                            if (pj.processedDate && pj.state == 'running') {
-                                hasPassed = true;
-                            }
-                            if(isNumber(pj.offset)) {
-                                projectionOffset = pj.offset
-                            }
-                        }
-                    }
-                    if (hasPassed) {
-                        break;
-                    } else {
-                        debug(`projection has not processed yet. trying again in 1000ms`);
-                        await sleep(1000);
-                    }
-                } else {
-                    debug(`projection has not processed yet. trying again in 1000ms`);
-                    await sleep(1000);
-                }
-                
-            }
-    
-            // NOTE: expected not to process since deleted projection
-            expect(pollCounter).toEqual(5);
-            expect(projectionOffset).toEqual(undefined);
-        });
-
-        it('should not run projections when paused', async function() {
-            let context = `vehicle${shortId.generate()}`
-
-            const projectionConfig = {
-                projectionId: context,
-                projectionName: 'Vehicle Listing',
-                playbackInterface: {
-                    $init: function() {
-                        return {
-                            count: 0
-                        }
-                    },
-                    VEHICLE_CREATED: async function(state, event, funcs) {
-    
-                    }
-                },
-                query: [{
-                    context: context
-                }],
-                partitionBy: '',
-                outputState: 'true',
-                playbackList: {
-                    name: 'vehicle_list',
-                    fields: [{
-                        name: 'vehicleId',
-                        type: 'string'
-                    }]
-                }
-            };
-    
-            debug('projectAsync');
-            await clustedEventstore.projectAsync(projectionConfig);
-            
-            debug('runProjectionAsync');
-            await clustedEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-    
-            debug('pauseProjectionAsync');
-            await clustedEventstore.pauseProjectionAsync(projectionConfig.projectionId);
-
-            debug('startAllProjectionsAsync');
-            await clustedEventstore.startAllProjectionsAsync();
-    
-    
-            const vehicleId = shortId.generate();
-            // const vehicleId = 'QPvvZubzuMg';
-            const stream = await clustedEventstore.getLastEventAsStreamAsync({
-                context: context,
-                aggregate: 'vehicle',
-                aggregateId: vehicleId
-            });
-    
-            Bluebird.promisifyAll(stream);
-    
-            const event = {
-                name: "VEHICLE_CREATED",
-                payload: {
-                    vehicleId: vehicleId,
-                    year: 2012,
-                    make: "Honda",
-                    model: "Jazz",
-                    mileage: 1245
-                }
-            }
-            stream.addEvent(event);
-            await stream.commitAsync();
-    
-            let pollCounter = 0;
-            let projection;
-            let projectionOffset;
-            while (pollCounter < 5) {
-                pollCounter += 1;
-                debug('polling');
-                projection = await clustedEventstore.getProjectionAsync(projectionConfig.projectionId);
-    
-                let projections = [];
-                if(Array.isArray(projection)) {
-                    projections = projections.concat(projection);
-                } else {
-                    projections.push(projection);
-                }
-    
-                if(projections.length > 0) {
-                    let hasPassed = false;
-                    for(const pj of projections) {
-                        if(pj) {
-                            if (pj.processedDate && pj.state == 'running') {
-                                hasPassed = true;
-                            }
-                            if(isNumber(pj.offset)) {
-                                projectionOffset = pj.offset
-                            }
-                        }
-                    }
-                    if (hasPassed) {
-                        break;
-                    } else {
-                        debug(`projection has not processed yet. trying again in 1000ms`);
-                        await sleep(1000);
-                    }
-                } else {
-                    debug(`projection has not processed yet. trying again in 1000ms`);
-                    await sleep(1000);
-                }
-                
-            }
-    
-            // NOTE: expected not to process since deleted projection
-            expect(pollCounter).toEqual(5);
-            expect(projectionOffset).toEqual(undefined);
-        });
-
-        xit('should reset the projection', async function() {
+        it('should reset the projection', async function() {
             let context = `vehicle${shortId.generate()}`
 
             const projectionConfig = {
@@ -674,11 +452,11 @@ fdescribe('eventstore clustering mysql projection tests', () => {
                 }
             };
     
-            await clustedEventstore.projectAsync(projectionConfig);
-            await clustedEventstore.resetProjectionAsync(projectionConfig.projectionId);
+            await clusteredEventstore.projectAsync(projectionConfig);
+            await clusteredEventstore.resetProjectionAsync(projectionConfig.projectionId);
 
-            const projection = await clustedEventstore.getProjectionAsync(projectionConfig.projectionId);
-    
+            const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+
             let projections = [];
             if(Array.isArray(projection)) {
                 projections = projections.concat(projection);
@@ -689,10 +467,585 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             if(projections.length > 0) {
                 for(const pj of projections) {
                     if(pj) {
-                        expect(projection.offset).toEqual(0);
+                        expect(pj.offset).toEqual(0);
                     }
                 }
             }
         });
+
+        it('should delete the projection', async function() {
+            let context = `vehicle${shortId.generate()}`
+
+            const projectionConfig = {
+                projectionId: context,
+                projectionName: 'Vehicle Listing',
+                playbackInterface: {
+                    $init: function() {
+                        return {
+                            count: 0
+                        }
+                    }
+                },
+                query: {
+                    context: context,
+                    aggregate: 'vehicle'
+                },
+                partitionBy: '',
+                outputState: 'true',
+                playbackList: {
+                    name: 'vehicle_list',
+                    fields: [{
+                        name: 'vehicleId',
+                        type: 'string'
+                    }]
+                }
+            };
+    
+            await clusteredEventstore.projectAsync(projectionConfig);
+            await clusteredEventstore.deleteProjectionAsync(projectionConfig.projectionId);
+
+            const storedProjection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+
+            let projections = [];
+            if(Array.isArray(storedProjection)) {
+                projections = projections.concat(storedProjection);
+            } else {
+                projections.push(storedProjection);
+            }
+
+            if(projections.length > 0) {
+                for(const pj of projections) {
+                    if(pj) {
+                        expect(pj).toBeNull();
+                    }
+                }
+            }
+        });
+
+        it('should pause the projection', async function() {
+            let context = `vehicle${shortId.generate()}`
+
+            const projectionConfig = {
+                projectionId: context,
+                projectionName: 'Vehicle Listing',
+                playbackInterface: {
+                    $init: function() {
+                        return {
+                            count: 0
+                        }
+                    }
+                },
+                query: {
+                    context: context,
+                    aggregate: 'vehicle'
+                },
+                partitionBy: '',
+                outputState: 'true',
+                playbackList: {
+                    name: 'vehicle_list',
+                    fields: [{
+                        name: 'vehicleId',
+                        type: 'string'
+                    }]
+                }
+            };
+    
+            await clusteredEventstore.projectAsync(projectionConfig);
+            await clusteredEventstore.pauseProjectionAsync(projectionConfig.projectionId);
+
+            const storedProjection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+
+            let projections = [];
+            if(Array.isArray(storedProjection)) {
+                projections = projections.concat(storedProjection);
+            } else {
+                projections.push(storedProjection);
+            }
+
+            if(projections.length > 0) {
+                for(const pj of projections) {
+                    if(pj) {
+                        expect(pj.state).toEqual('paused');
+                    }
+                }
+            }
+        });
+
+        it('should set the projection to faulted if there is an event handler error', async function() {
+            let context = `vehicle${shortId.generate()}`
+            const projectionConfig = {
+                projectionId: context,
+                projectionName: 'Vehicle Listing',
+                playbackInterface: {
+                    $init: function() {
+                        return {
+                            count: 0
+                        }
+                    },
+                    VEHICLE_CREATED: async function(state, event, funcs) {
+    
+                    },
+                    VEHICLE_UPDATED: async function(state, event, funcs) {
+                        throw new Error('your fault!');
+                    }
+                },
+                query: {
+                    context: context,
+                    aggregate: 'vehicle'
+                },
+                partitionBy: '',
+                outputState: 'true',
+                playbackList: {
+                    name: 'vehicle_list',
+                    fields: [{
+                        name: 'vehicleId',
+                        type: 'string'
+                    }]
+                }
+            };
+    
+            await clusteredEventstore.projectAsync(projectionConfig);
+            await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+            await clusteredEventstore.startAllProjectionsAsync();
+    
+            const vehicleId = shortId.generate();
+            const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                context: context,
+                aggregate: 'vehicle',
+                aggregateId: vehicleId
+            });
+    
+            Bluebird.promisifyAll(stream);
+    
+            const event = {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+            const event2 = {
+                name: "VEHICLE_UPDATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+            stream.addEvent(event);
+            stream.addEvent(event2);
+            await stream.commitAsync();
+
+            let pollCounter = 0;
+            let projection;
+            let faultedProjection;
+            while (pollCounter < 10) {
+                pollCounter += 1;
+                debug('polling');
+                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+    
+                let projections = [];
+                if(Array.isArray(projection)) {
+                    projections = projections.concat(projection);
+                } else {
+                    projections.push(projection);
+                }
+    
+                if(projections.length > 0) {
+                    for(const pj of projections) {
+                        debug('pj', pj);
+                        if (pj.state == 'faulted') {
+                            debug('projection.state is faulted. continuing with test');
+                            faultedProjection = pj;
+                            break;
+                        } else {
+                            debug(`projection.state ${pj.state} is not faulted. trying again in 1000ms`);
+                            await sleep(1000);
+                        }
+                    }
+                } else {
+                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    await sleep(1000);
+                }
+
+                if(faultedProjection != undefined) {
+                    break;
+                }
+            }
+
+            expect(pollCounter).toBeLessThan(20);
+            expect(faultedProjection.error).toBeTruthy();
+            expect(faultedProjection.errorEvent).toBeTruthy();
+            expect(faultedProjection.errorOffset).toBeGreaterThan(0);
+            expect(faultedProjection.offset).toEqual(1);
+        });
+
+        it('should force run the projection when there is an error', async function() {
+            let context = `vehicle${shortId.generate()}`
+            const projectionConfig = {
+                projectionId: context,
+                projectionName: 'Vehicle Listing',
+                playbackInterface: {
+                    $init: function() {
+                        return {
+                            count: 0
+                        }
+                    },
+                    VEHICLE_CREATED: async function(state, event, funcs) {
+    
+                    },
+                    VEHICLE_UPDATED: async function(state, event, funcs) {
+                        throw new Error('your fault!');
+                    }
+                },
+                query: {
+                    context: context,
+                    aggregate: 'vehicle'
+                },
+                partitionBy: '',
+                outputState: 'true',
+                playbackList: {
+                    name: 'vehicle_list',
+                    fields: [{
+                        name: 'vehicleId',
+                        type: 'string'
+                    }]
+                }
+            };
+    
+            await clusteredEventstore.projectAsync(projectionConfig);
+            await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+            await clusteredEventstore.startAllProjectionsAsync();
+    
+            const vehicleId = shortId.generate();
+            const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                context: context,
+                aggregate: 'vehicle',
+                aggregateId: vehicleId
+            });
+    
+            Bluebird.promisifyAll(stream);
+    
+            const event = {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+            const event2 = {
+                name: "VEHICLE_UPDATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+            stream.addEvent(event);
+            stream.addEvent(event2);
+            await stream.commitAsync();
+
+            let pollCounter = 0;
+            let projection;
+            let faultedProjection;
+            while (pollCounter < 10) {
+                pollCounter += 1;
+                debug('polling');
+                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+    
+                let projections = [];
+                if(Array.isArray(projection)) {
+                    projections = projections.concat(projection);
+                } else {
+                    projections.push(projection);
+                }
+    
+                if(projections.length > 0) {
+                    for(const pj of projections) {
+                        debug('pj', pj);
+                        if (pj.state == 'faulted') {
+                            debug('projection.state is faulted. continuing with test');
+                            faultedProjection = pj;
+                            break;
+                        } else {
+                            debug(`projection.state ${pj.state} is not faulted. trying again in 1000ms`);
+                            await sleep(1000);
+                        }
+                    }
+                } else {
+                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    await sleep(1000);
+                }
+
+                if(faultedProjection != undefined) {
+                    break;
+                }
+            }
+
+            expect(pollCounter).toBeLessThan(20);
+            expect(faultedProjection.error).toBeTruthy();
+            expect(faultedProjection.errorEvent).toBeTruthy();
+            expect(faultedProjection.errorOffset).toBeGreaterThan(0);
+            expect(faultedProjection.offset).toEqual(1);
+
+            let lastOffset = faultedProjection.offset;
+            faultedProjection = null;
+            pollCounter = 0;
+    
+            await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, true);
+    
+            while (pollCounter < 10) {
+                pollCounter += 1;
+                debug('polling 2');
+                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+    
+                let projections = [];
+                if(Array.isArray(projection)) {
+                    projections = projections.concat(projection);
+                } else {
+                    projections.push(projection);
+                }
+    
+                if(projections.length > 0) {
+                    for(const pj of projections) {
+                        debug('pj', pj);
+                        if (!lastOffset) {
+                            lastOffset = pj.offset;
+                        }
+                        if (pj.offset > lastOffset) {
+                            debug('offset changed', lastOffset, pj.offset);
+                            faultedProjection = pj;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`, lastOffset, pj.offset);
+                            await sleep(1000);
+                        }
+                    }
+                } else {
+                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    await sleep(1000);
+                }
+
+                if(faultedProjection != undefined) {
+                    break;
+                }
+            }
+    
+            expect(faultedProjection.offset).toEqual(2);
+            expect(faultedProjection.state).toEqual('running');
+            expect(faultedProjection.isIdle).toEqual(0);
+        });
+
+        fit('should add and update data to the stateList', async function() {
+            let context = `vehicle${shortId.generate()}`
+            const projectionConfig = {
+                projectionId: context,
+                projectionName: 'Vehicle Listing',
+                playbackInterface: {
+                    $init: function() {
+                        return {
+                            count: 0
+                        }
+                    },
+                    VEHICLE_CREATED: async function(state, event, funcs) {
+                        const eventPayload = event.payload.payload;
+                        const data = {
+                            vehicleId: eventPayload.vehicleId,
+                            year: eventPayload.year,
+                            make: eventPayload.make,
+                            model: eventPayload.model,
+                            mileage: eventPayload.mileage
+                        };
+    
+                        const stateList = await funcs.getStateList('vehicle_state_list');
+    
+                        await stateList.push(data);
+                    },
+                    VEHICLE_UPDATED: async function(state, event, funcs) {
+                        const eventPayload = event.payload.payload;
+    
+                        const stateList = await funcs.getStateList('vehicle_state_list');
+    
+                        const filters = [{
+                            field: 'vehicleId',
+                            operator: 'is',
+                            value: event.aggregateId
+                        }];
+    
+                        const row = await stateList.find(filters);
+    
+                        if (!row || !row.value) {
+                            throw new Error('statelist test error. vehicle not inserted to state list');
+                        } else {
+                            const updatedStateData = row.value;
+                            updatedStateData.year = eventPayload.year;
+                            updatedStateData.make = eventPayload.make;
+                            updatedStateData.model = eventPayload.model;
+                            updatedStateData.mileage = eventPayload.mileage;
+    
+                            await stateList.set(row.index, updatedStateData, row.meta);
+    
+                            const playbackList = await funcs.getPlaybackList('vehicle_list');
+                            await playbackList.add(event.aggregateId, event.streamRevision, updatedStateData, {});
+                        }
+                    }
+                },
+                query: {
+                    context: context,
+                    aggregate: 'vehicle'
+                },
+                partitionBy: '',
+                outputState: 'true',
+                stateList: [{
+                    name: 'vehicle_state_list',
+                    fields: [{
+                        name: 'vehicleId',
+                        type: 'string'
+                    }]
+                }],
+                playbackList: {
+                    name: 'vehicle_list',
+                    fields: [{
+                        name: 'vehicleId',
+                        type: 'string'
+                    }]
+                }
+            };
+    
+            await clusteredEventstore.projectAsync(projectionConfig);
+            await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+            await clusteredEventstore.startAllProjectionsAsync();
+    
+            // VEHICLE 1
+            const vehicleId = shortId.generate();
+            const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                context: context,
+                aggregate: 'vehicle',
+                aggregateId: vehicleId
+            });
+    
+            Bluebird.promisifyAll(stream);
+    
+            const event = {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+            stream.addEvent(event);
+            await stream.commitAsync();
+    
+            const event2 = {
+                name: "VEHICLE_UPDATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 9999
+                }
+            }
+            stream.addEvent(event2);
+            await stream.commitAsync();
+
+
+             // VEHICLE 2
+             const vehicleId2 = shortId.generate();
+             const stream2 = await clusteredEventstore.getLastEventAsStreamAsync({
+                 context: context,
+                 aggregate: 'vehicle',
+                 aggregateId: vehicleId2
+             });
+     
+             Bluebird.promisifyAll(stream2);
+     
+             const event11 = {
+                 name: "VEHICLE_CREATED",
+                 payload: {
+                     vehicleId: vehicleId,
+                     year: 2012,
+                     make: "Honda",
+                     model: "Jazz",
+                     mileage: 1245
+                 }
+             }
+             stream2.addEvent(event11);
+             await stream2.commitAsync();
+     
+             const event22 = {
+                 name: "VEHICLE_UPDATED",
+                 payload: {
+                     vehicleId: vehicleId,
+                     year: 2012,
+                     make: "Honda",
+                     model: "Jazz",
+                     mileage: 9999
+                 }
+             }
+             stream2.addEvent(event22);
+             await stream2.commitAsync();
+    
+            let pollCounter = 0;
+            let projectionRunned;
+            while (pollCounter < 10) {
+                pollCounter += 1;
+                debug('polling');
+                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+    
+                let projections = [];
+                if(Array.isArray(projection)) {
+                    projections = projections.concat(projection);
+                } else {
+                    projections.push(projection);
+                }
+    
+                if(projections.length > 0) {
+                    for(const pj of projections) {
+                        debug('pj', pj);
+                        if (pj.processedDate && pj.state == 'running') {
+                            projectionRunned = pj;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`);
+                            await sleep(1000);
+                        }
+                    }
+                } else {
+                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    await sleep(1000);
+                }
+
+                if(projectionRunned != undefined) {
+                    break;
+                }
+            }
+
+            expect(pollCounter).toBeLessThan(10);
+
+            const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
+    
+            const filteredResults = await playbackList.query(0, 1, [{
+                field: 'vehicleId',
+                operator: 'is',
+                value: vehicleId
+            }], null);
+    
+            const result = filteredResults.rows[0];
+            expect(result.data).toEqual(event2.payload);
+        });
     });
-})
+})  
