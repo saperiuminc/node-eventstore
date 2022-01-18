@@ -71,7 +71,8 @@ fdescribe('eventstore clustering mysql tests', () => {
 
         const retryInterval = 1000;
         let connectCounter = 0;
-        while (connectCounter < 30) {
+        const connectCounterThreshold = 30;
+        while (connectCounter < connectCounterThreshold) {
             try {
                 const mysqlConnection = await mysql2.createConnection({
                     host: 'localhost',
@@ -99,7 +100,7 @@ fdescribe('eventstore clustering mysql tests', () => {
             }
         }
 
-        if (connectCounter == 10) {
+        if (connectCounter == connectCounterThreshold) {
             throw new Error('cannot connect to mysql');
         }
 
