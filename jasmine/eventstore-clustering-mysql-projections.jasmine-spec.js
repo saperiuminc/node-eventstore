@@ -37,7 +37,7 @@ const eventstoreConfig = {
 }
 
 const retryInterval = 1000;
-fdescribe('eventstore clustering mysql projection tests', () => {
+describe('eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
@@ -849,8 +849,9 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             expect(faultedProjection.isIdle).toEqual(0);
         });
 
-        it('should add and update data to the stateList', async function() {
-            let context = `vehicle${shortid.generate()}`
+        fit('should add and update data to the stateList', async function() {
+            try {
+                let context = `vehicle${shortId.generate()}`
             const projectionConfig = {
                 projectionId: context,
                 projectionName: 'Vehicle Listing',
@@ -878,6 +879,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
     
                         const stateList = await funcs.getStateList('vehicle_state_list');
     
+                        console.log('event.aggregateId', event.aggregateId);
                         const filters = [{
                             field: 'vehicleId',
                             operator: 'is',
@@ -1047,6 +1049,11 @@ fdescribe('eventstore clustering mysql projection tests', () => {
     
             const result = filteredResults.rows[0];
             expect(result.data).toEqual(event2.payload);
+            } catch (error) {
+                console.error('got error', error);
+                throw error;
+            }
+            
         });
 
         it('should update the playbacklist data', async function() {

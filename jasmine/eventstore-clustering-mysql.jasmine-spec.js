@@ -109,9 +109,9 @@ describe('eventstore clustering mysql tests', () => {
 
     afterAll(async () => {
         debug('docker compose down started');
-        await compose.down({
-            cwd: path.join(__dirname)
-        })
+        // await compose.down({
+        //     cwd: path.join(__dirname)
+        // })
         debug('docker compose down finished');
     });
 
@@ -381,7 +381,7 @@ describe('eventstore clustering mysql tests', () => {
                     aggregate: aggregate,
                     context: context,
                     shard: shard,
-                    partition: partition
+                    partition: `p${partition}`
                 });
     
                 gotEventsCount += events.length;
@@ -413,9 +413,14 @@ describe('eventstore clustering mysql tests', () => {
         };
         const clustedEventstore = clusteredEs(config);
 
+        clustedEventstore.defineEventMappings({
+            commitStamp: 'commitStamp'
+        });
+
         Bluebird.promisifyAll(clustedEventstore);
 
         clustedEventstore.useEventPublisher(function(event, callback) {
+            console.log('useEventPublisher callback in test');
             callback();
             done();
         });
