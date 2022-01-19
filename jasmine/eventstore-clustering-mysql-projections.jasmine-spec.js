@@ -141,6 +141,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
                         connectionPoolLimit: mysqlConfig2.connectionPoolLimit
                     }],
                     partitions: 2,
+                    shouldDoTaskAssignment: false,
                     // projections-specific configuration below
                     redisCreateClient: redisFactory().createClient,
                     listStore: {
