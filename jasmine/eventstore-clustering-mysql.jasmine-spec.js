@@ -36,7 +36,7 @@ const eventstoreConfig = {
     pollingTimeout: 1000
 }
 
-describe('eventstore clustering mysql tests', () => {
+fdescribe('eventstore clustering mysql tests', () => {
     const sleep = function(timeout) {
         return new Promise((resolve) => {
             setTimeout(resolve, timeout);
@@ -109,9 +109,9 @@ describe('eventstore clustering mysql tests', () => {
 
     afterAll(async () => {
         debug('docker compose down started');
-        // await compose.down({
-        //     cwd: path.join(__dirname)
-        // })
+        await compose.down({
+            cwd: path.join(__dirname)
+        })
         debug('docker compose down finished');
     });
 
