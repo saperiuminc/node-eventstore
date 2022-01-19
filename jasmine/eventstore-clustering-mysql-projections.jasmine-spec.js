@@ -121,71 +121,76 @@ fdescribe('eventstore clustering mysql projection tests', () => {
     describe('projections', () => {
         let clusteredEventstore;
         beforeAll(async function() {
-            const config = {
-                clusters: [{
-                    type: 'mysql',
-                    host: mysqlConfig.host,
-                    port: mysqlConfig.port,
-                    user: mysqlConfig.user,
-                    password: mysqlConfig.password,
-                    database: mysqlConfig.database,
-                    connectionPoolLimit: mysqlConfig.connectionPoolLimit
-                }, {
-                    type: 'mysql',
-                    host: mysqlConfig2.host,
-                    port: mysqlConfig2.port,
-                    user: mysqlConfig2.user,
-                    password: mysqlConfig2.password,
-                    database: mysqlConfig2.database,
-                    connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-                }],
-                partitions: 2,
-                // projections-specific configuration below
-                redisCreateClient: redisFactory().createClient,
-                listStore: {
-                    type: 'mysql',
-                    connection: {
+            try {
+                const config = {
+                    clusters: [{
+                        type: 'mysql',
                         host: mysqlConfig.host,
                         port: mysqlConfig.port,
                         user: mysqlConfig.user,
                         password: mysqlConfig.password,
-                        database: mysqlConfig.database
-                    },
-                    pool: {
-                        min: 10,
-                        max: 10
-                    }
-                }, // required
-                projectionStore: {
-                    type: 'mysql',
-                    connection: {
-                        host: mysqlConfig.host,
-                        port: mysqlConfig.port,
-                        user: mysqlConfig.user,
-                        password: mysqlConfig.password,
-                        database: mysqlConfig.database
-                    },
-                    pool: {
-                        min: 10,
-                        max: 10
-                    }
-                }, // required
-                enableProjection: true,
-                enableProjectionEventStreamBuffer: false,
-                eventCallbackTimeout: 1000,
-                lockTimeToLive: 1000,
-                pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
-                pollingMaxRevisions: 100,
-                errorMaxRetryCount: 2,
-                errorRetryExponent: 2,
-                playbackEventJobCount: 10,
-                context: 'vehicle',
-                projectionGroup: 'default',
-                membershipPollingTimeout: 10000
-            };
-            clusteredEventstore = clusteredEs(config);
-            Bluebird.promisifyAll(clusteredEventstore);
-            await clusteredEventstore.initAsync();
+                        database: mysqlConfig.database,
+                        connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                    }, {
+                        type: 'mysql',
+                        host: mysqlConfig2.host,
+                        port: mysqlConfig2.port,
+                        user: mysqlConfig2.user,
+                        password: mysqlConfig2.password,
+                        database: mysqlConfig2.database,
+                        connectionPoolLimit: mysqlConfig2.connectionPoolLimit
+                    }],
+                    partitions: 2,
+                    // projections-specific configuration below
+                    redisCreateClient: redisFactory().createClient,
+                    listStore: {
+                        type: 'mysql',
+                        connection: {
+                            host: mysqlConfig.host,
+                            port: mysqlConfig.port,
+                            user: mysqlConfig.user,
+                            password: mysqlConfig.password,
+                            database: mysqlConfig.database
+                        },
+                        pool: {
+                            min: 10,
+                            max: 10
+                        }
+                    }, // required
+                    projectionStore: {
+                        type: 'mysql',
+                        connection: {
+                            host: mysqlConfig.host,
+                            port: mysqlConfig.port,
+                            user: mysqlConfig.user,
+                            password: mysqlConfig.password,
+                            database: mysqlConfig.database
+                        },
+                        pool: {
+                            min: 10,
+                            max: 10
+                        }
+                    }, // required
+                    enableProjection: true,
+                    enableProjectionEventStreamBuffer: false,
+                    eventCallbackTimeout: 1000,
+                    lockTimeToLive: 1000,
+                    pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
+                    pollingMaxRevisions: 100,
+                    errorMaxRetryCount: 2,
+                    errorRetryExponent: 2,
+                    playbackEventJobCount: 10,
+                    context: 'vehicle',
+                    projectionGroup: 'default',
+                    membershipPollingTimeout: 10000
+                };
+                clusteredEventstore = clusteredEs(config);
+                Bluebird.promisifyAll(clusteredEventstore);
+                await clusteredEventstore.initAsync();
+            } catch (error) {
+                console.error('error in beforeAll', error);
+            }
+
         }, 60000);
 
         beforeEach(async function() {
