@@ -36,7 +36,7 @@ const eventstoreConfig = {
     pollingTimeout: 1000
 }
 
-fdescribe('eventstore clustering mysql tests', () => {
+describe('eventstore clustering mysql tests', () => {
     const sleep = function(timeout) {
         return new Promise((resolve) => {
             setTimeout(resolve, timeout);
