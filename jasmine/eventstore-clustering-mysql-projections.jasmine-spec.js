@@ -141,6 +141,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
                         connectionPoolLimit: mysqlConfig2.connectionPoolLimit
                     }],
                     partitions: 2,
+                    shouldDoTaskAssignment: false,
                     // projections-specific configuration below
                     redisCreateClient: redisFactory().createClient,
                     listStore: {
@@ -1118,39 +1119,51 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const vehicleId = shortid.generate();
-            const stream = await clusteredEventstore.getLastEventAsStreamAsync({
-                context: context,
-                aggregate: 'vehicle',
-                aggregateId: vehicleId
-            });
-
-            Bluebird.promisifyAll(stream);
-
-            const event = {
-                name: "VEHICLE_CREATED",
-                payload: {
-                    vehicleId: vehicleId,
-                    year: 2012,
-                    make: "Honda",
-                    model: "Jazz",
-                    mileage: 1245
+            let vehicleIdForChecking;
+            let event2ForChecking;
+            for(let i = 0; i <= 10; i++) {
+                const vehicleId = shortid.generate();
+                if(vehicleIdForChecking == undefined) {
+                    vehicleIdForChecking = vehicleId;
                 }
-            }
-            stream.addEvent(event);
-
-            const event2 = {
-                name: "VEHICLE_UPDATED",
-                payload: {
-                    vehicleId: vehicleId,
-                    year: 2012,
-                    make: "Honda",
-                    model: "Jazz",
-                    mileage: 9999
+                const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                    context: context,
+                    aggregate: 'vehicle',
+                    aggregateId: vehicleId
+                });
+    
+                Bluebird.promisifyAll(stream);
+    
+                const event = {
+                    name: "VEHICLE_CREATED",
+                    payload: {
+                        vehicleId: vehicleId,
+                        year: 2012,
+                        make: "Honda",
+                        model: "Jazz",
+                        mileage: 1245
+                    }
                 }
+                stream.addEvent(event);
+    
+                const event2 = {
+                    name: "VEHICLE_UPDATED",
+                    payload: {
+                        vehicleId: vehicleId,
+                        year: 2012,
+                        make: "Honda",
+                        model: "Jazz",
+                        mileage: 9999
+                    }
+                }
+
+                if(event2ForChecking == undefined) {
+                    event2ForChecking = event2;
+                }
+
+                stream.addEvent(event2);
+                await stream.commitAsync();
             }
-            stream.addEvent(event2);
-            await stream.commitAsync();
 
             let pollCounter = 0;
             let projectionRunned;
@@ -1193,11 +1206,11 @@ fdescribe('eventstore clustering mysql projection tests', () => {
             const filteredResults = await playbackList.query(0, 1, [{
                 field: 'vehicleId',
                 operator: 'is',
-                value: vehicleId
+                value: vehicleIdForChecking
             }], null);
 
             const result = filteredResults.rows[0];
-            expect(result.data).toEqual(event2.payload);
+            expect(result.data).toEqual(event2ForChecking.payload);
         });
 
         // FOR REVIEW: This test executes an ostrich pattern
@@ -1225,9 +1238,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
                             dealershipName: eventPayload.dealershipName
                         };
                         await playbackList.add(event.aggregateId, event.streamRevision, data, {});
-
-
-                        console.log('VEHICLE_CREATED');
+                        debug('VEHICLE_CREATED');
                     },
                     DEALERSHIP_UPDATED: async function(state, event, funcs) {
                         const eventPayload = event.payload.payload;
@@ -1242,8 +1253,7 @@ fdescribe('eventstore clustering mysql projection tests', () => {
                         await playbackList.batchUpdate(filters, {
                             dealershipName: eventPayload.dealershipName
                         });
-
-                        console.log('DEALERSHIP_UPDATED');
+                        debug('DEALERSHIP_UPDATED');
                     }
                 },
                 query: [{
