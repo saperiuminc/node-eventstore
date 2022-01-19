@@ -420,7 +420,6 @@ fdescribe('eventstore clustering mysql tests', () => {
         Bluebird.promisifyAll(clustedEventstore);
 
         clustedEventstore.useEventPublisher(function(event, callback) {
-            console.log('useEventPublisher callback in test');
             callback();
             done();
         });
