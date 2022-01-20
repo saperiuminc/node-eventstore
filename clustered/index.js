@@ -164,7 +164,7 @@ const esFunction = function(options) {
         }
     }
 
-    var eventstore = new Eventstore(_.cloneDeep(options), new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
+    var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
 
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
@@ -185,7 +185,7 @@ const esFunction = function(options) {
             shouldDoTaskAssignment: false
         };
 
-        let esConfig = _.defaults(config, _.cloneDeep(options));
+        let esConfig = _.defaults({}, config, options);
         delete esConfig.clusters;
 
         if (!esConfig.outputsTo) {
