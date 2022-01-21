@@ -995,7 +995,7 @@ xdescribe('evenstore inmemory classicist tests', function() {
       expect(result.data).toEqual(event.payload);
     });
 
-    fit('should batch update the playbacklist data', async function() {
+    it('should batch update the playbacklist data', async function() {
       const projectionConfig = {
           projectionId: 'vehicle-list',
           projectionName: 'Vehicle Listing',
