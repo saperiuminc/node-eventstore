@@ -164,6 +164,8 @@ const esFunction = function(options) {
         }
     }
 
+    options.shouldSkipSignalOverride = true;
+    options.shouldDoTaskAssignment = false;
     var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
 
     if (options.emitStoreEvents) {
@@ -182,7 +184,8 @@ const esFunction = function(options) {
             connectionPoolLimit: storeConfig.connectionPoolLimit,
             shard: index,
             partitions: options.partitions,
-            shouldDoTaskAssignment: false
+            shouldDoTaskAssignment: false,
+            shouldSkipSignalOverride: false
         };
 
         let esConfig = _.defaults({}, config, options);

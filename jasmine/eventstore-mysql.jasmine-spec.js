@@ -55,7 +55,7 @@ const sleep = function(timeout) {
     })
 }
 
-describe('evenstore mysql classicist tests', function() {
+xdescribe('evenstore mysql classicist tests', function() {
     /**
      * @type {Docker.Container}
      */
