@@ -391,7 +391,7 @@ describe('eventstore clustering mysql tests', () => {
         expect(gotEventsCount).toEqual(numberOfEventsToWrite);
     })
 
-    it('should be able to call useEventPublisher', (done) => {
+    fit('should be able to call useEventPublisher', (done) => {
         const config = {
             clusters: [{
                 type: 'mysql',
