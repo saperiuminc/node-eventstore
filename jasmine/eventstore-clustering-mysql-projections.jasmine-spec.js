@@ -24,7 +24,6 @@ const mysqlConfig = {
     connectionPoolLimit: 10
 }
 
-
 const mysqlConfig2 = {
     host: 'localhost',
     port: 3307,
@@ -199,6 +198,8 @@ describe('eventstore clustering mysql projection tests', () => {
                 Bluebird.promisifyAll(eventstore.store);
                 await eventstore.store.clearAsync();
             }
+
+            await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
 
             const projections = await clusteredEventstore.getProjectionsAsync();
             for (const projection of projections[0]) {
@@ -1015,7 +1016,7 @@ describe('eventstore clustering mysql projection tests', () => {
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+                const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
 
                 let projections = [];
                 if (Array.isArray(projection)) {
@@ -1170,7 +1171,7 @@ describe('eventstore clustering mysql projection tests', () => {
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+                const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
 
                 let projections = [];
                 if (Array.isArray(projection)) {
@@ -1333,7 +1334,7 @@ describe('eventstore clustering mysql projection tests', () => {
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+                const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
 
                 let projections = [];
                 if (Array.isArray(projection)) {
@@ -1499,7 +1500,7 @@ describe('eventstore clustering mysql projection tests', () => {
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+                const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
 
                 let projections = [];
                 if (Array.isArray(projection)) {
@@ -1618,7 +1619,7 @@ describe('eventstore clustering mysql projection tests', () => {
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+                const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
 
                 let projections = [];
                 if (Array.isArray(projection)) {
@@ -2080,5 +2081,1381 @@ describe('eventstore clustering mysql projection tests', () => {
 
             expect(projectionRunned.offset).toEqual(2);
         });
+        
+        describe('querying playbacklistviews with keyset pagination support', () => {
+            it('should get data from the playbacklistview with keyset pagination support - querying the next page', async function() {
+                const projectionConfig = {
+                    projectionId: 'keyset-list-next',
+                    projectionName: 'KeySet Pagination Listing',
+                    playbackInterface: {
+                        $init: function() {
+                            return {
+                                count: 0
+                            }
+                        },
+                        KEYSET_LIST_NEXT_CREATED: async function(state, event, funcs) {
+                            const playbackList = await funcs.getPlaybackList('keyset_list_next');
+                            const eventPayload = event.payload.payload;
+                            const data = {
+                                keysetId: eventPayload.keysetId,
+                                field1: eventPayload.field1,
+                                field2: eventPayload.field2,
+                                field3: eventPayload.field3
+                            };
+                            await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+                        }
+                    },
+                    query: {
+                        context: 'keyset',
+                        aggregate: 'keyset'
+                    },
+                    partitionBy: '',
+                    outputState: 'true',
+                    playbackList: {
+                        name: 'keyset_list_next',
+                        fields: [{
+                            name: 'keysetId',
+                            type: 'string'
+                        },{
+                            name: 'field1',
+                            type: 'int'
+                        },{
+                            name: 'field2',
+                            type: 'string'
+                        },{
+                            name: 'field3',
+                            type: 'int'
+                        }]
+                    }
+                };
+            
+                await clusteredEventstore.projectAsync(projectionConfig);
+                await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+                await clusteredEventstore.startAllProjectionsAsync();
+            
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-next',
+                    ('SELECT keyset_list_next.row_id, keyset_list_next.row_revision, keyset_list_next.row_json, keyset_list_next.keysetId, keyset_list_next.field1, keyset_list_next.field2, keyset_list_next.field3' + 
+                        ' FROM (SELECT keyset_list_next.row_id as rowId FROM keyset_list_next @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_next ON LRLT.rowId = keyset_list_next.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_next list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
+            
+                const payloads = [
+                    { // #1
+                        field1: 5,
+                        field2: 'CCCC',
+                        field3: 2
+                    },
+                    { // #3
+                        field1: 4,
+                        field2: 'BBBB',
+                        field3: 5
+                    },
+                    { // #2
+                        field1: 4,
+                        field2: 'BBBB',
+                        field3: 3
+                    },
+                    { // #5
+                        field1: 4,
+                        field2: 'DDDD',
+                        field3: 4
+                    },
+                    { // #4
+                        field1: 4,
+                        field2: 'DDDD',
+                        field3: 2
+                    }
+                ];
+            
+                for (let i = 0; i < 5; i++) {
+                    const keysetId = shortid.generate();
+                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                        context: 'keyset',
+                        aggregate: 'keyset',
+                        aggregateId: keysetId
+                    });
+                    Bluebird.promisifyAll(stream);
+            
+                    const payload = payloads[i];
+                    payload.keysetId = keysetId;
+            
+                    const event = {
+                        name: "KEYSET_LIST_NEXT_CREATED",
+                        payload: payload
+                    };
+                    stream.addEvent(event);
+                    await stream.commitAsync();
+                }
+            
+                let pollCounter = 0;
+                let projectionRan = false;
+                while (pollCounter < 10) {
+                    pollCounter += 1;
+                    debug('polling');
+                    let projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+        
+                    let projections = [];
+                    if(Array.isArray(projection)) {
+                        projections = projections.concat(projection);
+                    } else {
+                        projections.push(projection);
+                    }
+        
+                    if(projections.length > 0) {
+                        let totalOffset = 0;
+                        let offsetsPerShard = {};
+                        for(const pj of projections) {
+                            debug('pj', pj);
+
+                            if (pj.processedDate) {
+                                offsetsPerShard[pj.configuration.shard] = Math.max(offsetsPerShard[pj.configuration.shard] || 0, pj.offset);
+                            }
+                        }
+                        const offsets = Object.values(offsetsPerShard);
+                        offsets.forEach((offset) => {
+                            totalOffset += offset;
+                        });
+                        if (totalOffset === 5) {
+                            projectionRan = true;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`);
+                            await sleep(retryInterval);
+                        }
+                    } else {
+                        debug(`projection has not processed yet. trying again in 1000ms`);
+                        await sleep(retryInterval);
+                    }
+    
+                    if(projectionRan) {
+                        break;
+                    }
+                }
+
+                expect(pollCounter).toBeLessThan(10);
+            
+                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-next');
+                Bluebird.promisifyAll(playbackListView);
+            
+                const nextKeyArray = [payloads[2].field1, payloads[2].field2, payloads[2].field3, payloads[2].keysetId];
+                const nextKey = Buffer.from(JSON.stringify(nextKeyArray)).toString('base64');
+                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                    { 
+                        field: 'field1', 
+                        sortDirection: 'DESC'
+                    },
+                    { 
+                        field: 'field2', 
+                        sortDirection: 'ASC'
+                    },
+                    { 
+                        field: 'field3', 
+                        sortDirection: 'ASC'
+                    }
+                ], null, nextKey);
+            
+                expect(filteredResults.count).toEqual(5);
+                expect(filteredResults.rows.length).toEqual(2);
+                expect(filteredResults.rows[0].data).toEqual(payloads[1]);
+                expect(filteredResults.rows[1].data).toEqual(payloads[4]);
+                expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[1].field1, payloads[1].field2, payloads[1].field3, payloads[1].keysetId])).toString('base64'));
+                expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[4].field1, payloads[4].field2, payloads[4].field3, payloads[4].keysetId])).toString('base64'));
+            });
+        
+            it('should get data from the playbacklistview with keyset pagination support - querying the previous page', async function() {
+                const projectionConfig = {
+                    projectionId: 'keyset-list-prev',
+                    projectionName: 'KeySet Pagination Listing',
+                    playbackInterface: {
+                        $init: function() {
+                            return {
+                                count: 0
+                            }
+                        },
+                        KEYSET_LIST_PREV_CREATED: async function(state, event, funcs) {
+                            const playbackList = await funcs.getPlaybackList('keyset_list_prev');
+                            const eventPayload = event.payload.payload;
+                            const data = {
+                                keysetId: eventPayload.keysetId,
+                                field1: eventPayload.field1,
+                                field2: eventPayload.field2,
+                                field3: eventPayload.field3
+                            };
+                            await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+                        }
+                    },
+                    query: {
+                        context: 'keyset',
+                        aggregate: 'keyset'
+                    },
+                    partitionBy: '',
+                    outputState: 'true',
+                    playbackList: {
+                        name: 'keyset_list_prev',
+                        fields: [{
+                            name: 'keysetId',
+                            type: 'string'
+                        },{
+                            name: 'field1',
+                            type: 'int'
+                        },{
+                            name: 'field2',
+                            type: 'string'
+                        },{
+                            name: 'field3',
+                            type: 'int'
+                        }]
+                    }
+                };
+            
+                await clusteredEventstore.projectAsync(projectionConfig);
+                await clusteredEventstore.startAllProjectionsAsync();
+            
+                await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+            
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-prev',
+                    ('SELECT keyset_list_prev.row_id, keyset_list_prev.row_revision, keyset_list_prev.row_json, keyset_list_prev.keysetId, keyset_list_prev.field1, keyset_list_prev.field2, keyset_list_prev.field3' + 
+                        ' FROM (SELECT keyset_list_prev.row_id as rowId FROM keyset_list_prev @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_prev ON LRLT.rowId = keyset_list_prev.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_prev list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
+            
+                const payloads = [
+                    { // #1
+                        field1: 5,
+                        field2: 'CCCC',
+                        field3: 2
+                    },
+                    { // #3
+                        field1: 4,
+                        field2: 'BBBB',
+                        field3: 5
+                    },
+                    { // #2
+                        field1: 4,
+                        field2: 'BBBB',
+                        field3: 3
+                    },
+                    { // #5
+                        field1: 4,
+                        field2: 'DDDD',
+                        field3: 4
+                    },
+                    { // #4
+                        field1: 4,
+                        field2: 'DDDD',
+                        field3: 2
+                    }
+                ];
+            
+                for (let i = 0; i < 5; i++) {
+                    const keysetId = shortid.generate();
+                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                        context: 'keyset',
+                        aggregate: 'keyset',
+                        aggregateId: keysetId
+                    });
+                    Bluebird.promisifyAll(stream);
+            
+                    const payload = payloads[i];
+                    payload.keysetId = keysetId;
+            
+                    const event = {
+                        name: "KEYSET_LIST_PREV_CREATED",
+                        payload: payload
+                    };
+                    stream.addEvent(event);
+                    await stream.commitAsync();
+                }
+
+                let pollCounter = 0;
+                let projectionRan = false;
+                while (pollCounter < 10) {
+                    pollCounter += 1;
+                    debug('polling');
+                    let projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+        
+                    let projections = [];
+                    if(Array.isArray(projection)) {
+                        projections = projections.concat(projection);
+                    } else {
+                        projections.push(projection);
+                    }
+        
+                    if(projections.length > 0) {
+                        let totalOffset = 0;
+                        let offsetsPerShard = {};
+                        for(const pj of projections) {
+                            debug('pj', pj);
+
+                            if (pj.processedDate) {
+                                offsetsPerShard[pj.configuration.shard] = Math.max(offsetsPerShard[pj.configuration.shard] || 0, pj.offset);
+                            }
+                        }
+                        const offsets = Object.values(offsetsPerShard);
+                        offsets.forEach((offset) => {
+                            totalOffset += offset;
+                        });
+                        if (totalOffset === 5) {
+                            projectionRan = true;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`);
+                            await sleep(retryInterval);
+                        }
+                    } else {
+                        debug(`projection has not processed yet. trying again in 1000ms`);
+                        await sleep(retryInterval);
+                    }
+    
+                    if(projectionRan) {
+                        break;
+                    }
+                }
+            
+                expect(pollCounter).toBeLessThan(10);
+            
+                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-prev');
+                Bluebird.promisifyAll(playbackListView);
+            
+                const prevKeyArray = [payloads[3].field1, payloads[3].field2, payloads[3].field3, payloads[3].keysetId];
+                const prevKey = Buffer.from(JSON.stringify(prevKeyArray)).toString('base64');
+                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                    { 
+                        field: 'field1', 
+                        sortDirection: 'DESC'
+                    },
+                    { 
+                        field: 'field2', 
+                        sortDirection: 'ASC'
+                    },
+                    { 
+                        field: 'field3', 
+                        sortDirection: 'ASC'
+                    }
+                ], prevKey, null);
+            
+                expect(filteredResults.count).toEqual(5);
+                expect(filteredResults.rows.length).toEqual(2);
+                expect(filteredResults.rows[0].data).toEqual(payloads[1]);
+                expect(filteredResults.rows[1].data).toEqual(payloads[4]);
+                expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[1].field1, payloads[1].field2, payloads[1].field3, payloads[1].keysetId])).toString('base64'));
+                expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[4].field1, payloads[4].field2, payloads[4].field3, payloads[4].keysetId])).toString('base64'));
+            });
+        
+            it('should get data from the playbacklistview with keyset pagination support - querying the last page - 1', async function() {
+                const projectionConfig = {
+                    projectionId: 'keyset-list-last',
+                    projectionName: 'KeySet Pagination Listing',
+                    playbackInterface: {
+                        $init: function() {
+                            return {
+                                count: 0
+                            }
+                        },
+                        KEYSET_LIST_LAST_CREATED: async function(state, event, funcs) {
+                            const playbackList = await funcs.getPlaybackList('keyset_list_last');
+                            const eventPayload = event.payload.payload;
+                            const data = {
+                                keysetId: eventPayload.keysetId,
+                                field1: eventPayload.field1,
+                                field2: eventPayload.field2,
+                                field3: eventPayload.field3
+                            };
+                            await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+                        }
+                    },
+                    query: {
+                        context: 'keyset',
+                        aggregate: 'keyset'
+                    },
+                    partitionBy: '',
+                    outputState: 'true',
+                    playbackList: {
+                        name: 'keyset_list_last',
+                        fields: [{
+                            name: 'keysetId',
+                            type: 'string'
+                        },{
+                            name: 'field1',
+                            type: 'int'
+                        },{
+                            name: 'field2',
+                            type: 'string'
+                        },{
+                            name: 'field3',
+                            type: 'int'
+                        }]
+                    }
+                };
+        
+                await clusteredEventstore.projectAsync(projectionConfig);
+                await clusteredEventstore.startAllProjectionsAsync();
+        
+                await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+        
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last',
+                    ('SELECT keyset_list_last.row_id, keyset_list_last.row_revision, keyset_list_last.row_json, keyset_list_last.keysetId, keyset_list_last.field1, keyset_list_last.field2, keyset_list_last.field3' + 
+                        ' FROM (SELECT keyset_list_last.row_id as rowId FROM keyset_list_last @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last ON LRLT.rowId = keyset_list_last.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_last list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
+        
+                const payloads = [
+                    { // #1
+                        field1: 5,
+                        field2: 'CCCC',
+                        field3: 2
+                    },
+                    { // #3
+                        field1: 4,
+                        field2: 'BBBB',
+                        field3: 5
+                    },
+                    { // #2
+                        field1: 4,
+                        field2: 'BBBB',
+                        field3: 3
+                    },
+                    { // #5
+                        field1: 4,
+                        field2: 'DDDD',
+                        field3: 4
+                    },
+                    { // #4
+                        field1: 4,
+                        field2: 'DDDD',
+                        field3: 2
+                    }
+                ];
+        
+                for (let i = 0; i < 5; i++) {
+                    const keysetId = shortid.generate();
+                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                        context: 'keyset',
+                        aggregate: 'keyset',
+                        aggregateId: keysetId
+                    });
+                    Bluebird.promisifyAll(stream);
+        
+                    const payload = payloads[i];
+                    payload.keysetId = keysetId;
+        
+                    const event = {
+                        name: "KEYSET_LIST_LAST_CREATED",
+                        payload: payload
+                    };
+                    stream.addEvent(event);
+                    await stream.commitAsync();
+                }
+
+                let pollCounter = 0;
+                let projectionRan = false;
+                while (pollCounter < 10) {
+                    pollCounter += 1;
+                    debug('polling');
+                    let projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+        
+                    let projections = [];
+                    if(Array.isArray(projection)) {
+                        projections = projections.concat(projection);
+                    } else {
+                        projections.push(projection);
+                    }
+        
+                    if(projections.length > 0) {
+                        let totalOffset = 0;
+                        let offsetsPerShard = {};
+                        for(const pj of projections) {
+                            debug('pj', pj);
+
+                            if (pj.processedDate) {
+                                offsetsPerShard[pj.configuration.shard] = Math.max(offsetsPerShard[pj.configuration.shard] || 0, pj.offset);
+                            }
+                        }
+                        const offsets = Object.values(offsetsPerShard);
+                        offsets.forEach((offset) => {
+                            totalOffset += offset;
+                        });
+                        if (totalOffset === 5) {
+                            projectionRan = true;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`);
+                            await sleep(retryInterval);
+                        }
+                    } else {
+                        debug(`projection has not processed yet. trying again in 1000ms`);
+                        await sleep(retryInterval);
+                    }
+    
+                    if(projectionRan) {
+                        break;
+                    }
+                }
+        
+                expect(pollCounter).toBeLessThan(10);
+        
+                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-last');
+                Bluebird.promisifyAll(playbackListView);
+        
+                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                    { 
+                        field: 'field1', 
+                        sortDirection: 'DESC'
+                    },
+                    { 
+                        field: 'field2', 
+                        sortDirection: 'ASC'
+                    },
+                    { 
+                        field: 'field3', 
+                        sortDirection: 'ASC'
+                    }
+                ], null, '__LAST');
+        
+                expect(filteredResults.count).toEqual(5);
+                expect(filteredResults.rows.length).toEqual(1);
+                expect(filteredResults.rows[0].data).toEqual(payloads[3]);
+                expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[3].field1, payloads[3].field2, payloads[3].field3, payloads[3].keysetId])).toString('base64'));
+                expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[3].field1, payloads[3].field2, payloads[3].field3, payloads[3].keysetId])).toString('base64'));
+            });
+        
+            it('should get data from the playbacklistview with keyset pagination support - querying the last page - 2', async function() {
+                const projectionConfig = {
+                    projectionId: 'keyset-list-last-2',
+                    projectionName: 'KeySet Pagination Listing',
+                    playbackInterface: {
+                        $init: function() {
+                            return {
+                                count: 0
+                            }
+                        },
+                        KEYSET_LIST_LAST_2_CREATED: async function(state, event, funcs) {
+                            const playbackList = await funcs.getPlaybackList('keyset_list_last_2');
+                            const eventPayload = event.payload.payload;
+                            const data = {
+                                keysetId: eventPayload.keysetId,
+                                field1: eventPayload.field1,
+                                field2: eventPayload.field2,
+                                field3: eventPayload.field3
+                            };
+                            await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+                        }
+                    },
+                    query: {
+                        context: 'keyset',
+                        aggregate: 'keyset'
+                    },
+                    partitionBy: '',
+                    outputState: 'true',
+                    playbackList: {
+                        name: 'keyset_list_last_2',
+                        fields: [{
+                            name: 'keysetId',
+                            type: 'string'
+                        },{
+                            name: 'field1',
+                            type: 'int'
+                        },{
+                            name: 'field2',
+                            type: 'string'
+                        },{
+                            name: 'field3',
+                            type: 'int'
+                        }]
+                    }
+                };
+        
+                await clusteredEventstore.projectAsync(projectionConfig);
+                await clusteredEventstore.startAllProjectionsAsync();
+        
+                await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+        
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last-2',
+                    ('SELECT keyset_list_last_2.row_id, keyset_list_last_2.row_revision, keyset_list_last_2.row_json, keyset_list_last_2.keysetId, keyset_list_last_2.field1, keyset_list_last_2.field2, keyset_list_last_2.field3' + 
+                        ' FROM (SELECT keyset_list_last_2.row_id as rowId FROM keyset_list_last_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last_2 ON LRLT.rowId = keyset_list_last_2.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_last_2 list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
+        
+                const payloads = [
+                    { // #1
+                        field1: 5,
+                        field2: 'CCCC',
+                        field3: 2
+                    },
+                    { // #3
+                        field1: 4,
+                        field2: 'BBBB',
+                        field3: 5
+                    },
+                    { // #2
+                        field1: 4,
+                        field2: 'BBBB',
+                        field3: 3
+                    },
+                    { // #5
+                        field1: 4,
+                        field2: 'DDDD',
+                        field3: 4
+                    },
+                    { // #4
+                        field1: 4,
+                        field2: 'DDDD',
+                        field3: 2
+                    },
+                    { // #6
+                        field1: 4,
+                        field2: 'DDDD',
+                        field3: 5
+                    }
+                ];
+        
+                for (let i = 0; i < 6; i++) {
+                    const keysetId = shortid.generate();
+                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                        context: 'keyset',
+                        aggregate: 'keyset',
+                        aggregateId: keysetId
+                    });
+                    Bluebird.promisifyAll(stream);
+        
+                    const payload = payloads[i];
+                    payload.keysetId = keysetId;
+        
+                    const event = {
+                        name: "KEYSET_LIST_LAST_2_CREATED",
+                        payload: payload
+                    };
+                    stream.addEvent(event);
+                    await stream.commitAsync();
+                }
+
+                let pollCounter = 0;
+                let projectionRan = false;
+                while (pollCounter < 10) {
+                    pollCounter += 1;
+                    debug('polling');
+                    let projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+        
+                    let projections = [];
+                    if(Array.isArray(projection)) {
+                        projections = projections.concat(projection);
+                    } else {
+                        projections.push(projection);
+                    }
+        
+                    if(projections.length > 0) {
+                        let totalOffset = 0;
+                        let offsetsPerShard = {};
+                        for(const pj of projections) {
+                            debug('pj', pj);
+
+                            if (pj.processedDate) {
+                                offsetsPerShard[pj.configuration.shard] = Math.max(offsetsPerShard[pj.configuration.shard] || 0, pj.offset);
+                            }
+                        }
+                        const offsets = Object.values(offsetsPerShard);
+                        offsets.forEach((offset) => {
+                            totalOffset += offset;
+                        });
+                        if (totalOffset === 6) {
+                            projectionRan = true;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`);
+                            await sleep(retryInterval);
+                        }
+                    } else {
+                        debug(`projection has not processed yet. trying again in 1000ms`);
+                        await sleep(retryInterval);
+                    }
+    
+                    if(projectionRan) {
+                        break;
+                    }
+                }
+        
+                expect(pollCounter).toBeLessThan(10);
+        
+                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-last-2');
+                Bluebird.promisifyAll(playbackListView);
+        
+                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                    { 
+                        field: 'field1', 
+                        sortDirection: 'DESC'
+                    },
+                    { 
+                        field: 'field2', 
+                        sortDirection: 'ASC'
+                    },
+                    { 
+                        field: 'field3', 
+                        sortDirection: 'ASC'
+                    }
+                ], null, '__LAST');
+        
+                expect(filteredResults.count).toEqual(6);
+                expect(filteredResults.rows.length).toEqual(2);
+                expect(filteredResults.rows[0].data).toEqual(payloads[3]);
+                expect(filteredResults.rows[1].data).toEqual(payloads[5]);
+                expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[3].field1, payloads[3].field2, payloads[3].field3, payloads[3].keysetId])).toString('base64'));
+                expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[5].field1, payloads[5].field2, payloads[5].field3, payloads[5].keysetId])).toString('base64'));
+            });
+        
+            it('should get data from the playbacklistview with keyset pagination support - querying with null values - 1', async function() {
+                const projectionConfig = {
+                    projectionId: 'keyset-list-null',
+                    projectionName: 'KeySet Pagination Listing - Null',
+                    playbackInterface: {
+                        $init: function() {
+                            return {
+                                count: 0
+                            }
+                        },
+                        KEYSET_LIST_NULL_CREATED: async function(state, event, funcs) {
+                            const playbackList = await funcs.getPlaybackList('keyset_list_null');
+                            const eventPayload = event.payload.payload;
+                            const data = {
+                                keysetId: eventPayload.keysetId,
+                                field1: eventPayload.field1,
+                                field2: eventPayload.field2,
+                                field3: eventPayload.field3
+                            };
+                            await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+                        }
+                    },
+                    query: {
+                        context: 'keyset',
+                        aggregate: 'keyset'
+                    },
+                    partitionBy: '',
+                    outputState: 'true',
+                    playbackList: {
+                        name: 'keyset_list_null',
+                        fields: [{
+                            name: 'keysetId',
+                            type: 'string'
+                        },{
+                            name: 'field1',
+                            type: 'int'
+                        },{
+                            name: 'field2',
+                            type: 'string'
+                        },{
+                            name: 'field3',
+                            type: 'int'
+                        }]
+                    }
+                };
+            
+                await clusteredEventstore.projectAsync(projectionConfig);
+                await clusteredEventstore.startAllProjectionsAsync();
+            
+                await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+            
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null',
+                    ('SELECT keyset_list_null.row_id, keyset_list_null.row_revision, keyset_list_null.row_json, keyset_list_null.keysetId, keyset_list_null.field1, keyset_list_null.field2, keyset_list_null.field3' + 
+                        ' FROM (SELECT keyset_list_null.row_id as rowId FROM keyset_list_null @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null ON LRLT.rowId = keyset_list_null.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_null list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
+            
+                const payloads = [
+                    { // #1
+                        field1: 5,
+                        field2: 'CCCC',
+                        field3: 2
+                    },
+                    { // #3
+                        field1: null,
+                        field2: 'BBBB',
+                        field3: 5
+                    },
+                    { // #2
+                        field1: null,
+                        field2: 'BBBB',
+                        field3: null
+                    },
+                    { // #5
+                        field1: null,
+                        field2: 'DDDD',
+                        field3: 4
+                    },
+                    { // #4
+                        field1: null,
+                        field2: 'DDDD',
+                        field3: 2
+                    }
+                ];
+            
+                for (let i = 0; i < 5; i++) {
+                    const keysetId = shortid.generate();
+                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                        context: 'keyset',
+                        aggregate: 'keyset',
+                        aggregateId: keysetId
+                    });
+                    Bluebird.promisifyAll(stream);
+            
+                    const payload = payloads[i];
+                    payload.keysetId = keysetId;
+            
+                    const event = {
+                        name: "KEYSET_LIST_NULL_CREATED",
+                        payload: payload
+                    };
+                    stream.addEvent(event);
+                    await stream.commitAsync();
+                }
+            
+                const sanitizedPayloads = [
+                    { // #1
+                        field1: 5,
+                        field2: 'CCCC',
+                        field3: 2,
+                        keysetId: payloads[0].keysetId
+                    },
+                    { // #3
+                        field2: 'BBBB',
+                        field3: 5,
+                        keysetId: payloads[1].keysetId
+                    },
+                    { // #2
+                        field2: 'BBBB',
+                        keysetId: payloads[2].keysetId
+                    },
+                    { // #5
+                        field2: 'DDDD',
+                        field3: 4,
+                        keysetId: payloads[3].keysetId
+                    },
+                    { // #4
+                        field2: 'DDDD',
+                        field3: 2,
+                        keysetId: payloads[4].keysetId
+                    }
+                ];
+
+                let pollCounter = 0;
+                let projectionRan = false;
+                while (pollCounter < 10) {
+                    pollCounter += 1;
+                    debug('polling');
+                    let projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+        
+                    let projections = [];
+                    if(Array.isArray(projection)) {
+                        projections = projections.concat(projection);
+                    } else {
+                        projections.push(projection);
+                    }
+        
+                    if(projections.length > 0) {
+                        let totalOffset = 0;
+                        let offsetsPerShard = {};
+                        for(const pj of projections) {
+                            debug('pj', pj);
+
+                            if (pj.processedDate) {
+                                offsetsPerShard[pj.configuration.shard] = Math.max(offsetsPerShard[pj.configuration.shard] || 0, pj.offset);
+                            }
+                        }
+                        const offsets = Object.values(offsetsPerShard);
+                        offsets.forEach((offset) => {
+                            totalOffset += offset;
+                        });
+                        if (totalOffset === 5) {
+                            projectionRan = true;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`);
+                            await sleep(retryInterval);
+                        }
+                    } else {
+                        debug(`projection has not processed yet. trying again in 1000ms`);
+                        await sleep(retryInterval);
+                    }
+    
+                    if(projectionRan) {
+                        break;
+                    }
+                }
+            
+                expect(pollCounter).toBeLessThan(10);
+            
+                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-null');
+                Bluebird.promisifyAll(playbackListView);
+            
+                const nextKeyArray = [payloads[2].field1, payloads[2].field2, payloads[2].field3, payloads[2].keysetId];
+                const nextKey = Buffer.from(JSON.stringify(nextKeyArray)).toString('base64');
+                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                    { 
+                        field: 'field1', 
+                        sortDirection: 'DESC'
+                    },
+                    { 
+                        field: 'field2', 
+                        sortDirection: 'ASC'
+                    },
+                    { 
+                        field: 'field3', 
+                        sortDirection: 'ASC'
+                    }
+                ], null, nextKey);
+            
+                expect(filteredResults.count).toEqual(5);
+                expect(filteredResults.rows.length).toEqual(2);
+                expect(filteredResults.rows[0].data).toEqual(sanitizedPayloads[1]);
+                expect(filteredResults.rows[1].data).toEqual(sanitizedPayloads[4]);
+                expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[1].field1, payloads[1].field2, payloads[1].field3, payloads[1].keysetId])).toString('base64'));
+                expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[4].field1, payloads[4].field2, payloads[4].field3, payloads[4].keysetId])).toString('base64'));
+            });
+        
+            it('should get data from the playbacklistview with keyset pagination support - querying with null values - 2', async function() {
+                const projectionConfig = {
+                    projectionId: 'keyset-list-null-2',
+                    projectionName: 'KeySet Pagination Listing - Null',
+                    playbackInterface: {
+                        $init: function() {
+                            return {
+                                count: 0
+                            }
+                        },
+                        KEYSET_LIST_NULL_2_CREATED: async function(state, event, funcs) {
+                            const playbackList = await funcs.getPlaybackList('keyset_list_null_2');
+                            const eventPayload = event.payload.payload;
+                            const data = {
+                                keysetId: eventPayload.keysetId,
+                                field1: eventPayload.field1,
+                                field2: eventPayload.field2,
+                                field3: eventPayload.field3
+                            };
+                            await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+                        }
+                    },
+                    query: {
+                        context: 'keyset',
+                        aggregate: 'keyset'
+                    },
+                    partitionBy: '',
+                    outputState: 'true',
+                    playbackList: {
+                        name: 'keyset_list_null_2',
+                        fields: [{
+                            name: 'keysetId',
+                            type: 'string'
+                        },{
+                            name: 'field1',
+                            type: 'int'
+                        },{
+                            name: 'field2',
+                            type: 'string'
+                        },{
+                            name: 'field3',
+                            type: 'int'
+                        }]
+                    }
+                };
+            
+                await clusteredEventstore.projectAsync(projectionConfig);
+                await clusteredEventstore.startAllProjectionsAsync();
+            
+                await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
+            
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null-2',
+                    ('SELECT keyset_list_null_2.row_id, keyset_list_null_2.row_revision, keyset_list_null_2.row_json, keyset_list_null_2.keysetId, keyset_list_null_2.field1, keyset_list_null_2.field2, keyset_list_null_2.field3' + 
+                        ' FROM (SELECT keyset_list_null_2.row_id as rowId FROM keyset_list_null_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null_2 ON LRLT.rowId = keyset_list_null_2.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_null_2 list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
+            
+                const payloads = [
+                    { // #1
+                        field1: 5,
+                        field2: 'CCCC',
+                        field3: 2
+                    },
+                    { // #3
+                        field1: null,
+                        field2: 'BBBB',
+                        field3: 5
+                    },
+                    { // #2
+                        field1: 4,
+                        field2: 'BBBB',
+                        field3: null
+                    },
+                    { // #5
+                        field1: null,
+                        field2: 'DDDD',
+                        field3: 4
+                    },
+                    { // #4
+                        field1: null,
+                        field2: 'DDDD',
+                        field3: 2
+                    }
+                ];
+            
+                for (let i = 0; i < 5; i++) {
+                    const keysetId = shortid.generate();
+                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                        context: 'keyset',
+                        aggregate: 'keyset',
+                        aggregateId: keysetId
+                    });
+                    Bluebird.promisifyAll(stream);
+            
+                    const payload = payloads[i];
+                    payload.keysetId = keysetId;
+            
+                    const event = {
+                        name: "KEYSET_LIST_NULL_2_CREATED",
+                        payload: payload
+                    };
+                    stream.addEvent(event);
+                    await stream.commitAsync();
+                }
+            
+                const sanitizedPayloads = [
+                    { // #1
+                        field1: 5,
+                        field2: 'CCCC',
+                        field3: 2,
+                        keysetId: payloads[0].keysetId
+                    },
+                    { // #3
+                        field2: 'BBBB',
+                        field3: 5,
+                        keysetId: payloads[1].keysetId
+                    },
+                    { // #2
+                        field1: 4,
+                        field2: 'BBBB',
+                        keysetId: payloads[2].keysetId
+                    },
+                    { // #5
+                        field2: 'DDDD',
+                        field3: 4,
+                        keysetId: payloads[3].keysetId
+                    },
+                    { // #4
+                        field2: 'DDDD',
+                        field3: 2,
+                        keysetId: payloads[4].keysetId
+                    }
+                ];
+
+                let pollCounter = 0;
+                let projectionRan = false;
+                while (pollCounter < 10) {
+                    pollCounter += 1;
+                    debug('polling');
+                    let projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+        
+                    let projections = [];
+                    if(Array.isArray(projection)) {
+                        projections = projections.concat(projection);
+                    } else {
+                        projections.push(projection);
+                    }
+        
+                    if(projections.length > 0) {
+                        let totalOffset = 0;
+                        let offsetsPerShard = {};
+                        for(const pj of projections) {
+                            debug('pj', pj);
+
+                            if (pj.processedDate) {
+                                offsetsPerShard[pj.configuration.shard] = Math.max(offsetsPerShard[pj.configuration.shard] || 0, pj.offset);
+                            }
+                        }
+                        const offsets = Object.values(offsetsPerShard);
+                        offsets.forEach((offset) => {
+                            totalOffset += offset;
+                        });
+                        if (totalOffset === 5) {
+                            projectionRan = true;
+                            break;
+                        } else {
+                            debug(`projection has not processed yet. trying again in 1000ms`);
+                            await sleep(retryInterval);
+                        }
+                    } else {
+                        debug(`projection has not processed yet. trying again in 1000ms`);
+                        await sleep(retryInterval);
+                    }
+    
+                    if(projectionRan) {
+                        break;
+                    }
+                }
+            
+                expect(pollCounter).toBeLessThan(10);
+            
+                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-null-2');
+                Bluebird.promisifyAll(playbackListView);
+            
+                const nextKeyArray = [payloads[2].field1, payloads[2].field2, payloads[2].field3, payloads[2].keysetId];
+                const nextKey = Buffer.from(JSON.stringify(nextKeyArray)).toString('base64');
+                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                    { 
+                        field: 'field1', 
+                        sortDirection: 'DESC'
+                    },
+                    { 
+                        field: 'field2', 
+                        sortDirection: 'ASC'
+                    },
+                    { 
+                        field: 'field3', 
+                        sortDirection: 'ASC'
+                    }
+                ], null, nextKey);
+            
+                expect(filteredResults.count).toEqual(5);
+                expect(filteredResults.rows.length).toEqual(2);
+                expect(filteredResults.rows[0].data).toEqual(sanitizedPayloads[1]);
+                expect(filteredResults.rows[1].data).toEqual(sanitizedPayloads[4]);
+                expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[1].field1, payloads[1].field2, payloads[1].field3, payloads[1].keysetId])).toString('base64'));
+                expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[4].field1, payloads[4].field2, payloads[4].field3, payloads[4].keysetId])).toString('base64'));
+            });
+        });
     });
-})
+        
+    describe('event subscription', () => {
+        let clusteredEventstore;
+        beforeAll(async function() {
+            try {
+                const config = {
+                    clusters: [{
+                        type: 'mysql',
+                        host: mysqlConfig.host,
+                        port: mysqlConfig.port,
+                        user: mysqlConfig.user,
+                        password: mysqlConfig.password,
+                        database: mysqlConfig.database,
+                        connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                    }, {
+                        type: 'mysql',
+                        host: mysqlConfig2.host,
+                        port: mysqlConfig2.port,
+                        user: mysqlConfig2.user,
+                        password: mysqlConfig2.password,
+                        database: mysqlConfig2.database,
+                        connectionPoolLimit: mysqlConfig2.connectionPoolLimit
+                    }],
+                    partitions: 2,
+                    // projections-specific configuration below
+                    redisCreateClient: redisFactory().createClient,
+                    listStore: {
+                        type: 'mysql',
+                        connection: {
+                            host: mysqlConfig.host,
+                            port: mysqlConfig.port,
+                            user: mysqlConfig.user,
+                            password: mysqlConfig.password,
+                            database: mysqlConfig.database
+                        },
+                        pool: {
+                            min: 10,
+                            max: 10
+                        }
+                    }, // required
+                    projectionStore: {
+                        type: 'mysql',
+                        connection: {
+                            host: mysqlConfig.host,
+                            port: mysqlConfig.port,
+                            user: mysqlConfig.user,
+                            password: mysqlConfig.password,
+                            database: mysqlConfig.database
+                        },
+                        pool: {
+                            min: 10,
+                            max: 10
+                        }
+                    }, // required
+                    enableProjection: true,
+                    enableProjectionEventStreamBuffer: false,
+                    eventCallbackTimeout: 1000,
+                    lockTimeToLive: 1000,
+                    pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
+                    pollingMaxRevisions: 100,
+                    errorMaxRetryCount: 2,
+                    errorRetryExponent: 2,
+                    playbackEventJobCount: 10,
+                    context: 'vehicle',
+                    projectionGroup: 'default',
+                    membershipPollingTimeout: 10000
+                };
+                clusteredEventstore = clusteredEs(config);
+                Bluebird.promisifyAll(clusteredEventstore);
+                await clusteredEventstore.initAsync();
+            } catch (error) {
+                console.error('error in beforeAll', error);
+            }
+
+        }, 60000);
+
+        beforeEach(async function() {
+            for (const eventstore of clusteredEventstore._eventstores) {
+                Bluebird.promisifyAll(eventstore.store);
+                await eventstore.store.clearAsync();
+            }
+            await clusteredEventstore.closeSubscriptionEventStreamBuffersAsync();
+        }, 60000);
+
+        it('should be able to call subscribe and receive new events', async () => {
+            const aggregateId = shortid.generate();
+    
+            const query = {
+                aggregateId: aggregateId,
+                aggregate: 'vehicle',
+                context: 'vehicle'
+            };
+    
+            let counter = 0;
+            const subscriptionToken = clusteredEventstore.subscribe(query, 0, (err, event, callback) => {
+                counter++;
+                callback();
+            }, (err) => {
+                debug(`playback error`, err);
+            });
+    
+            const stream = await clusteredEventstore.getLastEventAsStreamAsync(query);
+            
+            Bluebird.promisifyAll(stream);
+    
+            const event = {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: aggregateId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+    
+            stream.addEvent(event);
+            await stream.commitAsync();
+    
+            let pollCounter = 0;
+            while (pollCounter < 3) {
+                if (counter > 0) {
+                    break;
+                } else {
+                    debug(`events have not yet been played back. trying again in 1000ms`);
+                    pollCounter++;
+                    await sleep(1000);
+                }
+            }
+            expect(pollCounter).toBeLessThan(3);
+            expect(counter).toEqual(1);
+        });
+
+        it('should be able to call unsubscribe and stop receiving new events', async () => {
+            const aggregateId = shortid.generate();
+    
+            const query = {
+                aggregateId: aggregateId,
+                aggregate: 'vehicle',
+                context: 'vehicle'
+            };
+    
+            let playbackCounter = 0;
+            let counter = 0;
+            const subscriptionToken = clusteredEventstore.subscribe(query, 0, (err, event, callback) => {
+                playbackCounter++;
+                callback();
+            }, (err) => {
+                debug(`playback error`, err);
+            });
+            const assertSubscriptionToken = clusteredEventstore.subscribe(query, 0, (err, event, callback) => {
+                counter++;
+                callback();
+            }, (err) => {
+                debug(`playback error`, err);
+            });
+    
+            const stream = await clusteredEventstore.getLastEventAsStreamAsync(query);
+            
+            Bluebird.promisifyAll(stream);
+    
+            const event = {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: aggregateId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+    
+            stream.addEvent(event);
+            await stream.commitAsync();
+
+            let pollCounter = 0;
+            while (pollCounter < 3) {
+                if (playbackCounter > 0) {
+                    break;
+                } else {
+                    debug(`events have not yet been played back. trying again in 1000ms`);
+                    pollCounter++;
+                    await sleep(1000);
+                }
+            }
+            clusteredEventstore.unsubscribe(assertSubscriptionToken);
+    
+            const event2 = {
+                name: "VEHICLE_UPDATED",
+                payload: {
+                    vehicleId: aggregateId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1500
+                }
+            }
+            stream.addEvent(event2);
+            await stream.commitAsync();
+
+            pollCounter = 0;
+            while (pollCounter < 3) {
+                if (playbackCounter > 1) {
+                    break;
+                } else {
+                    debug(`events have not yet been played back. trying again in 1000ms`);
+                    pollCounter++;
+                    await sleep(1000);
+                }
+            }
+            expect(pollCounter).toBeLessThan(3);
+            expect(counter).toEqual(1);
+        });
+    });
+});
