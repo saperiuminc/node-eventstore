@@ -1,7 +1,7 @@
 {
   "author": "adrai",
   "name": "@saperiuminc/eventstore",
-  "version": "1.15.13-sharding-partition.4",
+  "version": "1.15.13-sharding-partition.5",
   "contributors": [
     "Ryan Goce <ryan@saperium.com>",
     "Gabby Sanchez <gabby@saperium.com>",
