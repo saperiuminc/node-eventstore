@@ -202,14 +202,14 @@ describe('eventstore clustering mysql projection tests', () => {
             await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
 
             const projections = await clusteredEventstore.getProjectionsAsync();
-            for (const projection of projections[0]) {
-                const splitProjectionId = projection.projectionId.split(':');
-                await clusteredEventstore.resetProjectionAsync(splitProjectionId[0]);
-                await clusteredEventstore.deleteProjectionAsync(splitProjectionId[0]);
+            for (const projection of projections) {
+                const projectionId = projection.projectionId;
+                await clusteredEventstore.resetProjectionAsync(projectionId);
+                await clusteredEventstore.deleteProjectionAsync(projectionId);
             }
         }, 60000);
 
-        it('should run the projection with sharding', async function() {
+        fit('should run the projection with sharding', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {
@@ -222,7 +222,7 @@ describe('eventstore clustering mysql projection tests', () => {
                         }
                     },
                     VEHICLE_CREATED: async function(state, event, funcs) {
-
+                        console.log('TEST PROJECTION GOT EVENT', event);
                     }
                 },
                 query: [{
@@ -239,14 +239,14 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
 
-            debug('projectAsync');
+            console.log('ASD: projectAsync');
             await clusteredEventstore.projectAsync(projectionConfig);
 
-            debug('runProjectionAsync');
+            console.log('ASD: runProjectionAsync');
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
 
-            debug('startAllProjectionsAsync');
+            console.log('ASD: startAllProjectionsAsync');
             await clusteredEventstore.startAllProjectionsAsync();
 
 
@@ -280,18 +280,12 @@ describe('eventstore clustering mysql projection tests', () => {
                 pollCounter += 1;
                 debug('polling');
                 projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+                const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
 
-                let projections = [];
-                if (Array.isArray(projection)) {
-                    projections = projections.concat(projection);
-                } else {
-                    projections.push(projection);
-                }
-
-                if (projections.length > 0) {
+                if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
-                    for (const pj of projections) {
-                        if (pj.processedDate && pj.state == 'running') {
+                    for (const pj of projectionTasks) {
+                        if (pj.processedDate && projection.state == 'running') {
                             hasPassed = true;
                         }
                         if (isNumber(pj.offset)) {
@@ -308,14 +302,13 @@ describe('eventstore clustering mysql projection tests', () => {
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
-
             }
 
             expect(pollCounter).toBeLessThan(10);
             expect(projectionOffset).toBeLessThanOrEqual(1);
         });
 
-        it('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
+        fit('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {
@@ -401,18 +394,12 @@ describe('eventstore clustering mysql projection tests', () => {
                 pollCounter += 1;
                 debug('polling');
                 projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+                const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
 
-                let projections = [];
-                if (Array.isArray(projection)) {
-                    projections = projections.concat(projection);
-                } else {
-                    projections.push(projection);
-                }
-
-                if (projections.length > 0) {
+                if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
-                    for (const pj of projections) {
-                        if (pj.processedDate && pj.state == 'running') {
+                    for (const pj of projectionTasks) {
+                        if (pj.processedDate && projection.state == 'running') {
                             hasPassed = true;
                         }
                         if (isNumber(pj.offset)) {
@@ -429,14 +416,13 @@ describe('eventstore clustering mysql projection tests', () => {
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
-
             }
 
             expect(pollCounter).toBeLessThan(10);
             expect(projectionOffset).toBeLessThanOrEqual(2);
         });
 
-        it('should reset the projection', async function() {
+        fit('should reset the projection', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {
@@ -467,17 +453,10 @@ describe('eventstore clustering mysql projection tests', () => {
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.resetProjectionAsync(projectionConfig.projectionId);
 
-            const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+            const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
 
-            let projections = [];
-            if (Array.isArray(projection)) {
-                projections = projections.concat(projection);
-            } else {
-                projections.push(projection);
-            }
-
-            if (projections.length > 0) {
-                for (const pj of projections) {
+            if (projectionTasks.length > 0) {
+                for (const pj of projectionTasks) {
                     if (pj) {
                         expect(pj.offset).toEqual(0);
                     }
@@ -485,7 +464,7 @@ describe('eventstore clustering mysql projection tests', () => {
             }
         });
 
-        it('should delete the projection', async function() {
+        fit('should delete the projection', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {
@@ -516,25 +495,14 @@ describe('eventstore clustering mysql projection tests', () => {
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.deleteProjectionAsync(projectionConfig.projectionId);
 
-            const storedProjection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+            const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+            expect(projection).toEqual(null);
 
-            let projections = [];
-            if (Array.isArray(storedProjection)) {
-                projections = projections.concat(storedProjection);
-            } else {
-                projections.push(storedProjection);
-            }
-
-            if (projections.length > 0) {
-                for (const pj of projections) {
-                    if (pj) {
-                        expect(pj).toBeNull();
-                    }
-                }
-            }
+            const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
+            expect(projectionTasks).toEqual([]);
         });
 
-        it('should pause the projection', async function() {
+        fit('should pause the projection', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {
@@ -567,20 +535,7 @@ describe('eventstore clustering mysql projection tests', () => {
 
             const storedProjection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
 
-            let projections = [];
-            if (Array.isArray(storedProjection)) {
-                projections = projections.concat(storedProjection);
-            } else {
-                projections.push(storedProjection);
-            }
-
-            if (projections.length > 0) {
-                for (const pj of projections) {
-                    if (pj) {
-                        expect(pj.state).toEqual('paused');
-                    }
-                }
-            }
+            expect(storedProjection.state).toEqual('paused');
         });
 
         it('should set the projection to faulted if there is an event handler error', async function() {
