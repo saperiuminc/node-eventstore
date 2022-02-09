@@ -37,6 +37,14 @@ const eventstoreConfig = {
     pollingTimeout: 500
 }
 
+const _deserializeProjectionOffset = function(serializedProjectionOffset) {
+    return JSON.parse(Buffer.from(serializedProjectionOffset, 'base64').toString('utf8'));
+}
+
+const _serializeProjectionOffset = function(projectionOffset) {
+    return Buffer.from(JSON.stringify(projectionOffset)).toString('base64');
+}
+
 const retryInterval = 1000;
 describe('eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
@@ -283,8 +291,8 @@ describe('eventstore clustering mysql projection tests', () => {
                         if (pj.processedDate && projection.state == 'running') {
                             hasPassed = true;
                         }
-                        if (isNumber(parseInt(pj.offset))) {
-                            projectionOffset = parseInt(pj.offset);
+                        if (isNumber(_deserializeProjectionOffset(pj.offset)[0])) {
+                            projectionOffset = _deserializeProjectionOffset(pj.offset)[0];
                         }
                     }
                     if (hasPassed) {
@@ -397,8 +405,8 @@ describe('eventstore clustering mysql projection tests', () => {
                         if (pj.processedDate && projection.state == 'running') {
                             hasPassed = true;
                         }
-                        if (isNumber(parseInt(pj.offset))) {
-                            projectionOffset = parseInt(pj.offset);
+                        if (isNumber(_deserializeProjectionOffset(pj.offset)[0])) {
+                            projectionOffset = _deserializeProjectionOffset(pj.offset)[0];
                         }
                     }
                     if (hasPassed) {
@@ -453,7 +461,7 @@ describe('eventstore clustering mysql projection tests', () => {
             if (projectionTasks.length > 0) {
                 for (const pj of projectionTasks) {
                     if (pj) {
-                        expect(pj.offset).toEqual('0');
+                        expect(_deserializeProjectionOffset(pj.offset)[0]).toEqual(0);
                     }
                 }
             }
@@ -616,7 +624,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
                         // console.log('pj: ', pj.projectionTaskId, pj.offset, projection.state);
-                        if (pj.offset && parseInt(pj.offset) > 0 && projection.state == 'faulted') {
+                        if (pj.offset && _deserializeProjectionOffset(pj.offset)[0] > 0 && projection.state == 'faulted') {
                             hasPassed = true;
                             console.log('projection.state is faulted. continuing with test');
                             faultedProjectionTask = pj;
@@ -642,8 +650,8 @@ describe('eventstore clustering mysql projection tests', () => {
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            expect(parseInt(faultedProjectionTask.errorOffset)).toBeGreaterThan(0);
-            expect(parseInt(faultedProjectionTask.offset)).toEqual(1);
+            expect(_deserializeProjectionOffset(faultedProjectionTask.errorOffset)[0]).toBeGreaterThan(0);
+            expect(_deserializeProjectionOffset(faultedProjectionTask.offset)[0]).toEqual(1);
         });
 
         it('should force run the projection when there is an error', async function() {
@@ -730,7 +738,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
                         // console.log('pj: ', pj.projectionTaskId, pj.offset, projection.state);
-                        if (pj.offset && parseInt(pj.offset) > 0 && projection.state == 'faulted') {
+                        if (pj.offset && _deserializeProjectionOffset(pj.offset)[0] > 0 && projection.state == 'faulted') {
                             hasPassed = true;
                             console.log('projection.state is faulted. continuing with test');
                             faultedProjectionTask = pj;
@@ -756,10 +764,10 @@ describe('eventstore clustering mysql projection tests', () => {
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            expect(parseInt(faultedProjectionTask.errorOffset)).toBeGreaterThan(0);
-            expect(parseInt(faultedProjectionTask.offset)).toEqual(1);
+            expect(_deserializeProjectionOffset(faultedProjectionTask.errorOffset)[0]).toBeGreaterThan(0);
+            expect(_deserializeProjectionOffset(faultedProjectionTask.offset)[0]).toEqual(1);
 
-            let lastOffset = parseInt(faultedProjectionTask.offset);
+            let lastOffset = _deserializeProjectionOffset(faultedProjectionTask.offset)[0];
             faultedProjectionTask = null;
             pollCounter = 0;
 
@@ -776,9 +784,9 @@ describe('eventstore clustering mysql projection tests', () => {
                     for (const pj of projectionTasks) {
                         console.log('pj', lastOffset, pj.projectionTaskId, pj.offset, projection.state);
                         if (!lastOffset) {
-                            lastOffset = isNumber(pj.offset) ? parseInt(pj.offset) : null;
+                            lastOffset = isNumber(pj.offset) ? _deserializeProjectionOffset(pj.offset)[0] : null;
                         }
-                        if (parseInt(pj.offset) > lastOffset && projection.state === 'running') {
+                        if (pj.offset && _deserializeProjectionOffset(pj.offset)[0] > lastOffset && projection.state === 'running') {
                             hasPassed = true;
                             console.log('offset changed', lastOffset, pj.offset);
                             faultedProjectionTask = pj;
@@ -801,7 +809,7 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             }
 
-            expect(parseInt(faultedProjectionTask.offset)).toEqual(2);
+            expect(_deserializeProjectionOffset(faultedProjectionTask.offset)[0]).toEqual(2);
             expect(projection.state).toEqual('running');
             expect(faultedProjectionTask.isIdle).toEqual(0);
         });
@@ -1965,9 +1973,9 @@ describe('eventstore clustering mysql projection tests', () => {
                     if (hasPassed) {
                         for (const pj of projectionTasks) {
                             if (!maxOffset) {
-                                maxOffset = parseInt(pj.offset);
+                                maxOffset = _deserializeProjectionOffset(pj.offset)[0];
                             } else {
-                                if (parseInt(pj.offset) > maxOffset) {
+                                if (_deserializeProjectionOffset(pj.offset)[0] > maxOffset) {
                                     maxOffset = pj;
                                 }
                             }
@@ -2111,7 +2119,7 @@ describe('eventstore clustering mysql projection tests', () => {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, parseInt(pj.offset));
+                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
                             }
                         }
                         const offsets = Object.values(offsetsPerShard);
@@ -2290,7 +2298,7 @@ describe('eventstore clustering mysql projection tests', () => {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, parseInt(pj.offset));
+                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
                             }
                         }
                         const offsets = Object.values(offsetsPerShard);
@@ -2469,7 +2477,7 @@ describe('eventstore clustering mysql projection tests', () => {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, parseInt(pj.offset));
+                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
                             }
                         }
                         const offsets = Object.values(offsetsPerShard);
@@ -2650,7 +2658,7 @@ describe('eventstore clustering mysql projection tests', () => {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, parseInt(pj.offset));
+                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
                             }
                         }
                         const offsets = Object.values(offsetsPerShard);
@@ -2855,7 +2863,7 @@ describe('eventstore clustering mysql projection tests', () => {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, parseInt(pj.offset));
+                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
                             }
                         }
                         const offsets = Object.values(offsetsPerShard);
@@ -3063,7 +3071,7 @@ describe('eventstore clustering mysql projection tests', () => {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, parseInt(pj.offset));
+                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
                             }
                         }
                         const offsets = Object.values(offsetsPerShard);
