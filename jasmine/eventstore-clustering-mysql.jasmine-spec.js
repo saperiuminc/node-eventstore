@@ -381,7 +381,7 @@ describe('eventstore clustering mysql tests', () => {
                     aggregate: aggregate,
                     context: context,
                     shard: shard,
-                    partition: `p${partition}`
+                    partition: `${partition}`
                 });
     
                 gotEventsCount += events.length;
