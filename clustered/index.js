@@ -166,6 +166,7 @@ const esFunction = function(options) {
 
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
+    // TODO: pass clustered store here
     var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
 
     if (options.emitStoreEvents) {
