@@ -104,6 +104,7 @@ const esFunction = function(options) {
 
     // eslint-disable-next-line no-useless-catch
     try {
+        options.type = 'clustered-mysql';
         Store = getSpecificStore(options);
     } catch (err) {
         throw err;
