@@ -130,6 +130,7 @@ describe('eventstore clustering mysql projection tests', () => {
         beforeAll(async function() {
             try {
                 const config = {
+                    type: 'clustered-mysql',
                     clusters: [{
                         type: 'mysql',
                         host: mysqlConfig.host,
@@ -217,7 +218,7 @@ describe('eventstore clustering mysql projection tests', () => {
             }
         }, 60000);
 
-        it('should run the projection with sharding', async function() {
+        fit('should run the projection with sharding', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {

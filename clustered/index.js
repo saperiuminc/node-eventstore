@@ -101,10 +101,11 @@ const esFunction = function(options) {
     options = options || {};
 
     var Store;
-
+    if (!options.type) {
+      options.type = 'clustered-mysql';
+    }
     // eslint-disable-next-line no-useless-catch
     try {
-        options.type = 'clustered-mysql';
         Store = getSpecificStore(options);
     } catch (err) {
         throw err;
@@ -167,7 +168,6 @@ const esFunction = function(options) {
 
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
-    // TODO: pass clustered store here
     var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
 
     if (options.emitStoreEvents) {
