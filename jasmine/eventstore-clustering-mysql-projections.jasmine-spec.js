@@ -288,28 +288,33 @@ describe('eventstore clustering mysql projection tests', () => {
 
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
+                    console.log(1);
                     for (const pj of projectionTasks) {
                         if (pj.processedDate && projection.state == 'running') {
                             hasPassed = true;
                         }
-                        if (isNumber(_deserializeProjectionOffset(pj.offset)[0])) {
-                            projectionOffset = _deserializeProjectionOffset(pj.offset)[0];
+                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
+                        if (isNumber(deserializedOffset) || (Array.isArray(deserializedOffset) && isNumber(deserializedOffset[0]))) {
+                            projectionOffset = _deserializeProjectionOffset(pj.offset);
                         }
                     }
                     if (hasPassed) {
+                        console.log(2);
                         break;
                     } else {
+                        console.log(3);
                         debug(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 } else {
+                    console.log(4); 
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
             }
 
             expect(pollCounter).toBeLessThan(10);
-            expect(projectionOffset).toBeLessThanOrEqual(1);
+            expect(projectionOffset[0]).toBeLessThanOrEqual(1);
         });
 
         it('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
