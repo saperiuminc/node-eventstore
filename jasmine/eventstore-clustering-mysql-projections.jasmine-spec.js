@@ -209,10 +209,9 @@ describe('eventstore clustering mysql projection tests', () => {
                 await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
     
                 let projections = await clusteredEventstore.getProjectionsAsync();
-                for (const projection of projections[0]) {
-                    const splitProjectionId = projection.projectionId.split(':');
-                    await clusteredEventstore.resetProjectionAsync(splitProjectionId[0]);
-                    await clusteredEventstore.deleteProjectionAsync(splitProjectionId[0]);
+                for (const projection of projections) {
+                    await clusteredEventstore.resetProjectionAsync(projection.projectionId);
+                    await clusteredEventstore.deleteProjectionAsync(projection.projectionId);
                 }
                 let context = `vehicle${shortid.generate()}`
     
@@ -253,7 +252,6 @@ describe('eventstore clustering mysql projection tests', () => {
                 await clusteredEventstore.startAllProjectionsAsync();
     
                 const vehicleId = shortid.generate();
-                // const vehicleId = 'QPvvZubzuMg';
                 const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: context,
                     aggregate: 'vehicle',
@@ -285,10 +283,10 @@ describe('eventstore clustering mysql projection tests', () => {
                 await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
     
                 projections = await clusteredEventstore.getProjectionsAsync();
-                for (const projection of projections[0]) {
-                    const splitProjectionId = projection.projectionId.split(':');
-                    await clusteredEventstore.resetProjectionAsync(splitProjectionId[0]);
-                    await clusteredEventstore.deleteProjectionAsync(splitProjectionId[0]);
+                for (const projection of projections) {
+                    const projectionId = projection.projectionId;
+                    await clusteredEventstore.resetProjectionAsync(projectionId);
+                    await clusteredEventstore.deleteProjectionAsync(projectionId);
                 }
             });
         });
@@ -377,10 +375,10 @@ describe('eventstore clustering mysql projection tests', () => {
                 await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
     
                 const projections = await clusteredEventstore.getProjectionsAsync();
-                for (const projection of projections[0]) {
-                    const splitProjectionId = projection.projectionId.split(':');
-                    await clusteredEventstore.resetProjectionAsync(splitProjectionId[0]);
-                    await clusteredEventstore.deleteProjectionAsync(splitProjectionId[0]);
+                for (const projection of projections) {
+                    const projectionId = projection.projectionId;
+                    await clusteredEventstore.resetProjectionAsync(projectionId);
+                    await clusteredEventstore.deleteProjectionAsync(projectionId);
                 }
                 clusteredEventstore.removeAllListeners('rebalance');
             }, 60000);
@@ -415,22 +413,30 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 };
     
-                debug('projectAsync');
+                let hasRebalanced = false;
+                clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                    for(const projectionTaskId of updatedAssignments) {
+                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                            hasRebalanced = true;
+                        }
+                    }
+                });
                 await clusteredEventstore.projectAsync(projectionConfig);
-    
-                debug('runProjectionAsync');
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-    
-                debug('startAllProjectionsAsync');
                 await clusteredEventstore.startAllProjectionsAsync();
                 
-                const waitForRebalance = function() {
-                    return new Promise((resolve) => {
-                        clusteredEventstore.on('rebalance', resolve);
-                    });
+                let pollCounter = 0;
+                while (pollCounter < 5) {
+                    pollCounter += 1;
+                    if (hasRebalanced) {
+                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                        break;
+                    } else {
+                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                        await sleep(retryInterval);
+                    }
                 }
-
-                await waitForRebalance();
+                expect(pollCounter).toBeLessThan(5);
     
                 const vehicleId = shortid.generate();
                 const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -454,29 +460,23 @@ describe('eventstore clustering mysql projection tests', () => {
                 stream.addEvent(event);
                 await stream.commitAsync();
     
-                let pollCounter = 0;
+                pollCounter = 0;
                 let projection;
                 let projectionOffset;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
                     projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
+                    const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
     
-                    let projections = [];
-                    if (Array.isArray(projection)) {
-                        projections = projections.concat(projection);
-                    } else {
-                        projections.push(projection);
-                    }
-    
-                    if (projections.length > 0) {
+                    if (projection && projectionTasks.length > 0) {
                         let hasPassed = false;
-                        for (const pj of projections) {
-                            if (pj.processedDate && pj.state == 'running') {
+                        for (const pj of projectionTasks) {
+                            if (pj.processedDate && projection.state == 'running') {
                                 hasPassed = true;
                             }
-                            if (isNumber(pj.offset)) {
-                                projectionOffset = pj.offset
+                            if (isNumber(_deserializeProjectionOffset(pj.offset)[0])) {
+                                projectionOffset = _deserializeProjectionOffset(pj.offset)[0];
                             }
                         }
                         if (hasPassed) {
@@ -562,7 +562,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     playbackEventJobCount: 10,
                     context: 'vehicle',
                     projectionGroup: shortid.generate(),
-                    membershipPollingTimeout: 10000
+                    membershipPollingTimeout: 500
                 };
                 clusteredEventstore = clusteredEs(config);
                 Bluebird.promisifyAll(clusteredEventstore);
@@ -572,12 +572,8 @@ describe('eventstore clustering mysql projection tests', () => {
             }
         }, 60000);
 
-        beforeEach(async function() {
-            for (const eventstore of clusteredEventstore._eventstores) {
-                Bluebird.promisifyAll(eventstore.store);
-                await eventstore.store.clearAsync();
-            }
-
+        afterEach(async function() {
+            // console.log('AFTER EACH');
             await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
 
             const projections = await clusteredEventstore.getProjectionsAsync();
@@ -586,7 +582,14 @@ describe('eventstore clustering mysql projection tests', () => {
                 await clusteredEventstore.resetProjectionAsync(projectionId);
                 await clusteredEventstore.deleteProjectionAsync(projectionId);
             }
+
+            for (const eventstore of clusteredEventstore._eventstores) {
+                Bluebird.promisifyAll(eventstore.store);
+                await eventstore.store.clearAsync();
+            }
+
             clusteredEventstore.removeAllListeners('rebalance');
+            // console.log('AFTER EACH DONE');
         }, 60000);
 
         it('should run the projection with sharding', async function() {
@@ -602,7 +605,7 @@ describe('eventstore clustering mysql projection tests', () => {
                         }
                     },
                     VEHICLE_CREATED: async function(state, event, funcs) {
-                        console.log('TEST PROJECTION GOT EVENT', event);
+                        // console.log('TEST PROJECTION GOT EVENT', event);
                     }
                 },
                 query: [{
@@ -619,22 +622,32 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
 
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(projectionConfig);
-
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const waitForRebalance = function() {
-                return new Promise((resolve) => {
-                    clusteredEventstore.on('rebalance', resolve);
-                });
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
             }
-
-            await waitForRebalance();
+            expect(pollCounter).toBeLessThan(5);
 
             const vehicleId = shortid.generate();
-            // const vehicleId = 'QPvvZubzuMg';
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                 context: context,
                 aggregate: 'vehicle',
@@ -656,7 +669,7 @@ describe('eventstore clustering mysql projection tests', () => {
             stream.addEvent(event);
             await stream.commitAsync();
 
-            let pollCounter = 0;
+            pollCounter = 0;
             let projection;
             let projectionOffset;
             while (pollCounter < 10) {
@@ -721,26 +734,32 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
 
-            debug('projectAsync');
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(projectionConfig);
-
-            debug('runProjectionAsync');
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-
-            debug('startAllProjectionsAsync');
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const waitForRebalance = function() {
-                return new Promise((resolve) => {
-                    clusteredEventstore.on('rebalance', resolve);
-                });
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
             }
-
-            await waitForRebalance();
-            clusteredEventstore.removeAllListeners('rebalance');
+            expect(pollCounter).toBeLessThan(5);
 
             const vehicleId = shortid.generate();
-            // const vehicleId = 'QPvvZubzuMg';
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                 context: context,
                 aggregate: 'vehicle',
@@ -777,7 +796,7 @@ describe('eventstore clustering mysql projection tests', () => {
 
             await stream.commitAsync();
 
-            let pollCounter = 0;
+            pollCounter = 0;
             let projection;
             let projectionOffset;
             while (pollCounter < 10) {
@@ -1075,17 +1094,30 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
 
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const waitForRebalance = function() {
-                return new Promise((resolve) => {
-                    clusteredEventstore.on('rebalance', resolve);
-                });
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
             }
-
-            await waitForRebalance();
+            expect(pollCounter).toBeLessThan(5);
 
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -1120,7 +1152,7 @@ describe('eventstore clustering mysql projection tests', () => {
             stream.addEvent(event2);
             await stream.commitAsync();
 
-            let pollCounter = 0;
+            pollCounter = 0;
             let projection;
             let faultedProjectionTask;
             while (pollCounter < 10) {
@@ -1177,13 +1209,13 @@ describe('eventstore clustering mysql projection tests', () => {
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        console.log('pj', lastOffset, pj.projectionTaskId, pj.offset, projection.state);
+                        // console.log('pj', lastOffset, pj.projectionTaskId, pj.offset, projection.state);
                         if (!lastOffset) {
                             lastOffset = isNumber(pj.offset) ? _deserializeProjectionOffset(pj.offset)[0] : null;
                         }
                         if (pj.offset && _deserializeProjectionOffset(pj.offset)[0] > lastOffset && projection.state === 'running') {
                             hasPassed = true;
-                            console.log('offset changed', lastOffset, pj.offset);
+                            // console.log('offset changed', lastOffset, pj.offset);
                             faultedProjectionTask = pj;
                             break;
                         }
@@ -1238,7 +1270,7 @@ describe('eventstore clustering mysql projection tests', () => {
 
                         const stateList = await funcs.getStateList('vehicle_state_list');
 
-                        console.log('event.aggregateId', event.aggregateId);
+                        // console.log('event.aggregateId', event.aggregateId);
                         const filters = [{
                             field: 'vehicleId',
                             operator: 'is',
@@ -1285,17 +1317,30 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
 
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const waitForRebalance = function() {
-                return new Promise((resolve) => {
-                    clusteredEventstore.on('rebalance', resolve);
-                });
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
             }
-
-            await waitForRebalance();
+            expect(pollCounter).toBeLessThan(5);
 
             // VEHICLE 1
             const vehicleId = shortid.generate();
@@ -1333,7 +1378,6 @@ describe('eventstore clustering mysql projection tests', () => {
             stream.addEvent(event2);
             await stream.commitAsync();
 
-
             // VEHICLE 2
             const vehicleId2 = shortid.generate();
             const stream2 = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -1370,7 +1414,7 @@ describe('eventstore clustering mysql projection tests', () => {
             stream2.addEvent(event22);
             await stream2.commitAsync();
 
-            let pollCounter = 0;
+            pollCounter = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -1379,11 +1423,25 @@ describe('eventstore clustering mysql projection tests', () => {
 
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
-                    for (const pj of projectionTasks) {
+
+                    let totalOffset = 0;
+                    let offsetsPerShard = {};
+                    for(const pj of projectionTasks) {
+                        debug('pj', pj);
+
                         if (pj.processedDate && projection.state == 'running') {
-                            hasPassed = true;
+                            offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
                         }
                     }
+                    const offsets = Object.values(offsetsPerShard);
+                    offsets.forEach((offset) => {
+                        totalOffset += offset;
+                    });
+                    if (totalOffset >= 4) {
+                        hasPassed = true;
+                        break;
+                    }
+
                     if (hasPassed) {
                         break;
                     } else {
@@ -1407,7 +1465,6 @@ describe('eventstore clustering mysql projection tests', () => {
 
             const result = filteredResults.rows[0];
             expect(result.data).toEqual(event2.payload);
-
         });
 
         it('should update the playbacklist data', async function() {
@@ -1466,17 +1523,30 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
 
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const waitForRebalance = function() {
-                return new Promise((resolve) => {
-                    clusteredEventstore.on('rebalance', resolve);
-                });
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
             }
-
-            await waitForRebalance();
+            expect(pollCounter).toBeLessThan(5);
 
             let vehicleIdForChecking;
             let event2ForChecking;
@@ -1524,7 +1594,7 @@ describe('eventstore clustering mysql projection tests', () => {
                 await stream.commitAsync();
             }
 
-            let pollCounter = 0;
+            pollCounter = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -1533,11 +1603,25 @@ describe('eventstore clustering mysql projection tests', () => {
 
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
-                    for (const pj of projectionTasks) {
+
+                    let totalOffset = 0;
+                    let offsetsPerShard = {};
+                    for(const pj of projectionTasks) {
+                        debug('pj', pj);
+
                         if (pj.processedDate && projection.state == 'running') {
-                            hasPassed = true;
+                            offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
                         }
                     }
+                    const offsets = Object.values(offsetsPerShard);
+                    offsets.forEach((offset) => {
+                        totalOffset += offset;
+                    });
+                    if (totalOffset >= 22) {
+                        hasPassed = true;
+                        break;
+                    }
+
                     if (hasPassed) {
                         break;
                     } else {
@@ -1810,17 +1894,30 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
 
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const waitForRebalance = function() {
-                return new Promise((resolve) => {
-                    clusteredEventstore.on('rebalance', resolve);
-                });
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
             }
-
-            await waitForRebalance();
+            expect(pollCounter).toBeLessThan(5);
 
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -1852,7 +1949,7 @@ describe('eventstore clustering mysql projection tests', () => {
             stream.addEvent(event2);
             await stream.commitAsync();
 
-            let pollCounter = 0;
+            pollCounter = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -1861,11 +1958,25 @@ describe('eventstore clustering mysql projection tests', () => {
 
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
-                    for (const pj of projectionTasks) {
+
+                    let totalOffset = 0;
+                    let offsetsPerShard = {};
+                    for(const pj of projectionTasks) {
+                        debug('pj', pj);
+
                         if (pj.processedDate && projection.state == 'running') {
-                            hasPassed = true;
+                            offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
                         }
                     }
+                    const offsets = Object.values(offsetsPerShard);
+                    offsets.forEach((offset) => {
+                        totalOffset += offset;
+                    });
+                    if (totalOffset >= 2) {
+                        hasPassed = true;
+                        break;
+                    }
+
                     if (hasPassed) {
                         break;
                     } else {
@@ -2038,17 +2149,30 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
 
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const waitForRebalance = function() {
-                return new Promise((resolve) => {
-                    clusteredEventstore.on('rebalance', resolve);
-                });
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
             }
-
-            await waitForRebalance();
+            expect(pollCounter).toBeLessThan(5);
 
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -2113,17 +2237,30 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
     
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const waitForRebalance = function() {
-                return new Promise((resolve) => {
-                    clusteredEventstore.on('rebalance', resolve);
-                });
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
             }
-
-            await waitForRebalance();
+            expect(pollCounter).toBeLessThan(5);
     
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -2195,16 +2332,30 @@ describe('eventstore clustering mysql projection tests', () => {
                 concurrencyCount: 5
             };
             
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
     
-            // const waitForRebalance = function() {
-            //     return new Promise((resolve) => {
-            //         clusteredEventstore.on('rebalance', resolve);
-            //     });
-            // }
-            // await waitForRebalance();
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
+            }
+            expect(pollCounter).toBeLessThan(5);
 
             let eventsCount = 0;
             const listener = (data) => {
@@ -2284,16 +2435,30 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             };
     
+            let hasRebalanced = false;
+            clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                for(const projectionTaskId of updatedAssignments) {
+                    if (projectionTaskId.startsWith(initialProjectionConfig.projectionId)) {
+                        hasRebalanced = true;
+                    }
+                }
+            });
             await clusteredEventstore.projectAsync(initialProjectionConfig);
             await clusteredEventstore.runProjectionAsync(initialProjectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
 
-            const waitForRebalance = function() {
-                return new Promise((resolve) => {
-                    clusteredEventstore.on('rebalance', resolve);
-                });
+            let pollCounter = 0;
+            while (pollCounter < 5) {
+                pollCounter += 1;
+                if (hasRebalanced) {
+                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, initialProjectionConfig.projectionId);
+                    break;
+                } else {
+                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, initialProjectionConfig.projectionId);
+                    await sleep(retryInterval);
+                }
             }
-            await waitForRebalance();
+            expect(pollCounter).toBeLessThan(5);
             
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -2340,7 +2505,7 @@ describe('eventstore clustering mysql projection tests', () => {
             //     }
             // }
 
-            let pollCounter = 0;
+            pollCounter = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -2483,6 +2648,14 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 };
             
+                let hasRebalanced = false;
+                clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                    for(const projectionTaskId of updatedAssignments) {
+                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                            hasRebalanced = true;
+                        }
+                    }
+                });
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
                 await clusteredEventstore.startAllProjectionsAsync();
@@ -2497,12 +2670,18 @@ describe('eventstore clustering mysql projection tests', () => {
                         ],
                     });
 
-                // const waitForRebalance = function() {
-                //     return new Promise((resolve) => {
-                //         clusteredEventstore.on('rebalance', resolve);
-                //     });
-                // }
-                // await waitForRebalance();
+                let pollCounter = 0;
+                while (pollCounter < 5) {
+                    pollCounter += 1;
+                    if (hasRebalanced) {
+                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                        break;
+                    } else {
+                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                        await sleep(retryInterval);
+                    }
+                }
+                expect(pollCounter).toBeLessThan(5);
             
                 const payloads = [
                     { // #1
@@ -2552,7 +2731,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     await stream.commitAsync();
                 }
             
-                let pollCounter = 0;
+                pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
@@ -2575,7 +2754,7 @@ describe('eventstore clustering mysql projection tests', () => {
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
-                        if (totalOffset === 5) {
+                        if (totalOffset >= 5) {
                             hasPassed = true;
                             break;
                         }
@@ -2668,9 +2847,16 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 };
             
+                let hasRebalanced = false;
+                clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                    for(const projectionTaskId of updatedAssignments) {
+                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                            hasRebalanced = true;
+                        }
+                    }
+                });
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
-            
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-prev',
@@ -2682,13 +2868,19 @@ describe('eventstore clustering mysql projection tests', () => {
                             `keysetId`
                         ],
                     });
-                    
-                // const waitForRebalance = function() {
-                //     return new Promise((resolve) => {
-                //         clusteredEventstore.on('rebalance', resolve);
-                //     });
-                // }
-                // await waitForRebalance();
+
+                let pollCounter = 0;
+                while (pollCounter < 5) {
+                    pollCounter += 1;
+                    if (hasRebalanced) {
+                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                        break;
+                    } else {
+                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                        await sleep(retryInterval);
+                    }
+                }
+                expect(pollCounter).toBeLessThan(5);
             
                 const payloads = [
                     { // #1
@@ -2738,7 +2930,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     await stream.commitAsync();
                 }
 
-                let pollCounter = 0;
+                pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
@@ -2761,7 +2953,7 @@ describe('eventstore clustering mysql projection tests', () => {
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
-                        if (totalOffset === 5) {
+                        if (totalOffset >= 5) {
                             hasPassed = true;
                             break;
                         }
@@ -2854,9 +3046,16 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 };
         
+                let hasRebalanced = false;
+                clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                    for(const projectionTaskId of updatedAssignments) {
+                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                            hasRebalanced = true;
+                        }
+                    }
+                });
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
-        
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
         
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last',
@@ -2869,12 +3068,19 @@ describe('eventstore clustering mysql projection tests', () => {
                         ],
                     });
 
-                // const waitForRebalance = function() {
-                //     return new Promise((resolve) => {
-                //         clusteredEventstore.on('rebalance', resolve);
-                //     });
-                // }
-                // await waitForRebalance();
+                let pollCounter = 0;
+                while (pollCounter < 5) {
+                    pollCounter += 1;
+                    if (hasRebalanced) {
+                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                        break;
+                    } else {
+                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                        await sleep(retryInterval);
+                    }
+                }
+                expect(pollCounter).toBeLessThan(5);
+
                 const payloads = [
                     { // #1
                         field1: 5,
@@ -2923,7 +3129,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     await stream.commitAsync();
                 }
 
-                let pollCounter = 0;
+                pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
@@ -2946,7 +3152,7 @@ describe('eventstore clustering mysql projection tests', () => {
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
-                        if (totalOffset === 5) {
+                        if (totalOffset >= 5) {
                             hasPassed = true;
                             break;
                         }
@@ -3036,11 +3242,18 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 };
         
+                let hasRebalanced = false;
+                clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                    for(const projectionTaskId of updatedAssignments) {
+                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                            hasRebalanced = true;
+                        }
+                    }
+                });
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
-        
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-        
+
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last-2',
                     ('SELECT keyset_list_last_2.row_id, keyset_list_last_2.row_revision, keyset_list_last_2.row_json, keyset_list_last_2.keysetId, keyset_list_last_2.field1, keyset_list_last_2.field2, keyset_list_last_2.field3' + 
                         ' FROM (SELECT keyset_list_last_2.row_id as rowId FROM keyset_list_last_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last_2 ON LRLT.rowId = keyset_list_last_2.row_id @@order;'),
@@ -3050,14 +3263,20 @@ describe('eventstore clustering mysql projection tests', () => {
                             `keysetId`
                         ],
                     });
-
-                // const waitForRebalance = function() {
-                //     return new Promise((resolve) => {
-                //         clusteredEventstore.on('rebalance', resolve);
-                //     });
-                // }
-                // await waitForRebalance();
         
+                let pollCounter = 0;
+                while (pollCounter < 5) {
+                    pollCounter += 1;
+                    if (hasRebalanced) {
+                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                        break;
+                    } else {
+                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                        await sleep(retryInterval);
+                    }
+                }
+                expect(pollCounter).toBeLessThan(5);
+
                 const payloads = [
                     { // #1
                         field1: 5,
@@ -3111,7 +3330,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     await stream.commitAsync();
                 }
 
-                let pollCounter = 0;
+                pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
@@ -3134,7 +3353,7 @@ describe('eventstore clustering mysql projection tests', () => {
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
-                        if (totalOffset === 6) {
+                        if (totalOffset >= 6) {
                             hasPassed = true;
                             break;
                         }
@@ -3225,9 +3444,16 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 };
             
+                let hasRebalanced = false;
+                clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                    for(const projectionTaskId of updatedAssignments) {
+                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                            hasRebalanced = true;
+                        }
+                    }
+                });
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
-            
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null',
@@ -3240,12 +3466,18 @@ describe('eventstore clustering mysql projection tests', () => {
                         ],
                     });
 
-                // const waitForRebalance = function() {
-                //     return new Promise((resolve) => {
-                //         clusteredEventstore.on('rebalance', resolve);
-                //     });
-                // }
-                // await waitForRebalance();
+                let pollCounter = 0;
+                while (pollCounter < 5) {
+                    pollCounter += 1;
+                    if (hasRebalanced) {
+                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                        break;
+                    } else {
+                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                        await sleep(retryInterval);
+                    }
+                }
+                expect(pollCounter).toBeLessThan(5);
             
                 const payloads = [
                     { // #1
@@ -3323,7 +3555,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 ];
 
-                let pollCounter = 0;
+                pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
@@ -3346,7 +3578,7 @@ describe('eventstore clustering mysql projection tests', () => {
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
-                        if (totalOffset === 5) {
+                        if (totalOffset >= 5) {
                             hasPassed = true;
                             break;
                         }
@@ -3439,9 +3671,16 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 };
             
+                let hasRebalanced = false;
+                clusteredEventstore.on('rebalance', function(updatedAssignments) {
+                    for(const projectionTaskId of updatedAssignments) {
+                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
+                            hasRebalanced = true;
+                        }
+                    }
+                });
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
-            
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null-2',
@@ -3454,12 +3693,18 @@ describe('eventstore clustering mysql projection tests', () => {
                         ],
                     });
 
-                // const waitForRebalance = function() {
-                //     return new Promise((resolve) => {
-                //         clusteredEventstore.on('rebalance', resolve);
-                //     });
-                // }
-                // await waitForRebalance();
+                let pollCounter = 0;
+                while (pollCounter < 5) {
+                    pollCounter += 1;
+                    if (hasRebalanced) {
+                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                        break;
+                    } else {
+                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                        await sleep(retryInterval);
+                    }
+                }
+                expect(pollCounter).toBeLessThan(5);
             
                 const payloads = [
                     { // #1
@@ -3538,7 +3783,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 ];
 
-                let pollCounter = 0;
+                pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
@@ -3561,7 +3806,7 @@ describe('eventstore clustering mysql projection tests', () => {
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
-                        if (totalOffset === 5) {
+                        if (totalOffset >= 5) {
                             hasPassed = true;
                             break;
                         }
@@ -3674,7 +3919,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     playbackEventJobCount: 10,
                     context: 'vehicle',
                     projectionGroup: shortid.generate(),
-                    membershipPollingTimeout: 10000
+                    membershipPollingTimeout: 250
                 };
                 clusteredEventstore = clusteredEs(config);
                 Bluebird.promisifyAll(clusteredEventstore);
@@ -3755,12 +4000,14 @@ describe('eventstore clustering mysql projection tests', () => {
             let counter = 0;
             const subscriptionToken = clusteredEventstore.subscribe(query, 0, (err, event, callback) => {
                 playbackCounter++;
+                console.log('SUB SUBSCRIBE GOT EVENT', subscriptionToken);
                 callback();
             }, (err) => {
                 debug(`playback error`, err);
             });
             const assertSubscriptionToken = clusteredEventstore.subscribe(query, 0, (err, event, callback) => {
                 counter++;
+                console.log('ASSERT SUBSCRIBE GOT EVENT', counter);
                 callback();
             }, (err) => {
                 debug(`playback error`, err);
@@ -3785,7 +4032,7 @@ describe('eventstore clustering mysql projection tests', () => {
             await stream.commitAsync();
 
             let pollCounter = 0;
-            while (pollCounter < 3) {
+            while (pollCounter < 5) {
                 if (playbackCounter > 0) {
                     break;
                 } else {
@@ -3794,6 +4041,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     await sleep(1000);
                 }
             }
+            expect(pollCounter).toBeLessThan(5);
             clusteredEventstore.unsubscribe(assertSubscriptionToken);
     
             const event2 = {
@@ -3810,7 +4058,8 @@ describe('eventstore clustering mysql projection tests', () => {
             await stream.commitAsync();
 
             pollCounter = 0;
-            while (pollCounter < 3) {
+            while (pollCounter < 10) {
+                console.log('CURRENT PLAYBACK COUNTER', playbackCounter);
                 if (playbackCounter > 1) {
                     break;
                 } else {
@@ -3819,7 +4068,7 @@ describe('eventstore clustering mysql projection tests', () => {
                     await sleep(1000);
                 }
             }
-            expect(pollCounter).toBeLessThan(3);
+            expect(pollCounter).toBeLessThan(10);
             expect(counter).toEqual(1);
         });
     });
