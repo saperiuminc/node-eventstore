@@ -2,7 +2,7 @@ const compose = require('docker-compose');
 const path = require('path');
 const debug = require('debug')('eventstore:clustering:mysql');
 const mysql2 = require('mysql2/promise');
-const clusteredEs = require('../clustered/index');
+const clusteredEs = require('../lib/eventstore-projections/clustered-eventstore');
 const Bluebird = require('bluebird');
 const shortid = require('shortid');
 const Redis = require('ioredis');
@@ -353,7 +353,7 @@ describe('eventstore clustering mysql projection tests', () => {
                         membershipPollingTimeout: 10000
                     };
                     clusteredEventstore = clusteredEs(config);
-                    Bluebird.promisifyAll(clusteredEventstore);     
+                    Bluebird.promisifyAll(clusteredEventstore);
                     await clusteredEventstore.initAsync();
                 } catch (error) {
                     console.error('error in beforeAll', error);
