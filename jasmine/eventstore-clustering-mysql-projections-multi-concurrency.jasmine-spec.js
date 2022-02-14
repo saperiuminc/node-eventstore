@@ -47,7 +47,7 @@ const _serializeProjectionOffset = function(projectionOffset) {
 
 const retryInterval = 1000;
 // TODO: fix cleanup of eventstores after each test
-xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', () => {
+describe('Multi Concurrency -- eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
@@ -307,7 +307,6 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                 projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
                 const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
 
-                console.log(projectionTasks);
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
