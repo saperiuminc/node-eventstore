@@ -46,7 +46,6 @@ const _serializeProjectionOffset = function(projectionOffset) {
 }
 
 const retryInterval = 1000;
-// TODO: fix cleanup of eventstores after each test
 describe('eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
@@ -242,13 +241,10 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 };
     
-                debug('projectAsync');
                 await clusteredEventstore.projectAsync(projectionConfig);
     
-                debug('runProjectionAsync');
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
     
-                debug('startAllProjectionsAsync');
                 await clusteredEventstore.startAllProjectionsAsync();
     
                 const vehicleId = shortid.generate();
@@ -463,6 +459,7 @@ describe('eventstore clustering mysql projection tests', () => {
                 pollCounter = 0;
                 let projection;
                 let projectionOffset;
+                let maxOffset;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
@@ -472,11 +469,11 @@ describe('eventstore clustering mysql projection tests', () => {
                     if (projection && projectionTasks.length > 0) {
                         let hasPassed = false;
                         for (const pj of projectionTasks) {
-                            if (pj.processedDate && projection.state == 'running') {
+                            const deserializedOffset = _deserializeProjectionOffset(pj.offset);
+                            projectionOffset = deserializedOffset
+                            maxOffset = Math.max(...projectionOffset);
+                            if (pj.processedDate && projection.state == 'running' && maxOffset) {
                                 hasPassed = true;
-                            }
-                            if (isNumber(_deserializeProjectionOffset(pj.offset)[0])) {
-                                projectionOffset = _deserializeProjectionOffset(pj.offset)[0];
                             }
                         }
                         if (hasPassed) {
@@ -492,7 +489,8 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
     
                 expect(pollCounter).toBeLessThan(10);
-                expect(projectionOffset).toBeLessThanOrEqual(1);
+                expect(projectionOffset.length).toBeGreaterThan(0);
+                expect(maxOffset).toEqual(1);
             });
         });
     });
@@ -593,7 +591,7 @@ describe('eventstore clustering mysql projection tests', () => {
             // console.log('AFTER EACH DONE');
         }, 60000);
 
-        fit('should run the projection with sharding', async function() {
+        it('should run the projection with sharding', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {
@@ -673,6 +671,7 @@ describe('eventstore clustering mysql projection tests', () => {
             pollCounter = 0;
             let projection;
             let projectionOffset;
+            let maxOffset;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -681,33 +680,30 @@ describe('eventstore clustering mysql projection tests', () => {
 
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
-                    console.log(1);
                     for (const pj of projectionTasks) {
-                        if (pj.processedDate && projection.state == 'running') {
-                            hasPassed = true;
-                        }
                         const deserializedOffset = _deserializeProjectionOffset(pj.offset);
-                        if (isNumber(deserializedOffset) || (Array.isArray(deserializedOffset) && isNumber(deserializedOffset[0]))) {
-                            projectionOffset = _deserializeProjectionOffset(pj.offset);
+                        projectionOffset = deserializedOffset
+                        maxOffset = Math.max(...projectionOffset);
+                        if (pj.processedDate && projection.state == 'running' && maxOffset) {
+                            hasPassed = true;
                         }
                     }
                     if (hasPassed) {
-                        console.log(2);
                         break;
                     } else {
-                        console.log(3);
                         debug(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 } else {
-                    console.log(4); 
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
             }
 
             expect(pollCounter).toBeLessThan(10);
-            expect(projectionOffset[0]).toBeLessThanOrEqual(1);
+            
+            expect(projectionOffset.length).toBeGreaterThan(0);
+            expect(maxOffset).toEqual(1);
         });
 
         it('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
@@ -805,6 +801,7 @@ describe('eventstore clustering mysql projection tests', () => {
             pollCounter = 0;
             let projection;
             let projectionOffset;
+            let maxOffset;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -814,11 +811,11 @@ describe('eventstore clustering mysql projection tests', () => {
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        if (pj.processedDate && projection.state == 'running') {
+                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
+                        projectionOffset = deserializedOffset
+                        maxOffset = Math.max(...projectionOffset);
+                        if (pj.processedDate && projection.state == 'running' && maxOffset) {
                             hasPassed = true;
-                        }
-                        if (isNumber(_deserializeProjectionOffset(pj.offset)[0])) {
-                            projectionOffset = _deserializeProjectionOffset(pj.offset)[0];
                         }
                     }
                     if (hasPassed) {
@@ -834,7 +831,9 @@ describe('eventstore clustering mysql projection tests', () => {
             }
 
             expect(pollCounter).toBeLessThan(10);
-            expect(projectionOffset).toBeLessThanOrEqual(2);
+            
+            expect(projectionOffset.length).toBeGreaterThan(0);
+            expect(maxOffset).toEqual(2);
         });
 
         it('should reset the projection', async function() {
@@ -873,7 +872,10 @@ describe('eventstore clustering mysql projection tests', () => {
             if (projectionTasks.length > 0) {
                 for (const pj of projectionTasks) {
                     if (pj) {
-                        expect(_deserializeProjectionOffset(pj.offset)[0]).toEqual(0);
+                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
+                        deserializedOffset.forEach((offset) => {
+                            expect(offset).toEqual(0);
+                        });
                     }
                 }
             }
@@ -1035,8 +1037,16 @@ describe('eventstore clustering mysql projection tests', () => {
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        // console.log('pj: ', pj.projectionTaskId, pj.offset, projection.state);
-                        if (pj.offset && _deserializeProjectionOffset(pj.offset)[0] > 0 && projection.state == 'faulted') {
+                        const deserializedErrorOffset = pj.errorOffset ? _deserializeProjectionOffset(pj.errorOffset) : [0];
+                        let hasOffset = false;
+                        if (Array.isArray(deserializedErrorOffset)) {
+                          deserializedErrorOffset.forEach((errorOffset) => {
+                            if (errorOffset > 0) {
+                              hasOffset = true;
+                            }
+                          })
+                        }
+                        if (hasOffset && projection.state == 'faulted') {
                             hasPassed = true;
                             console.log('projection.state is faulted. continuing with test');
                             faultedProjectionTask = pj;
@@ -1170,8 +1180,16 @@ describe('eventstore clustering mysql projection tests', () => {
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        // console.log('pj: ', pj.projectionTaskId, pj.offset, projection.state);
-                        if (pj.offset && _deserializeProjectionOffset(pj.offset)[0] > 0 && projection.state == 'faulted') {
+                        const deserializedErrorOffset = pj.errorOffset ? _deserializeProjectionOffset(pj.errorOffset) : [0];
+                        let hasOffset = false;
+                        if (Array.isArray(deserializedErrorOffset)) {
+                          deserializedErrorOffset.forEach((errorOffset) => {
+                            if (errorOffset > 0) {
+                              hasOffset = true;
+                            }
+                          })
+                        }
+                        if (hasOffset && projection.state == 'faulted') {
                             hasPassed = true;
                             console.log('projection.state is faulted. continuing with test');
                             faultedProjectionTask = pj;
@@ -1431,15 +1449,19 @@ describe('eventstore clustering mysql projection tests', () => {
                     let hasPassed = false;
 
                     let totalOffset = 0;
-                    let offsetsPerShard = {};
+                    let offsetsPerShard = [];
                     for(const pj of projectionTasks) {
                         debug('pj', pj);
 
                         if (pj.processedDate && projection.state == 'running') {
-                            offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
+                            if (parseInt(pj.shard) === -1) {
+                              offsetsPerShard = _deserializeProjectionOffset(pj.offset);
+                            } else {
+                              offsetsPerShard.push(Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]));
+                            }
                         }
                     }
-                    const offsets = Object.values(offsetsPerShard);
+                    const offsets = offsetsPerShard;
                     offsets.forEach((offset) => {
                         totalOffset += offset;
                     });
@@ -1611,15 +1633,19 @@ describe('eventstore clustering mysql projection tests', () => {
                     let hasPassed = false;
 
                     let totalOffset = 0;
-                    let offsetsPerShard = {};
+                    let offsetsPerShard = [];
                     for(const pj of projectionTasks) {
                         debug('pj', pj);
 
                         if (pj.processedDate && projection.state == 'running') {
-                            offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
+                            if (parseInt(pj.shard) === -1) {
+                              offsetsPerShard = _deserializeProjectionOffset(pj.offset);
+                            } else {
+                              offsetsPerShard.push(Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]));
+                            }
                         }
                     }
-                    const offsets = Object.values(offsetsPerShard);
+                    const offsets = offsetsPerShard;
                     offsets.forEach((offset) => {
                         totalOffset += offset;
                     });
@@ -1966,15 +1992,19 @@ describe('eventstore clustering mysql projection tests', () => {
                     let hasPassed = false;
 
                     let totalOffset = 0;
-                    let offsetsPerShard = {};
+                    let offsetsPerShard = [];
                     for(const pj of projectionTasks) {
-                        debug('pj', pj);
+                      debug('pj', pj);
 
-                        if (pj.processedDate && projection.state == 'running') {
-                            offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
-                        }
+                      if (pj.processedDate && projection.state == 'running') {
+                          if (parseInt(pj.shard) === -1) {
+                            offsetsPerShard = _deserializeProjectionOffset(pj.offset);
+                          } else {
+                            offsetsPerShard.push(Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]));
+                          }
+                      }
                     }
-                    const offsets = Object.values(offsetsPerShard);
+                    const offsets = offsetsPerShard;
                     offsets.forEach((offset) => {
                         totalOffset += offset;
                     });
@@ -2585,13 +2615,8 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                     if (hasPassed) {
                         for (const pj of projectionTasks) {
-                            if (!maxOffset) {
-                                maxOffset = _deserializeProjectionOffset(pj.offset)[0];
-                            } else {
-                                if (_deserializeProjectionOffset(pj.offset)[0] > maxOffset) {
-                                    maxOffset = pj;
-                                }
-                            }
+                            const deserializedOffset = _deserializeProjectionOffset(pj.offset);
+                            maxOffset = Math.max(...deserializedOffset);
                         }
                         break;
                     } else {
@@ -2748,15 +2773,19 @@ describe('eventstore clustering mysql projection tests', () => {
                         let hasPassed = false;
 
                         let totalOffset = 0;
-                        let offsetsPerShard = {};
+                        let offsetsPerShard = [];
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
+                                if (parseInt(pj.shard) === -1) {
+                                  offsetsPerShard = _deserializeProjectionOffset(pj.offset);
+                                } else {
+                                  offsetsPerShard.push(Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]));
+                                }
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
+                        const offsets = offsetsPerShard;
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
@@ -2947,15 +2976,19 @@ describe('eventstore clustering mysql projection tests', () => {
                         let hasPassed = false;
 
                         let totalOffset = 0;
-                        let offsetsPerShard = {};
+                        let offsetsPerShard = [];
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
+                                if (parseInt(pj.shard) === -1) {
+                                  offsetsPerShard = _deserializeProjectionOffset(pj.offset);
+                                } else {
+                                  offsetsPerShard.push(Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]));
+                                }
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
+                        const offsets = offsetsPerShard;
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
@@ -3146,15 +3179,19 @@ describe('eventstore clustering mysql projection tests', () => {
                         let hasPassed = false;
 
                         let totalOffset = 0;
-                        let offsetsPerShard = {};
+                        let offsetsPerShard = [];
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
+                                if (parseInt(pj.shard) === -1) {
+                                  offsetsPerShard = _deserializeProjectionOffset(pj.offset);
+                                } else {
+                                  offsetsPerShard.push(Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]));
+                                }
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
+                        const offsets = offsetsPerShard;
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
@@ -3347,15 +3384,19 @@ describe('eventstore clustering mysql projection tests', () => {
                         let hasPassed = false;
 
                         let totalOffset = 0;
-                        let offsetsPerShard = {};
+                        let offsetsPerShard = [];
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
+                                if (parseInt(pj.shard) === -1) {
+                                  offsetsPerShard = _deserializeProjectionOffset(pj.offset);
+                                } else {
+                                  offsetsPerShard.push(Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]));
+                                }
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
+                        const offsets = offsetsPerShard;
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
@@ -3572,15 +3613,19 @@ describe('eventstore clustering mysql projection tests', () => {
                         let hasPassed = false;
 
                         let totalOffset = 0;
-                        let offsetsPerShard = {};
+                        let offsetsPerShard = [];
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
+                                if (parseInt(pj.shard) === -1) {
+                                  offsetsPerShard = _deserializeProjectionOffset(pj.offset);
+                                } else {
+                                  offsetsPerShard.push(Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]));
+                                }
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
+                        const offsets = offsetsPerShard;
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
@@ -3800,15 +3845,19 @@ describe('eventstore clustering mysql projection tests', () => {
                         let hasPassed = false;
 
                         let totalOffset = 0;
-                        let offsetsPerShard = {};
+                        let offsetsPerShard = [];
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
 
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]);
+                                if (parseInt(pj.shard) === -1) {
+                                  offsetsPerShard = _deserializeProjectionOffset(pj.offset);
+                                } else {
+                                  offsetsPerShard.push(Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset)[0]));
+                                }
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
+                        const offsets = offsetsPerShard;
                         offsets.forEach((offset) => {
                             totalOffset += offset;
                         });
