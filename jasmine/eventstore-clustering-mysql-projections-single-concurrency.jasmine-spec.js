@@ -46,7 +46,7 @@ const _serializeProjectionOffset = function(projectionOffset) {
 }
 
 const retryInterval = 1000;
-fdescribe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
+describe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
