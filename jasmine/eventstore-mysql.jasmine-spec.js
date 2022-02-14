@@ -55,7 +55,7 @@ const sleep = function(timeout) {
     })
 }
 
-describe('evenstore mysql classicist tests', function() {
+describe('eventstore mysql classicist tests', function() {
     /**
      * @type {Docker.Container}
      */
@@ -2249,6 +2249,133 @@ describe('evenstore mysql classicist tests', function() {
             expect(filteredResults.rows[1].data).toEqual(sanitizedPayloads[4]);
             expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[1].field1, payloads[1].field2, payloads[1].field3, payloads[1].keysetId])).toString('base64'));
             expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[4].field1, payloads[4].field2, payloads[4].field3, payloads[4].keysetId])).toString('base64'));
+        });
+    });
+
+    describe('querying playbackListViews with nested filterGroups', function() {
+        it('should filter the playbackList properly', async function() {
+            const projectionConfig = {
+                projectionId: 'vehicle-list',
+                projectionName: 'Vehicle Listing',
+                playbackInterface: {
+                    $init: function() {
+                        return {
+                            count: 0
+                        }
+                    },
+                    VEHICLE_CREATED: async function(state, event, funcs) {
+                        const playbackList = await funcs.getPlaybackList('vehicle_list');
+                        const eventPayload = event.payload.payload;
+                        const data = {
+                            vehicleId: eventPayload.vehicleId,
+                            year: eventPayload.year,
+                            make: eventPayload.make,
+                            model: eventPayload.model,
+                            mileage: eventPayload.mileage
+                        };
+                        await playbackList.add(event.aggregateId, event.streamRevision, data, {});
+                    }
+                },
+                query: {
+                    context: 'vehicle',
+                    aggregate: 'vehicle'
+                },
+                partitionBy: '',
+                outputState: 'true',
+                playbackList: {
+                    name: 'vehicle_list',
+                    fields: [
+                        {
+                            name: 'vehicleId',
+                            type: 'string'
+                        }
+                    ]
+                }
+            };
+    
+            await eventstore.projectAsync(projectionConfig);
+            await eventstore.startAllProjectionsAsync();
+    
+            await eventstore.runProjectionAsync(projectionConfig.projectionId, false);
+    
+            await eventstore.registerPlaybackListViewAsync('vehicle-list',
+                'SELECT list.row_id, list.row_revision, list.row_json, list.meta_json FROM vehicle_list list @@where @@order @@limit',
+                'SELECT COUNT(1) as total_count FROM vehicle_list list @@where;', {
+                    alias: {}
+                });
+    
+            const vehicleId = shortid.generate();
+            const stream = await eventstore.getLastEventAsStreamAsync({
+                context: 'vehicle',
+                aggregate: 'vehicle',
+                aggregateId: vehicleId
+            });
+    
+            Bluebird.promisifyAll(stream);
+    
+            const event = {
+                name: "VEHICLE_CREATED",
+                payload: {
+                    vehicleId: vehicleId,
+                    year: 2012,
+                    make: "Honda",
+                    model: "Jazz",
+                    mileage: 1245
+                }
+            }
+            stream.addEvent(event);
+            await stream.commitAsync();
+    
+            let pollCounter = 0;
+            while (pollCounter < 10) {
+                const projection = await eventstore.getProjectionAsync(projectionConfig.projectionId);
+                if (projection.processedDate) {
+                    break;
+                } else {
+                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    await sleep(1000);
+                }
+            }
+    
+            expect(pollCounter).toBeLessThan(10);
+    
+            const playbackListView = await eventstore.getPlaybackListViewAsync('vehicle-list');
+            Bluebird.promisifyAll(playbackListView);
+    
+            const filteredResults = await playbackListView.queryAsync(0, 1, [
+                {
+                    group: 'vehicle-1',
+                    groupBooleanOperator: 'or',
+                    filters: [
+                        {
+                            field: 'vehicleId',
+                            operator: 'is',
+                            value: vehicleId,
+                            group: 'subgroup-1',
+                            groupBooleanOperator: 'and'
+                        },
+                        {
+                            field: 'vehicleId',
+                            operator: 'exists',
+                            group: 'subgroup-1',
+                            groupBooleanOperator: 'and'
+                        }
+                    ]
+                },
+                {
+                    group: 'vehicle-1',
+                    groupBooleanOperator: 'or',
+                    filters: [
+                        {
+                            field: 'vehicleId',
+                            operator: 'notExists'
+                        }
+                    ]
+                }
+            ], null);
+    
+            const result = filteredResults.rows[0];
+            expect(result.data).toEqual(event.payload);
         });
     });
 
