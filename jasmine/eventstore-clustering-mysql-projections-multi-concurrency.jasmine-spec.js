@@ -335,7 +335,7 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             expect(projectionOffset).toBeLessThanOrEqual(1);
         });
 
-        fit('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
+        it('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {

@@ -194,10 +194,13 @@ describe('eventstore clustering mysql projection tests', () => {
                 };
                 clusteredEventstore = clusteredEs(useEventPublisherConfig);
                 Bluebird.promisifyAll(clusteredEventstore);
-                const mockUseEventPublisherCallback = jasmine.createSpy().and.callFake((evt, callback) => {
+                let hasProcessed = false;
+                const useEventPublisherCallback = function(evt, callback) {
+                    console.log('CALLBACK GOT EVENT', evt);
+                    hasProcessed = true;
                     callback();
-                });
-                clusteredEventstore.useEventPublisher(mockUseEventPublisherCallback);
+                };
+                clusteredEventstore.useEventPublisher(useEventPublisherCallback);
                 
                 await clusteredEventstore.initAsync();
                 for (const eventstore of clusteredEventstore._eventstores) {
@@ -269,8 +272,18 @@ describe('eventstore clustering mysql projection tests', () => {
                 stream.addEvent(event);
                 await stream.commitAsync();
 
-                expect(mockUseEventPublisherCallback).toHaveBeenCalled();
-                await sleep(5000);
+                let pollCounter = 0;
+                while (pollCounter < 5) {
+                    if (hasProcessed) {
+                        break;
+                    } else {
+                        debug(`events have not yet been played back. trying again in 1000ms`);
+                        pollCounter++;
+                        await sleep(1000);
+                    }
+                }
+                expect(pollCounter).toBeLessThan(5);
+
                 for (const eventstore of clusteredEventstore._eventstores) {
                     Bluebird.promisifyAll(eventstore.store);
                     await eventstore.store.clearAsync();
