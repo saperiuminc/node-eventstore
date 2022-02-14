@@ -1,6 +1,6 @@
 const compose = require('docker-compose');
 const path = require('path');
-const debug = require('debug')('eventstore:clustering:mysql');
+const debug = require('debug')('eventstore:clustering:single');
 const mysql2 = require('mysql2/promise');
 const clusteredEs = require('../lib/eventstore-projections/clustered-eventstore');
 const Bluebird = require('bluebird');
@@ -46,7 +46,7 @@ const _serializeProjectionOffset = function(projectionOffset) {
 }
 
 const retryInterval = 1000;
-describe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
+fdescribe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
@@ -312,7 +312,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
                         const deserializedOffset = _deserializeProjectionOffset(pj.offset);
-                        projectionOffset = deserializedOffset
+                        projectionOffset = deserializedOffset;
                         maxOffset = Math.max(...projectionOffset);
                         if (pj.processedDate && projection.state == 'running' && maxOffset) {
                             hasPassed = true;
@@ -586,6 +586,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
         });
 
         it('should set the projection to faulted if there is an event handler error', async function() {
+            debug('HANDLE ERROR')
             let context = `vehicle${shortid.generate()}`
             const projectionConfig = {
                 projectionId: context,
@@ -658,6 +659,8 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             let pollCounter = 0;
             let projection;
             let faultedProjectionTask;
+            let maxOffset = 0;
+            let maxErrorOffset = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -667,6 +670,8 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
+                        debug('pj', pj);
+                        debug('deserializedErrorOffset', pj.errorOffset ? _deserializeProjectionOffset(pj.errorOffset) : [0]);
                         const deserializedErrorOffset = pj.errorOffset ? _deserializeProjectionOffset(pj.errorOffset) : [0];
                         let hasOffset = false;
                         if (Array.isArray(deserializedErrorOffset)) {
@@ -674,12 +679,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             if (errorOffset > 0) {
                               hasOffset = true;
                             }
-                          })
+                          });
+                          maxErrorOffset = Math.max(...deserializedErrorOffset);
                         }
                         if (hasOffset && projection.state == 'faulted') {
                             hasPassed = true;
                             console.log('projection.state is faulted. continuing with test');
                             faultedProjectionTask = pj;
+                            maxOffset = Math.max(..._deserializeProjectionOffset(faultedProjectionTask.offset));
                             break;
                         }
                     }
@@ -702,8 +709,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            expect(_deserializeProjectionOffset(faultedProjectionTask.errorOffset)[0]).toBeGreaterThan(0);
-            expect(_deserializeProjectionOffset(faultedProjectionTask.offset)[0]).toEqual(1);
+            debug('_deserializeProjectionOffset(faultedProjectionTask.errorOffset)', _deserializeProjectionOffset(faultedProjectionTask.errorOffset));
+            debug('_deserializeProjectionOffset(faultedProjectionTask.offset)', _deserializeProjectionOffset(faultedProjectionTask.offset));
+            expect(maxErrorOffset).toBeGreaterThan(0);
+            expect(maxOffset).toEqual(1);
         });
 
         it('should force run the projection when there is an error', async function() {
