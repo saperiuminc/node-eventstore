@@ -56,10 +56,15 @@ function getSpecificStore(options) {
     if (_.isFunction(options.type)) {
         return options.type;
     }
-
+    
+    let dbPath = '';
     options.type = options.type.toLowerCase();
 
-    var dbPath = __dirname + "/lib/databases/" + options.type + ".js";
+    if (options.clusterType) {
+      dbPath = __dirname + "/lib/databases/clustered/" + options.clusterType + ".js";
+    } else {
+      dbPath = __dirname + "/lib/databases/" + options.type + ".js";
+    }
 
     if (!exists(dbPath)) {
         var errMsg = 'Implementation for db "' + options.type + '" does not exist!';
@@ -97,8 +102,9 @@ const esFunction = function(opts) {
     let options = opts ? opts : {};
 
     var Store;
-    if (!options.type) {
+    if (options.clusters && Array.isArray(options.clusters) && options.clusters.length) {
       options.type = 'clusteredstore';
+      options.clusterType = 'clustered-' + options.clusters[0].type;
     }
 
     // eslint-disable-next-line no-useless-catch
