@@ -130,7 +130,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
         beforeAll(async function() {
             try {
                 const config = {
-                    type: 'clustered-mysql',
+                    type: 'clusteredstore',
                     clusters: [{
                         type: 'mysql',
                         host: mysqlConfig.host,
