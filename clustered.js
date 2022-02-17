@@ -178,37 +178,6 @@ const esFunction = function(opts) {
         storeEventEmitter.addEventEmitter();
     }
 
-    options.clusters.forEach((storeConfig, index) => {
-        let config = {
-            type: storeConfig.type,
-            host: storeConfig.host,
-            port: storeConfig.port,
-            user: storeConfig.user,
-            password: storeConfig.password,
-            database: storeConfig.database,
-            connectionPoolLimit: storeConfig.connectionPoolLimit,
-            shard: index,
-            partitions: options.partitions,
-            shouldDoTaskAssignment: false,
-            shouldSkipSignalOverride: false
-        };
-
-        let esConfig = Object.assign(_.clone(options), config);
-        delete esConfig.clusters;
-
-        if (!esConfig.outputsTo) {
-            // NOTE: if no outputsTo is defined, use the cluster to output the events to
-            esConfig.outputsTo = eventstore;
-        }
-
-        const Store = getSpecificStore(config);
-
-        const EventstoreWithProjection = require('./lib/eventstore-projections/eventstore-projection');
-        const eventstoreNode = new EventstoreWithProjection(esConfig, new Store(config), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
-
-        eventstore.addEventstoreToCluster(eventstoreNode);
-    });
-
     return eventstore;
 };
 
