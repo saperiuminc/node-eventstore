@@ -208,7 +208,6 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             const projections = await clusteredEventstore.getProjectionsAsync();
             for (const projection of projections) {
                 const projectionId = projection.projectionId;
-                await clusteredEventstore.resetProjectionAsync(projectionId);
                 await clusteredEventstore.deleteProjectionAsync(projectionId);
             }
 
@@ -854,8 +853,11 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            expect(_deserializeProjectionOffset(faultedProjectionTask.errorOffset)[0]).toBeGreaterThan(0);
-            expect(_deserializeProjectionOffset(faultedProjectionTask.offset)[0]).toEqual(1);
+            const errorOffset = _deserializeProjectionOffset(faultedProjectionTask.errorOffset);
+            const offset = _deserializeProjectionOffset(faultedProjectionTask.offset);
+            // TODO: Feb17: Array offset, expect on both?
+            expect(errorOffset[0]).toBeGreaterThan(0);
+            expect(offset[0]).toEqual(1);
 
             let lastOffset = _deserializeProjectionOffset(faultedProjectionTask.offset)[0];
             faultedProjectionTask = null;
