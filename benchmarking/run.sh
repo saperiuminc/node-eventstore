@@ -1,0 +1,13 @@
+PRE_PLAN_RUNS=5,CONCURRENCY MAX_TIME=10000 WARMUP_TIME=500 DEBUG=DEBUG node eventstore-projection.zbench.js
+
+PRE_PLAN_RUNS=5,PARALLELISM MAX_TIME=10000 WARMUP_TIME=500 DEBUG=DEBUG node eventstore-projection.zbench.js
+
+CONCURRENCY=1 PARALLELISM=5 MAX_TIME=10000 WARMUP_TIME=500 DEBUG=DEBUG SHARD_COUNT=2 node sharded-two-node-eventstore.zbench.js
+
+CONCURRENCY=1 PARALLELISM=5 MAX_TIME=10000 WARMUP_TIME=500 MAX_OPS=100 DEBUG=DEBUG node mysql.zbench.js
+
+
+CONCURRENCY=10 PARALLELISM=8 MAX_TIME=10000 WARMUP_TIME=500 RDS_HOST=benchmarking-instance-1.cikkogo5zcwz.us-west-2.rds.amazonaws.com node mysql-insert-for-update.zbench.js
+
+#aws
+PRE_PLAN_RUNS=5,CONCURRENCY MAX_TIME=10000 WARMUP_TIME=500 DEBUG=DEBUG node eventstore-projection-aws.zbench.js

@@ -1,0 +1,74 @@
+version: '3'
+services:
+  db_1:
+    image: mysql:5.7
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eventstore
+      MYSQL_PASSWORD: root
+    # cpus: "0.3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+        reservations:
+          cpus: '0.1'
+    profiles:
+      - one
+      - two
+      - three
+      - four
+
+  db_2:
+    image: mysql:5.7
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    ports:
+      - 3307:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eventstore
+      MYSQL_PASSWORD: root
+    # cpus: "0.3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+        reservations:
+          cpus: '0.1'
+    profiles:
+      - two
+      - three
+      - four
+  
+  db_3:
+    image: mysql:5.7
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    ports:
+      - 3308:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eventstore
+      MYSQL_PASSWORD: root
+    cpus: "0.3"
+    profiles:
+      - three
+      - four
+  db_4:
+    image: mysql:5.7
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    ports:
+      - 3309:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eventstore
+      MYSQL_PASSWORD: root
+    cpus: "0.3"
+    profiles:
+      - four
