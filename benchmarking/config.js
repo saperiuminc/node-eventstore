@@ -62,7 +62,7 @@ module.exports = {
             bidType: 'regularbid'
         },
         bidders: null,
-        extensionEndsAt: (new Date()).getTime()
+        extensionEndsAt: 1645064128300
     },
     profileMap: {
         1: 'one',

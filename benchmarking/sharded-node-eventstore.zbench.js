@@ -8,7 +8,6 @@ const shortid = require('shortid');
 const _ = require('lodash');
 const configs = require('./config');
 
-
 const shardCount = process.env.SHARD_COUNT || 1;
 const config = {
     clusters: configs.clusterConfigs.slice(0, shardCount)
@@ -19,8 +18,8 @@ const sampleLeaderComputedEventPayload = _.cloneDeep(configs.salesChannelInstanc
 const context = 'auction';
 const aggregate = 'salesChannelInstanceVehicle';
 
-const numberOfVehicles = 1000;
-const vehicleAggregateIds = [];
+// const numberOfVehicles = 1000;
+let esInstance;
 
 
 const sleep = function(timeout) {
@@ -29,14 +28,7 @@ const sleep = function(timeout) {
     })
 }
 
-const getEventstore = async function() {
-    const es = require('../lib/eventstore-projections/clustered-eventstore')(config);
-    bluebird.promisifyAll(es);
-    await es.initAsync()
-    return es;
-}
-
-zbench('Sharded Add Events', (z) => {
+zbench('sharding', (z) => {
     z.setupOnce(async (done, b) => {
         debug(`setting up benchmarking for ${shardCount} shards`);
         await compose.upAll({
@@ -78,7 +70,6 @@ zbench('Sharded Add Events', (z) => {
         }
      
         debug('connected to mysql setup complete');
-        
 
         done();
     });
@@ -92,29 +83,30 @@ zbench('Sharded Add Events', (z) => {
         done();
     });
 
-    z.setup(`sharding-${shardCount}`, (done, b) => {
-        for (let i = 0; i < numberOfVehicles; i++) {
-            vehicleAggregateIds.push(shortid.generate());
-        }
+    z.setup('sharding', async (done, b) => {
+        const es = require('../lib/eventstore-projections/clustered-eventstore')(config);
+        bluebird.promisifyAll(es);
+        await es.initAsync()
+        esInstance = es;
         debug('setup complete');
         done();
     });
 
-    // z.teardown('sharding', (done) => {
-    //     done();
-    // })
+    z.teardown('sharding', (done) => {
+        done();
+    })
 
-    z.test(`sharding-${shardCount}`, async (b) => {
-        const es = await getEventstore();
-        // const randomIndex = Math.floor((Math.random() * numberOfVehicles));
-        const eventPayload = _.cloneDeep(sampleLeaderComputedEventPayload);
-        const aggregateId = shortid.generate();// vehicleAggregateIds[randomIndex];
+    z.test('sharding', (b) => {
+        debug('MADE IT HERE');
+        // const randomIndex = Math.floor((Math.random() * testAggregateIds.length));
+        const eventPayload = sampleLeaderComputedEventPayload
+        const aggregateId = shortid.generate(); // testAggregateIds[randomIndex];
 
         eventPayload.salesChannelInstanceVehicleId = aggregateId;
         eventPayload.vehicleId = `vehicle-${aggregateId}`;
         
         b.start();
-        es.getFromSnapshot({
+        esInstance.getFromSnapshot({
             aggregateId: aggregateId,
             aggregate: aggregate,
             context: context,

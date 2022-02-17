@@ -14,9 +14,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.2'
-        reservations:
-          cpus: '0.1'
+          cpus: '0.3'
     profiles:
       - one
       - two
@@ -37,9 +35,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.2'
-        reservations:
-          cpus: '0.1'
+          cpus: '0.3'
     profiles:
       - two
       - three
@@ -55,7 +51,11 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: eventstore
       MYSQL_PASSWORD: root
-    cpus: "0.3"
+    # cpus: "0.3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
     profiles:
       - three
       - four
@@ -69,6 +69,10 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: eventstore
       MYSQL_PASSWORD: root
-    cpus: "0.3"
+    # cpus: "0.3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
     profiles:
       - four
