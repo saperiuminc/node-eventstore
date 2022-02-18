@@ -1,6 +1,6 @@
 const compose = require('docker-compose');
 const path = require('path');
-const debug = require('debug')('eventstore:clustering:mysql');
+const debug = require('debug')('eventstore:clustering:multi');
 const mysql2 = require('mysql2/promise');
 const clusteredEs = require('../clustered');
 const Bluebird = require('bluebird');
@@ -328,7 +328,6 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             }
 
-            console.log(pollCounter, projectionOffset);
             expect(pollCounter).toBeLessThan(10);
             expect(projectionOffset).toBeLessThanOrEqual(1);
         });
