@@ -128,7 +128,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
 
     describe('projections', () => {
         let clusteredEventstore;
-        beforeAll(async function() {
+        beforeEach(async function() {
             try {
                 const config = {
                     clusters: [{
@@ -195,6 +195,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 };
                 clusteredEventstore = clusteredEs(config);
                 Bluebird.promisifyAll(clusteredEventstore);
+                Bluebird.promisifyAll(clusteredEventstore.store);
                 await clusteredEventstore.initAsync();
             } catch (error) {
                 console.error('error in beforeAll', error);
@@ -212,12 +213,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 await clusteredEventstore.deleteProjectionAsync(projectionId);
             }
 
-            for (const eventstore of clusteredEventstore._eventstores) {
-                Bluebird.promisifyAll(eventstore.store);
-                await eventstore.store.clearAsync();
-            }
+            await clusteredEventstore.store.clearAsync();
 
             clusteredEventstore.removeAllListeners('rebalance');
+            await clusteredEventstore.closeAsync();
             // console.log('AFTER EACH DONE');
         }, 60000);
 

@@ -127,7 +127,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
 
     describe('projections', () => {
         let clusteredEventstore;
-        beforeAll(async function() {
+        beforeEach(async function() {
             try {
                 const config = {
                     type: 'clusteredstore',
@@ -195,6 +195,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 };
                 clusteredEventstore = clusteredEs(config);
                 Bluebird.promisifyAll(clusteredEventstore);
+                Bluebird.promisifyAll(clusteredEventstore.store);
                 await clusteredEventstore.initAsync();
             } catch (error) {
                 console.error('error in beforeAll', error);
@@ -208,15 +209,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             const projections = await clusteredEventstore.getProjectionsAsync();
             for (const projection of projections) {
                 const projectionId = projection.projectionId;
+                await clusteredEventstore.resetProjectionAsync(projectionId);
                 await clusteredEventstore.deleteProjectionAsync(projectionId);
             }
 
-            for (const eventstore of clusteredEventstore._eventstores) {
-                Bluebird.promisifyAll(eventstore.store);
-                await eventstore.store.clearAsync();
-            }
+            await clusteredEventstore.store.clearAsync();
 
             clusteredEventstore.removeAllListeners('rebalance');
+            await clusteredEventstore.closeAsync();
             // console.log('AFTER EACH DONE');
         }, 60000);
 
@@ -855,11 +855,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
             const errorOffset = _deserializeProjectionOffset(faultedProjectionTask.errorOffset);
             const offset = _deserializeProjectionOffset(faultedProjectionTask.offset);
-            // TODO: Feb17: Array offset, expect on both?
-            expect(errorOffset[0]).toBeGreaterThan(0);
-            expect(offset[0]).toEqual(1);
+            expect(Math.max(...errorOffset)).toBeGreaterThan(0);
+            expect(Math.max(...offset)).toEqual(1);
 
-            let lastOffset = _deserializeProjectionOffset(faultedProjectionTask.offset)[0];
+            let lastOffset = Math.max(..._deserializeProjectionOffset(faultedProjectionTask.offset));
             faultedProjectionTask = null;
             pollCounter = 0;
 
@@ -875,12 +874,19 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
                         // console.log('pj', lastOffset, pj.projectionTaskId, pj.offset, projection.state);
-                        if (!lastOffset) {
-                            lastOffset = isNumber(pj.offset) ? _deserializeProjectionOffset(pj.offset)[0] : null;
+                        const deserializedOffset = pj.offset ? _deserializeProjectionOffset(pj.offset) : [0];
+                        let hasOffset = false;
+                        if (Array.isArray(deserializedOffset)) {
+                          deserializedOffset.forEach((offset) => {
+                            if (!lastOffset) {
+                              lastOffset = offset;
+                            }
+                            hasOffset = true;
+                          })
                         }
-                        if (pj.offset && _deserializeProjectionOffset(pj.offset)[0] > lastOffset && projection.state === 'running') {
+                        if (hasOffset && Math.max(...deserializedOffset) > lastOffset && projection.state === 'running') {
                             hasPassed = true;
-                            // console.log('offset changed', lastOffset, pj.offset);
+                            console.log('projection.state is running. continuing with test');
                             faultedProjectionTask = pj;
                             break;
                         }
@@ -900,8 +906,8 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     break;
                 }
             }
-
-            expect(_deserializeProjectionOffset(faultedProjectionTask.offset)[0]).toEqual(2);
+            const deserializedOffset = _deserializeProjectionOffset(faultedProjectionTask.offset);
+            expect(Math.max(...deserializedOffset)).toEqual(2);
             expect(projection.state).toEqual('running');
             expect(faultedProjectionTask.isIdle).toEqual(0);
         });

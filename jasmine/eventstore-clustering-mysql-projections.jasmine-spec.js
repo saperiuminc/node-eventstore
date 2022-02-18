@@ -194,6 +194,7 @@ describe('eventstore clustering mysql projection tests', () => {
                 };
                 clusteredEventstore = clusteredEs(useEventPublisherConfig);
                 Bluebird.promisifyAll(clusteredEventstore);
+                Bluebird.promisifyAll(clusteredEventstore.store);
                 let hasProcessed = false;
                 const useEventPublisherCallback = function(evt, callback) {
                     console.log('CALLBACK GOT EVENT', evt);
@@ -283,11 +284,6 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 }
                 expect(pollCounter).toBeLessThan(5);
-
-                for (const eventstore of clusteredEventstore._eventstores) {
-                    Bluebird.promisifyAll(eventstore.store);
-                    await eventstore.store.clearAsync();
-                }
     
                 await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
     
@@ -297,12 +293,16 @@ describe('eventstore clustering mysql projection tests', () => {
                     await clusteredEventstore.resetProjectionAsync(projectionId);
                     await clusteredEventstore.deleteProjectionAsync(projectionId);
                 }
+                await clusteredEventstore.store.clearAsync();
+
+                clusteredEventstore.removeAllListeners('rebalance');
+                await clusteredEventstore.closeAsync();
             });
         });
 
         describe('without invoking useEventPublisher', () => {
             let clusteredEventstore;
-            beforeAll(async function() {
+            beforeEach(async function() {
                 try {
                     const config = {
                         clusters: [{
@@ -369,27 +369,29 @@ describe('eventstore clustering mysql projection tests', () => {
                     };
                     clusteredEventstore = clusteredEs(config);
                     Bluebird.promisifyAll(clusteredEventstore);
+                    Bluebird.promisifyAll(clusteredEventstore.store);
                     await clusteredEventstore.initAsync();
                 } catch (error) {
                     console.error('error in beforeAll', error);
                 }
             }, 60000);
 
-            beforeEach(async function() {
-                for (const eventstore of clusteredEventstore._eventstores) {
-                    Bluebird.promisifyAll(eventstore.store);
-                    await eventstore.store.clearAsync();
-                }
-    
+            afterEach(async function() {
+                // console.log('AFTER EACH');
                 await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
-    
+
                 const projections = await clusteredEventstore.getProjectionsAsync();
                 for (const projection of projections) {
                     const projectionId = projection.projectionId;
                     await clusteredEventstore.resetProjectionAsync(projectionId);
                     await clusteredEventstore.deleteProjectionAsync(projectionId);
                 }
+
+                await clusteredEventstore.store.clearAsync();
+
                 clusteredEventstore.removeAllListeners('rebalance');
+                await clusteredEventstore.closeAsync();
+                // console.log('AFTER EACH DONE');
             }, 60000);
 
             it('should be able to process projections', async () => {
@@ -510,7 +512,7 @@ describe('eventstore clustering mysql projection tests', () => {
         
     describe('event subscription', () => {
         let clusteredEventstore;
-        beforeAll(async function() {
+        beforeEach(async function() {
             try {
                 const config = {
                     clusters: [{
@@ -576,6 +578,7 @@ describe('eventstore clustering mysql projection tests', () => {
                 };
                 clusteredEventstore = clusteredEs(config);
                 Bluebird.promisifyAll(clusteredEventstore);
+                Bluebird.promisifyAll(clusteredEventstore.store);
                 await clusteredEventstore.initAsync();
             } catch (error) {
                 console.error('error in beforeAll', error);
@@ -583,12 +586,22 @@ describe('eventstore clustering mysql projection tests', () => {
 
         }, 60000);
 
-        beforeEach(async function() {
-            for (const eventstore of clusteredEventstore._eventstores) {
-                Bluebird.promisifyAll(eventstore.store);
-                await eventstore.store.clearAsync();
+        afterEach(async function() {
+            // console.log('AFTER EACH');
+            await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
+
+            const projections = await clusteredEventstore.getProjectionsAsync();
+            for (const projection of projections) {
+                const projectionId = projection.projectionId;
+                await clusteredEventstore.resetProjectionAsync(projectionId);
+                await clusteredEventstore.deleteProjectionAsync(projectionId);
             }
-            await clusteredEventstore.closeSubscriptionEventStreamBuffersAsync();
+
+            await clusteredEventstore.store.clearAsync();
+
+            clusteredEventstore.removeAllListeners('rebalance');
+            await clusteredEventstore.closeAsync();
+            // console.log('AFTER EACH DONE');
         }, 60000);
 
         it('should be able to call subscribe and receive new events', async () => {
