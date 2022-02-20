@@ -1,50 +1,22 @@
 module.exports = {
-    clusterConfigs: [
-        {
-            type: 'mysql',
-            host: 'localhost',
-            port: '3306',
-            user: 'root',
-            password: 'root',
-            database: 'eventstore',
-            connectionPoolLimit: 1,
-            projectionGroup: 'auction',
-            context: 'auction'
-        },
-        {
-            type: 'mysql',
-            host: 'localhost',
-            port: '3307',
-            user: 'root',
-            password: 'root',
-            database: 'eventstore',
-            connectionPoolLimit: 1,
-            projectionGroup: 'auction',
-            context: 'auction'
-        },
-        {
-            type: 'mysql',
-            host: 'localhost',
-            port: '3308',
-            user: 'root',
-            password: 'root',
-            database: 'eventstore',
-            connectionPoolLimit: 1,
-            projectionGroup: 'auction',
-            context: 'auction'
-        },
-        {
-            type: 'mysql',
-            host: 'localhost',
-            port: '3309',
-            user: 'root',
-            password: 'root',
-            database: 'eventstore',
-            connectionPoolLimit: 1,
-            projectionGroup: 'auction',
-            context: 'auction'
-        }
+    clusterPorts: [
+        '3306', '3307', '3308',
+        '3309', '3310', '3311',
+        '3312', '3313', '3314',
+        '3315', '3316', '3317',
+        '3318', '3319', '3320'
     ],
+    esConfig: {
+        type: 'mysql',
+        host: 'localhost',
+        port: '3306',
+        user: 'root',
+        password: 'root',
+        database: 'eventstore',
+        connectionPoolLimit: 1,
+        projectionGroup: 'auction',
+        context: 'auction'
+    },
     salesChannelInstanceVehicleLeaderComputedTestEventPayload: {
         vehicleId: '',
         salesChannelInstanceVehicleId: '',
@@ -68,6 +40,13 @@ module.exports = {
         1: 'one',
         2: 'two',
         3: 'three',
-        4: 'four'
+        4: 'four',
+        5: 'five',
+        6: 'six',
+        7: 'seven',
+        8: 'eight',
+        9: 'nine',
+        10: 'ten',
+        15: 'all'
     }
 }
