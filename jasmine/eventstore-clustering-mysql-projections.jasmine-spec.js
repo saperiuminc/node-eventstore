@@ -519,7 +519,7 @@ describe('eventstore clustering mysql projection tests', () => {
                 
                 expect(pollCounter).toBeLessThan(10);
                 expect(projectionOffset.length).toBeGreaterThan(0);
-                expect(maxCommitStamp).toBeGreaterThan(timeStampBeforeEventAdd);
+                expect(maxCommitStamp).toBeGreaterThanOrEqual(timeStampBeforeEventAdd);
                 expect(maxEventId != '').toBeTruthy();
             });
         });

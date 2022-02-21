@@ -47,7 +47,7 @@ const _serializeProjectionOffset = function(projectionOffset) {
 }
 
 const retryInterval = 1000;
-fdescribe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
+describe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
@@ -881,6 +881,7 @@ fdescribe('Single Concurrency -- eventstore clustering mysql projection tests', 
                     mileage: 1245
                 }
             }
+            const timeStampBeforeSecondLastEventAdd = new Date().getTime();
             stream.addEvent(event);
             
             await sleep(retryInterval);
@@ -968,7 +969,7 @@ fdescribe('Single Concurrency -- eventstore clustering mysql projection tests', 
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
             
-            expect(_.clone(maxCommitStamp)).toBeLessThanOrEqual(timeStampBeforeLastEventAdd);
+            expect(_.clone(maxCommitStamp)).toBeGreaterThanOrEqual(timeStampBeforeSecondLastEventAdd);
             expect(_.clone(maxEventId != '')).toBeTruthy();
             expect(_.clone(maxStreamRevision)).toEqual(0);
             
