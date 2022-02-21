@@ -460,7 +460,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             expect(projectionOffset).toBeLessThanOrEqual(2);
         });
 
-        xit('should reset the projection', async function() {
+        it('should reset the projection', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {
@@ -576,7 +576,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             expect(storedProjection.state).toEqual('paused');
         });
 
-        it('should set the projection to faulted if there is an event handler error', async function() {
+        fit('should set the projection to faulted if there is an event handler error', async function() {
             let context = `vehicle${shortid.generate()}`
             const projectionConfig = {
                 projectionId: context,
