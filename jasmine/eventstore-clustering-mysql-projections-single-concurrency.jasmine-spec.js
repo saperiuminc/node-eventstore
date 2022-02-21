@@ -130,7 +130,6 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
         beforeEach(async function() {
             try {
                 const config = {
-                    type: 'clusteredstore',
                     clusters: [{
                         type: 'mysql',
                         host: mysqlConfig.host,
@@ -300,7 +299,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             pollCounter = 0;
             let projection;
             let projectionOffset;
-            let maxOffset;
+            let maxOffset = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -430,7 +429,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             pollCounter = 0;
             let projection;
             let projectionOffset;
-            let maxOffset;
+            let maxOffset = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -2246,7 +2245,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             await clusteredEventstore.runProjectionAsync(projectionWithLatestOffsetConfig.projectionId, false);
         
             pollCounter = 0;
-            let maxOffset;
+            let maxOffset = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');

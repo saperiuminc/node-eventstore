@@ -1,6 +1,6 @@
 const compose = require('docker-compose');
 const path = require('path');
-const debug = require('debug')('eventstore:clustering:multi');
+const debug = require('debug')('eventstore:clustered');
 const mysql2 = require('mysql2/promise');
 const clusteredEs = require('../clustered');
 const Bluebird = require('bluebird');
@@ -46,7 +46,6 @@ const _serializeProjectionOffset = function(projectionOffset) {
 }
 
 const retryInterval = 1000;
-// TODO: fix cleanup of eventstores after each test
 describe('Multi Concurrency -- eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
@@ -233,7 +232,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         }
                     },
                     VEHICLE_CREATED: async function(state, event, funcs) {
-                        // console.log('TEST PROJECTION GOT EVENT', event);
+                        console.log('TEST PROJECTION GOT EVENT', event);
                     }
                 },
                 query: [{
@@ -266,10 +265,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             while (pollCounter < 5) {
                 pollCounter += 1;
                 if (hasRebalanced) {
-                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
+                    console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
                     break;
                 } else {
-                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
+                    console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
                     await sleep(retryInterval);
                 }
             }
@@ -296,10 +295,11 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             }
             stream.addEvent(event);
             await stream.commitAsync();
+            console.log('ADDED EVENT');
 
             pollCounter = 0;
             let projection;
-            let projectionOffset;
+            let maxOffset = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -309,27 +309,28 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        if (pj.processedDate && projection.state == 'running') {
-                            hasPassed = true;
-                        }
-                        if (isNumber(_deserializeProjectionOffset(pj.offset))) {
-                            projectionOffset = _deserializeProjectionOffset(pj.offset);
+                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
+                        if (isNumber(deserializedOffset)) {
+                            maxOffset = Math.max(maxOffset, deserializedOffset);
+                            if (pj.processedDate && projection.state == 'running' && maxOffset > 0) {
+                                hasPassed = true;
+                            }
                         }
                     }
                     if (hasPassed) {
                         break;
                     } else {
-                        debug(`projection has not processed yet. trying again in 1000ms`);
+                        console.log(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 } else {
-                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    console.log(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
             }
 
             expect(pollCounter).toBeLessThan(10);
-            expect(projectionOffset).toBeLessThanOrEqual(1);
+            expect(maxOffset).toEqual(1);
         });
 
         it('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
@@ -426,7 +427,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
 
             pollCounter = 0;
             let projection;
-            let projectionOffset;
+            let maxOffset = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -436,28 +437,28 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        if (pj.processedDate && projection.state == 'running') {
-                            hasPassed = true;
-                        }
-
-                        if (isNumber(_deserializeProjectionOffset(pj.offset))) {
-                            projectionOffset = _deserializeProjectionOffset(pj.offset);
+                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
+                        if (isNumber(deserializedOffset)) {
+                            maxOffset = Math.max(maxOffset, deserializedOffset);
+                            if (pj.processedDate && projection.state == 'running' && maxOffset > 0) {
+                                hasPassed = true;
+                            }
                         }
                     }
                     if (hasPassed) {
                         break;
                     } else {
-                        debug(`projection has not processed yet. trying again in 1000ms`);
+                        console.log(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 } else {
-                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    console.log(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
             }
 
             expect(pollCounter).toBeLessThan(10);
-            expect(projectionOffset).toBeLessThanOrEqual(2);
+            expect(maxOffset).toEqual(2);
         });
 
         it('should reset the projection', async function() {
@@ -649,6 +650,8 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             let pollCounter = 0;
             let projection;
             let faultedProjectionTask;
+            let faultedOffset = 0;
+            let faultedErrorOffset = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -658,12 +661,15 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        // console.log('pj: ', pj.projectionTaskId, pj.offset, projection.state);
-                        if (pj.offset && _deserializeProjectionOffset(pj.offset) > 0 && projection.state == 'faulted') {
-                            hasPassed = true;
-                            console.log('projection.state is faulted. continuing with test');
-                            faultedProjectionTask = pj;
-                            break;
+                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
+                        const deserializedErrorOffset = pj.errorOffset ? _deserializeProjectionOffset(pj.errorOffset) : null;
+                        if (isNumber(deserializedErrorOffset)) {
+                            if (projection.state == 'faulted' && deserializedOffset > 0 && deserializedErrorOffset > 0) {
+                                faultedProjectionTask = pj;
+                                faultedOffset = deserializedOffset;
+                                faultedErrorOffset = deserializedErrorOffset;
+                                hasPassed = true;
+                            }
                         }
                     }
                     if (hasPassed) {
@@ -676,17 +682,13 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     console.log(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
-
-                if (faultedProjectionTask != undefined) {
-                    break;
-                }
             }
 
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            expect(_deserializeProjectionOffset(faultedProjectionTask.errorOffset)).toBeGreaterThan(0);
-            expect(_deserializeProjectionOffset(faultedProjectionTask.offset)).toEqual(1);
+            expect(faultedErrorOffset).toEqual(2);
+            expect(faultedOffset).toEqual(1);
         });
 
         it('should force run the projection when there is an error', async function() {
@@ -784,6 +786,8 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             pollCounter = 0;
             let projection;
             let faultedProjectionTask;
+            let faultedOffset = 0;
+            let faultedErrorOffset = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -793,12 +797,15 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        // console.log('pj: ', pj.projectionTaskId, pj.offset, projection.state);
-                        if (pj.offset && _deserializeProjectionOffset(pj.offset) > 0 && projection.state == 'faulted') {
-                            hasPassed = true;
-                            console.log('projection.state is faulted. continuing with test');
-                            faultedProjectionTask = pj;
-                            break;
+                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
+                        const deserializedErrorOffset = pj.errorOffset ? _deserializeProjectionOffset(pj.errorOffset) : null;
+                        if (isNumber(deserializedErrorOffset)) {
+                            if (projection.state == 'faulted' && deserializedOffset > 0 && deserializedErrorOffset > 0) {
+                                faultedProjectionTask = pj;
+                                faultedOffset = deserializedOffset;
+                                faultedErrorOffset = deserializedErrorOffset;
+                                hasPassed = true;
+                            }
                         }
                     }
                     if (hasPassed) {
@@ -811,19 +818,14 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     console.log(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
-
-                if (faultedProjectionTask != undefined) {
-                    break;
-                }
             }
 
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            expect(_deserializeProjectionOffset(faultedProjectionTask.errorOffset)).toBeGreaterThan(0);
-            expect(_deserializeProjectionOffset(faultedProjectionTask.offset)).toEqual(1);
+            expect(faultedErrorOffset).toEqual(2);
+            expect(faultedOffset).toEqual(1);
 
-            let lastOffset = _deserializeProjectionOffset(faultedProjectionTask.offset);
             faultedProjectionTask = null;
             pollCounter = 0;
 
@@ -838,21 +840,17 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        // console.log('pj', lastOffset, pj.projectionTaskId, pj.offset, projection.state);
-                        if (!lastOffset) {
-                            lastOffset = isNumber(pj.offset) ? _deserializeProjectionOffset(pj.offset) : null;
-                        }
-                        if (pj.offset && _deserializeProjectionOffset(pj.offset) > lastOffset && projection.state === 'running') {
-                            hasPassed = true;
-                            // console.log('offset changed', lastOffset, pj.offset);
+                        const deserializedOffset = pj.offset ? _deserializeProjectionOffset(pj.offset) : null;
+                        if (projection.state == 'running' && deserializedOffset > 0) {
                             faultedProjectionTask = pj;
-                            break;
+                            faultedOffset = deserializedOffset;
+                            hasPassed = true;
                         }
                     }
                     if (hasPassed) {
                         break;
                     } else {
-                        debug(`projection has not processed yet. trying again in 1000ms`, lastOffset);
+                        debug(`projection has not processed yet. trying again in 1000ms`, faultedOffset);
                         await sleep(retryInterval);
                     }
                 } else {
@@ -865,7 +863,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             }
 
-            expect(_deserializeProjectionOffset(faultedProjectionTask.offset)).toEqual(2);
+            expect(faultedOffset).toEqual(2);
             expect(projection.state).toEqual('running');
             expect(faultedProjectionTask.isIdle).toEqual(0);
         });
@@ -2212,7 +2210,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                                 maxOffset = _deserializeProjectionOffset(pj.offset);
                             } else {
                                 if (_deserializeProjectionOffset(pj.offset) > maxOffset) {
-                                    maxOffset = pj;
+                                    maxOffset = _deserializeProjectionOffset(pj.offset);
                                 }
                             }
                         }
