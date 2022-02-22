@@ -6,6 +6,7 @@ const clusteredEs = require('../clustered');
 const Bluebird = require('bluebird');
 const shortid = require('shortid');
 const Redis = require('ioredis');
+const helpers = require('../lib/helpers');
 const {
     isNumber
 } = require('lodash');
@@ -38,11 +39,11 @@ const eventstoreConfig = {
 }
 
 const _deserializeProjectionOffset = function(serializedProjectionOffset) {
-    return JSON.parse(Buffer.from(serializedProjectionOffset, 'base64').toString('utf8'));
+    return helpers.deserializeProjectionOffset(serializedProjectionOffset);
 }
 
 const _serializeProjectionOffset = function(projectionOffset) {
-    return Buffer.from(JSON.stringify(projectionOffset)).toString('base64');
+    return helpers.serializeProjectionOffset(projectionOffset);
 }
 
 const retryInterval = 1000;

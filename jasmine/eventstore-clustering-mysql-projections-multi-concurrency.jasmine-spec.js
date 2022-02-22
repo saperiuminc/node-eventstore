@@ -6,6 +6,7 @@ const clusteredEs = require('../clustered');
 const Bluebird = require('bluebird');
 const shortid = require('shortid');
 const Redis = require('ioredis');
+const helpers = require('../lib/helpers');
 const {
     isNumber
 } = require('lodash');
@@ -38,15 +39,15 @@ const eventstoreConfig = {
 }
 
 const _deserializeProjectionOffset = function(serializedProjectionOffset) {
-    return JSON.parse(Buffer.from(serializedProjectionOffset, 'base64').toString('utf8'));
+  return helpers.deserializeProjectionOffset(serializedProjectionOffset);
 }
 
 const _serializeProjectionOffset = function(projectionOffset) {
-    return Buffer.from(JSON.stringify(projectionOffset)).toString('base64');
+  return helpers.serializeProjectionOffset(projectionOffset);
 }
 
 const retryInterval = 1000;
-xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', () => {
+describe('Multi Concurrency -- eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
@@ -295,11 +296,13 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             }
             stream.addEvent(event);
             await stream.commitAsync();
-            console.log('ADDED EVENT');
+
 
             pollCounter = 0;
             let projection;
-            let maxOffset = 0;
+            let maxCommitStamp;
+            let maxEventId;
+            let maxStreamRevision = -1;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -309,12 +312,12 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
-                        if (isNumber(deserializedOffset)) {
-                            maxOffset = Math.max(maxOffset, deserializedOffset);
-                            if (pj.processedDate && projection.state == 'running' && maxOffset > 0) {
-                                hasPassed = true;
-                            }
+                        const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                        maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                        maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                        maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                        if (pj.processedDate && projection.state == 'running' && maxCommitStamp) {
+                            hasPassed = true;
                         }
                     }
                     if (hasPassed) {
@@ -330,7 +333,9 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             }
 
             expect(pollCounter).toBeLessThan(10);
-            expect(maxOffset).toEqual(1);
+            expect(maxCommitStamp).toEqual(stream.events[0].commitStamp.getTime());
+            expect(maxEventId).toEqual(stream.events[0].id);
+            expect(maxStreamRevision).toEqual(stream.events[0].streamRevision);
         });
 
         it('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
@@ -425,9 +430,13 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
 
             await stream.commitAsync();
 
+            const lastEvent = stream.events[stream.events.length - 1];
+
             pollCounter = 0;
             let projection;
-            let maxOffset = 0;
+            let maxCommitStamp;
+            let maxEventId;
+            let maxStreamRevision;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -437,12 +446,12 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
-                        if (isNumber(deserializedOffset)) {
-                            maxOffset = Math.max(maxOffset, deserializedOffset);
-                            if (pj.processedDate && projection.state == 'running' && maxOffset > 0) {
-                                hasPassed = true;
-                            }
+                        const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                        maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                        maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                        maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                        if (pj.processedDate && projection.state == 'running' && maxCommitStamp) {
+                            hasPassed = true;
                         }
                     }
                     if (hasPassed) {
@@ -458,7 +467,9 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             }
 
             expect(pollCounter).toBeLessThan(10);
-            expect(maxOffset).toEqual(2);
+            expect(maxCommitStamp).toEqual(lastEvent.commitStamp.getTime());
+            expect(maxEventId).toEqual(lastEvent.id);
+            expect(maxStreamRevision).toEqual(lastEvent.streamRevision);
         });
 
         it('should reset the projection', async function() {
@@ -497,7 +508,10 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             if (projectionTasks.length > 0) {
                 for (const pj of projectionTasks) {
                     if (pj) {
-                        expect(_deserializeProjectionOffset(pj.offset)).toEqual(0);
+                        const deserializedBookmark = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                        expect(deserializedBookmark.eventId).toEqual('');
+                        expect(deserializedBookmark.commitStamp).toEqual(0);
+                        expect(deserializedBookmark.streamRevision).toEqual(-1);
                     }
                 }
             }
@@ -650,8 +664,14 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             let pollCounter = 0;
             let projection;
             let faultedProjectionTask;
-            let faultedOffset = 0;
-            let faultedErrorOffset = 0;
+            let faultedOffset;
+            let faultedErrorOffset;
+            let maxCommitStamp;
+            let maxEventId;
+            let maxStreamRevision;
+            let maxErrorCommitStamp;
+            let maxErrorStreamRevision;
+            let maxErrorEventId;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -661,15 +681,23 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
-                        const deserializedErrorOffset = pj.errorOffset ? _deserializeProjectionOffset(pj.errorOffset) : null;
-                        if (isNumber(deserializedErrorOffset)) {
-                            if (projection.state == 'faulted' && deserializedOffset > 0 && deserializedErrorOffset > 0) {
-                                faultedProjectionTask = pj;
-                                faultedOffset = deserializedOffset;
-                                faultedErrorOffset = deserializedErrorOffset;
-                                hasPassed = true;
-                            }
+                        const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                        maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                        maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                        maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                        
+                        let deserializedErrorOffset = {}
+                        if (pj.errorOffset) {
+                            deserializedErrorOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.errorOffset));
+                            maxErrorCommitStamp = !maxErrorCommitStamp || deserializedErrorOffset.commitStamp > maxErrorCommitStamp ?  deserializedErrorOffset.commitStamp : maxErrorCommitStamp;
+                            maxErrorEventId = !maxErrorEventId || deserializedErrorOffset.eventId > maxErrorEventId ?  deserializedErrorOffset.eventId : maxErrorEventId; 
+                            maxErrorStreamRevision = isNaN(maxErrorStreamRevision) || deserializedErrorOffset.streamRevision > maxErrorStreamRevision ?  deserializedErrorOffset.streamRevision : maxErrorStreamRevision;
+                        }
+                        if (projection.state == 'faulted' && deserializedOffset.commitStamp && deserializedErrorOffset.commitStamp) {
+                            faultedProjectionTask = pj;
+                            faultedOffset = deserializedOffset;
+                            faultedErrorOffset = deserializedErrorOffset;
+                            hasPassed = true;
                         }
                     }
                     if (hasPassed) {
@@ -687,8 +715,15 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            expect(faultedErrorOffset).toEqual(2);
-            expect(faultedOffset).toEqual(1);
+
+            const errorEvent = stream.events[stream.events.length - 1];
+            const lastSuccesfulEvent = stream.events[stream.events.length - 2];
+            expect(faultedOffset.commitStamp).toEqual(lastSuccesfulEvent.commitStamp.getTime());
+            expect(faultedOffset.eventId).toEqual(lastSuccesfulEvent.id);
+            expect(faultedOffset.streamRevision).toEqual(lastSuccesfulEvent.streamRevision);
+            expect(faultedErrorOffset.commitStamp).toEqual(errorEvent.commitStamp.getTime());
+            expect(faultedErrorOffset.eventId).toEqual(errorEvent.id);
+            expect(faultedErrorOffset.streamRevision).toEqual(errorEvent.streamRevision);
         });
 
         it('should force run the projection when there is an error', async function() {
@@ -786,8 +821,14 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             pollCounter = 0;
             let projection;
             let faultedProjectionTask;
-            let faultedOffset = 0;
-            let faultedErrorOffset = 0;
+            let faultedOffset;
+            let faultedErrorOffset;
+            let maxCommitStamp;
+            let maxEventId;
+            let maxStreamRevision;
+            let maxErrorCommitStamp;
+            let maxErrorStreamRevision;
+            let maxErrorEventId;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -797,15 +838,23 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        const deserializedOffset = _deserializeProjectionOffset(pj.offset);
-                        const deserializedErrorOffset = pj.errorOffset ? _deserializeProjectionOffset(pj.errorOffset) : null;
-                        if (isNumber(deserializedErrorOffset)) {
-                            if (projection.state == 'faulted' && deserializedOffset > 0 && deserializedErrorOffset > 0) {
-                                faultedProjectionTask = pj;
-                                faultedOffset = deserializedOffset;
-                                faultedErrorOffset = deserializedErrorOffset;
-                                hasPassed = true;
-                            }
+                        const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                        maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                        maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                        maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                        
+                        let deserializedErrorOffset = {}
+                        if (pj.errorOffset) {
+                            deserializedErrorOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.errorOffset));
+                            maxErrorCommitStamp = !maxErrorCommitStamp || deserializedErrorOffset.commitStamp > maxErrorCommitStamp ?  deserializedErrorOffset.commitStamp : maxErrorCommitStamp;
+                            maxErrorEventId = !maxErrorEventId || deserializedErrorOffset.eventId > maxErrorEventId ?  deserializedErrorOffset.eventId : maxErrorEventId; 
+                            maxErrorStreamRevision = isNaN(maxErrorStreamRevision) || deserializedErrorOffset.streamRevision > maxErrorStreamRevision ?  deserializedErrorOffset.streamRevision : maxErrorStreamRevision;
+                        }
+                        if (projection.state == 'faulted' && deserializedOffset.commitStamp && deserializedErrorOffset.commitStamp) {
+                            faultedProjectionTask = pj;
+                            faultedOffset = deserializedOffset;
+                            faultedErrorOffset = deserializedErrorOffset;
+                            hasPassed = true;
                         }
                     }
                     if (hasPassed) {
@@ -823,8 +872,14 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            expect(faultedErrorOffset).toEqual(2);
-            expect(faultedOffset).toEqual(1);
+            const errorEvent = stream.events[stream.events.length - 1];
+            const lastSuccesfulEvent = stream.events[stream.events.length - 2];
+            expect(faultedOffset.commitStamp).toEqual(lastSuccesfulEvent.commitStamp.getTime());
+            expect(faultedOffset.eventId).toEqual(lastSuccesfulEvent.id);
+            expect(faultedOffset.streamRevision).toEqual(lastSuccesfulEvent.streamRevision);
+            expect(faultedErrorOffset.commitStamp).toEqual(errorEvent.commitStamp.getTime());
+            expect(faultedErrorOffset.eventId).toEqual(errorEvent.id);
+            expect(faultedErrorOffset.streamRevision).toEqual(errorEvent.streamRevision);
 
             faultedProjectionTask = null;
             pollCounter = 0;
@@ -840,8 +895,8 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
-                        const deserializedOffset = pj.offset ? _deserializeProjectionOffset(pj.offset) : null;
-                        if (projection.state == 'running' && deserializedOffset > 0) {
+                        const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                        if (projection.state == 'running' && deserializedOffset && deserializedOffset.streamRevision === errorEvent.streamRevision) {
                             faultedProjectionTask = pj;
                             faultedOffset = deserializedOffset;
                             hasPassed = true;
@@ -863,7 +918,10 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                 }
             }
 
-            expect(faultedOffset).toEqual(2);
+            expect(faultedOffset.commitStamp).toEqual(errorEvent.commitStamp.getTime());
+            expect(faultedOffset.eventId).toEqual(errorEvent.id);
+            expect(faultedOffset.streamRevision).toEqual(errorEvent.streamRevision);
+            
             expect(projection.state).toEqual('running');
             expect(faultedProjectionTask.isIdle).toEqual(0);
         });
@@ -1040,8 +1098,9 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             }
             stream2.addEvent(event22);
             await stream2.commitAsync();
-
             pollCounter = 0;
+            const lastEvent = stream2.events[stream2.events.length - 1];
+            let maxCommitStamp;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -1051,20 +1110,15 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
 
-                    let totalOffset = 0;
-                    let offsetsPerShard = {};
                     for(const pj of projectionTasks) {
                         debug('pj', pj);
 
                         if (pj.processedDate && projection.state == 'running') {
-                            offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset));
+                            const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
                         }
                     }
-                    const offsets = Object.values(offsetsPerShard);
-                    offsets.forEach((offset) => {
-                        totalOffset += offset;
-                    });
-                    if (totalOffset >= 4) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -1177,12 +1231,13 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
 
             let vehicleIdForChecking;
             let event2ForChecking;
+            let stream;
             for(let i = 0; i <= 10; i++) {
                 const vehicleId = shortid.generate();
                 if(vehicleIdForChecking == undefined) {
                     vehicleIdForChecking = vehicleId;
                 }
-                const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: context,
                     aggregate: 'vehicle',
                     aggregateId: vehicleId
@@ -1222,6 +1277,8 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             }
 
             pollCounter = 0;
+            const lastEvent = stream.events[stream.events.length - 1];
+            let maxCommitStamp;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -1230,21 +1287,16 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
 
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
-
-                    let totalOffset = 0;
-                    let offsetsPerShard = {};
                     for(const pj of projectionTasks) {
                         debug('pj', pj);
 
                         if (pj.processedDate && projection.state == 'running') {
-                            offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset));
+                            const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                      
                         }
                     }
-                    const offsets = Object.values(offsetsPerShard);
-                    offsets.forEach((offset) => {
-                        totalOffset += offset;
-                    });
-                    if (totalOffset >= 22) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -1577,6 +1629,8 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             await stream.commitAsync();
 
             pollCounter = 0;
+            const lastEvent = stream.events[stream.events.length - 1];
+            let maxCommitStamp;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -1585,21 +1639,15 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
 
                 if (projection && projectionTasks.length > 0) {
                     let hasPassed = false;
-
-                    let totalOffset = 0;
-                    let offsetsPerShard = {};
                     for(const pj of projectionTasks) {
                         debug('pj', pj);
 
                         if (pj.processedDate && projection.state == 'running') {
-                            offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset));
+                            const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
                         }
                     }
-                    const offsets = Object.values(offsetsPerShard);
-                    offsets.forEach((offset) => {
-                        totalOffset += offset;
-                    });
-                    if (totalOffset >= 2) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -2190,7 +2238,9 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
             await clusteredEventstore.runProjectionAsync(projectionWithLatestOffsetConfig.projectionId, false);
         
             pollCounter = 0;
-            let maxOffset;
+            let maxCommitStamp;
+            let maxEventId;
+            let maxStreamRevision = -1;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
@@ -2206,13 +2256,10 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     }
                     if (hasPassed) {
                         for (const pj of projectionTasks) {
-                            if (!maxOffset) {
-                                maxOffset = _deserializeProjectionOffset(pj.offset);
-                            } else {
-                                if (_deserializeProjectionOffset(pj.offset) > maxOffset) {
-                                    maxOffset = _deserializeProjectionOffset(pj.offset);
-                                }
-                            }
+                            const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                            maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
                         }
                         break;
                     } else {
@@ -2225,7 +2272,11 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                 }
             }
 
-            expect(maxOffset).toEqual(2);
+            const lastSuccesfulEvent = stream.events[stream.events.length - 1];
+            expect(maxCommitStamp).toEqual(lastSuccesfulEvent.commitStamp.getTime());
+            expect(maxEventId).toEqual(lastSuccesfulEvent.id);
+            expect(maxStreamRevision).toEqual(lastSuccesfulEvent.streamRevision);
+            
         });
         
         describe('querying playbacklistviews with keyset pagination support', () => {
@@ -2337,10 +2388,10 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                         field3: 2
                     }
                 ];
-            
+                let stream;
                 for (let i = 0; i < 5; i++) {
                     const keysetId = shortid.generate();
-                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                    stream = await clusteredEventstore.getLastEventAsStreamAsync({
                         context: 'keyset',
                         aggregate: 'keyset',
                         aggregateId: keysetId
@@ -2357,7 +2408,8 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-            
+                const lastEvent = stream.events[stream.events.length - 1];
+                let maxCommitStamp;
                 pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
@@ -2368,20 +2420,15 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     if (projection && projectionTasks.length > 0) {
                         let hasPassed = false;
 
-                        let totalOffset = 0;
-                        let offsetsPerShard = {};
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
-
+    
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset));
+                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
-                        offsets.forEach((offset) => {
-                            totalOffset += offset;
-                        });
-                        if (totalOffset >= 5) {
+                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                             hasPassed = true;
                             break;
                         }
@@ -2536,10 +2583,10 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                         field3: 2
                     }
                 ];
-            
+                let stream
                 for (let i = 0; i < 5; i++) {
                     const keysetId = shortid.generate();
-                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                    stream = await clusteredEventstore.getLastEventAsStreamAsync({
                         context: 'keyset',
                         aggregate: 'keyset',
                         aggregateId: keysetId
@@ -2556,7 +2603,9 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-
+                const lastEvent = stream.events[stream.events.length - 1];
+                let maxCommitStamp;
+                
                 pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
@@ -2567,20 +2616,15 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     if (projection && projectionTasks.length > 0) {
                         let hasPassed = false;
 
-                        let totalOffset = 0;
-                        let offsetsPerShard = {};
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
-
+    
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset));
+                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
-                        offsets.forEach((offset) => {
-                            totalOffset += offset;
-                        });
-                        if (totalOffset >= 5) {
+                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                             hasPassed = true;
                             break;
                         }
@@ -2735,10 +2779,10 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                         field3: 2
                     }
                 ];
-        
+                let stream;
                 for (let i = 0; i < 5; i++) {
                     const keysetId = shortid.generate();
-                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                    stream = await clusteredEventstore.getLastEventAsStreamAsync({
                         context: 'keyset',
                         aggregate: 'keyset',
                         aggregateId: keysetId
@@ -2755,7 +2799,9 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-
+                const lastEvent = stream.events[stream.events.length - 1];
+                let maxCommitStamp;
+                
                 pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
@@ -2766,20 +2812,15 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     if (projection && projectionTasks.length > 0) {
                         let hasPassed = false;
 
-                        let totalOffset = 0;
-                        let offsetsPerShard = {};
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
-
+    
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset));
+                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
-                        offsets.forEach((offset) => {
-                            totalOffset += offset;
-                        });
-                        if (totalOffset >= 5) {
+                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                             hasPassed = true;
                             break;
                         }
@@ -2936,10 +2977,10 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                         field3: 5
                     }
                 ];
-        
+                let stream;
                 for (let i = 0; i < 6; i++) {
                     const keysetId = shortid.generate();
-                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                    stream = await clusteredEventstore.getLastEventAsStreamAsync({
                         context: 'keyset',
                         aggregate: 'keyset',
                         aggregateId: keysetId
@@ -2956,7 +2997,9 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-
+                const lastEvent = stream.events[stream.events.length - 1];
+                let maxCommitStamp;
+                
                 pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
@@ -2967,20 +3010,15 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     if (projection && projectionTasks.length > 0) {
                         let hasPassed = false;
 
-                        let totalOffset = 0;
-                        let offsetsPerShard = {};
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
-
+    
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset));
+                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
-                        offsets.forEach((offset) => {
-                            totalOffset += offset;
-                        });
-                        if (totalOffset >= 6) {
+                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                             hasPassed = true;
                             break;
                         }
@@ -3133,10 +3171,10 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                         field3: 2
                     }
                 ];
-            
+                let stream;
                 for (let i = 0; i < 5; i++) {
                     const keysetId = shortid.generate();
-                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                    stream = await clusteredEventstore.getLastEventAsStreamAsync({
                         context: 'keyset',
                         aggregate: 'keyset',
                         aggregateId: keysetId
@@ -3153,7 +3191,9 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-            
+                const lastEvent = stream.events[stream.events.length - 1];
+                let maxCommitStamp;
+                
                 const sanitizedPayloads = [
                     { // #1
                         field1: 5,
@@ -3192,20 +3232,15 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     if (projection && projectionTasks.length > 0) {
                         let hasPassed = false;
 
-                        let totalOffset = 0;
-                        let offsetsPerShard = {};
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
-
+    
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset));
+                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
-                        offsets.forEach((offset) => {
-                            totalOffset += offset;
-                        });
-                        if (totalOffset >= 5) {
+                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                             hasPassed = true;
                             break;
                         }
@@ -3360,10 +3395,10 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                         field3: 2
                     }
                 ];
-            
+                let stream;
                 for (let i = 0; i < 5; i++) {
                     const keysetId = shortid.generate();
-                    const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                    stream = await clusteredEventstore.getLastEventAsStreamAsync({
                         context: 'keyset',
                         aggregate: 'keyset',
                         aggregateId: keysetId
@@ -3409,7 +3444,9 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                         keysetId: payloads[4].keysetId
                     }
                 ];
-
+                const lastEvent = stream.events[stream.events.length - 1];
+                let maxCommitStamp;
+                
                 pollCounter = 0;
                 while (pollCounter < 10) {
                     pollCounter += 1;
@@ -3420,20 +3457,15 @@ xdescribe('Multi Concurrency -- eventstore clustering mysql projection tests', (
                     if (projection && projectionTasks.length > 0) {
                         let hasPassed = false;
 
-                        let totalOffset = 0;
-                        let offsetsPerShard = {};
                         for(const pj of projectionTasks) {
                             debug('pj', pj);
-
+    
                             if (pj.processedDate && projection.state == 'running') {
-                                offsetsPerShard[pj.shard] = Math.max(offsetsPerShard[pj.shard] || 0, _deserializeProjectionOffset(pj.offset));
+                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
                             }
                         }
-                        const offsets = Object.values(offsetsPerShard);
-                        offsets.forEach((offset) => {
-                            totalOffset += offset;
-                        });
-                        if (totalOffset >= 5) {
+                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                             hasPassed = true;
                             break;
                         }

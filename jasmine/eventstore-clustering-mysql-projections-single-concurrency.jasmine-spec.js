@@ -7,6 +7,7 @@ const Bluebird = require('bluebird');
 const shortid = require('shortid');
 const _ = require('lodash')
 const Redis = require('ioredis');
+const helpers = require('../lib/helpers');
 const {
     isNumber
 } = require('lodash');
@@ -39,11 +40,11 @@ const eventstoreConfig = {
 }
 
 const _deserializeProjectionOffset = function(serializedProjectionOffset) {
-    return JSON.parse(Buffer.from(serializedProjectionOffset, 'base64').toString('utf8'));
+  return helpers.deserializeProjectionOffset(serializedProjectionOffset);
 }
 
 const _serializeProjectionOffset = function(projectionOffset) {
-    return Buffer.from(JSON.stringify(projectionOffset)).toString('base64');
+  return helpers.serializeProjectionOffset(projectionOffset);
 }
 
 const retryInterval = 1000;
@@ -293,7 +294,6 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     mileage: 1245
                 }
             }
-            const timeStampBeforeEventAdd = new Date().getTime();
             stream.addEvent(event);
             await stream.commitAsync();
             
@@ -301,7 +301,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             let projection;
             let projectionOffset;
             let maxCommitStamp;
-            // let maxStreamRevision;
+            let maxStreamRevision;
             let maxEventId;
             while (pollCounter < 10) {
                 pollCounter += 1;
@@ -322,7 +322,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             }
                         })
                         maxCommitStamp = Math.max(...projectionOffset.map(bookmark => bookmark.commitStamp));
-                        // maxStreamRevision = Math.max(...projectionOffset.map(bookmark => bookmark.streamRevision));
+                        maxStreamRevision = Math.max(...projectionOffset.map(bookmark => bookmark.streamRevision));
                         projectionOffset.forEach((bookmark) => {
                             if (!maxEventId || bookmark.eventId > maxEventId) {
                                 maxEventId = bookmark.eventId
@@ -347,8 +347,9 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             expect(pollCounter).toBeLessThan(10);
             
             expect(projectionOffset.length).toBeGreaterThan(0);
-            expect(maxCommitStamp).toBeGreaterThanOrEqual(timeStampBeforeEventAdd);
-            expect(maxEventId != '').toBeTruthy();
+            expect(maxCommitStamp).toEqual(stream.events[0].commitStamp.getTime());
+            expect(maxEventId).toEqual(stream.events[0].id);
+            expect(maxStreamRevision).toEqual(stream.events[0].streamRevision);
         });
         
         it('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
@@ -439,7 +440,6 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 }
             }
             await sleep(retryInterval);
-            const timeStampBeforeLastEventAdd = new Date().getTime();
             stream.addEvent(event2);
             
             await stream.commitAsync();
@@ -498,9 +498,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             expect(pollCounter).toBeLessThan(10);
             
             expect(projectionOffset.length).toBeGreaterThan(0);
-            expect(maxCommitStamp).toBeGreaterThanOrEqual(timeStampBeforeLastEventAdd);
-            expect(maxEventId != '').toBeTruthy();
-            expect(maxStreamRevision).toEqual(1);
+            const lastEvent = stream.events[stream.events.length - 1]
+            expect(maxCommitStamp).toEqual(lastEvent.commitStamp.getTime());
+            expect(maxEventId).toEqual(lastEvent.id);
+            expect(maxStreamRevision).toEqual(lastEvent.streamRevision);
             // if it ran on the same partition:shard, the bookmark of that same shard must be updated so it should only increment by one
             expect(updatedIdCount).toEqual(1);
         });
@@ -696,10 +697,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     mileage: 1245
                 }
             }
-            const timeStampBeforeSecondLastEventAdd = new Date().getTime();
             stream.addEvent(event);
-            await sleep(retryInterval);
-            const timeStampBeforeLastEventAdd = new Date().getTime();
             stream.addEvent(event2);
             await stream.commitAsync();
             
@@ -784,13 +782,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            expect(maxCommitStamp).toBeGreaterThanOrEqual(timeStampBeforeSecondLastEventAdd);
-            expect(maxEventId != '').toBeTruthy();
-            expect(maxStreamRevision).toEqual(0);
-            
-            expect(maxErrorCommitStamp).toBeGreaterThanOrEqual(timeStampBeforeLastEventAdd);
-            expect(maxErrorEventId != '').toBeTruthy();
-            expect(maxErrorStreamRevision).toEqual(1);
+            const errorEvent = stream.events[stream.events.length - 1];
+            const lastSuccesfulEvent = stream.events[stream.events.length - 2];
+            expect(maxCommitStamp).toEqual(lastSuccesfulEvent.commitStamp.getTime());
+            expect(maxEventId).toEqual(lastSuccesfulEvent.id);
+            expect(maxStreamRevision).toEqual(lastSuccesfulEvent.streamRevision);
+            expect(maxErrorCommitStamp).toEqual(errorEvent.commitStamp.getTime());
+            expect(maxErrorEventId).toEqual(errorEvent.id);
+            expect(maxErrorStreamRevision).toEqual(errorEvent.streamRevision);
         });
         
         it('should force run the projection when there is an error', async function() {
@@ -881,11 +880,8 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     mileage: 1245
                 }
             }
-            const timeStampBeforeSecondLastEventAdd = new Date().getTime();
             stream.addEvent(event);
             
-            await sleep(retryInterval);
-            const timeStampBeforeLastEventAdd = new Date().getTime();
             stream.addEvent(event2);
             await stream.commitAsync();
             
@@ -968,14 +964,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             expect(pollCounter).toBeLessThan(20);
             expect(faultedProjectionTask.error).toBeTruthy();
             expect(faultedProjectionTask.errorEvent).toBeTruthy();
-            
-            expect(_.clone(maxCommitStamp)).toBeGreaterThanOrEqual(timeStampBeforeSecondLastEventAdd);
-            expect(_.clone(maxEventId != '')).toBeTruthy();
-            expect(_.clone(maxStreamRevision)).toEqual(0);
-            
-            expect(_.clone(maxErrorCommitStamp)).toBeGreaterThanOrEqual(timeStampBeforeLastEventAdd);
-            expect(_.clone(maxErrorEventId != '')).toBeTruthy();
-            expect(_.clone(maxErrorStreamRevision)).toEqual(1);
+            const errorEvent = stream.events[stream.events.length - 1];
+            const lastSuccesfulEvent = stream.events[stream.events.length - 2];
+            expect(_.clone(maxCommitStamp)).toEqual(lastSuccesfulEvent.commitStamp.getTime());
+            expect(_.clone(maxEventId)).toEqual(lastSuccesfulEvent.id);
+            expect(_.clone(maxStreamRevision)).toEqual(lastSuccesfulEvent.streamRevision);
+            expect(_.clone(maxErrorCommitStamp)).toEqual(errorEvent.commitStamp.getTime());
+            expect(_.clone(maxErrorEventId)).toEqual(errorEvent.id);
+            expect(_.clone(maxErrorStreamRevision)).toEqual(errorEvent.streamRevision);
             
             let lastOffset = {
                 commitStamp: _.clone(maxCommitStamp),
@@ -1054,10 +1050,9 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             }
             expect(projection.state).toEqual('running');
             expect(faultedProjectionTask.isIdle).toEqual(0);
-            
-            expect(maxCommitStamp).toBeGreaterThanOrEqual(timeStampBeforeLastEventAdd);
-            expect(maxEventId != '').toBeTruthy();
-            expect(maxStreamRevision).toEqual(1);
+            expect(maxCommitStamp).toEqual(errorEvent.commitStamp.getTime());
+            expect(maxEventId).toEqual(errorEvent.id);
+            expect(maxStreamRevision).toEqual(errorEvent.streamRevision);
         });
         
         it('should add and update data to the stateList', async function() {
@@ -1230,10 +1225,9 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     mileage: 9999
                 }
             }
-            const timeStampOfLastEvent = new Date().getTime();
             stream2.addEvent(event22);
             await stream2.commitAsync();
-            
+            const lastEvent = stream2.events[stream2.events.length - 1]
             pollCounter = 0;
             let maxCommitStamp;
             while (pollCounter < 10) {
@@ -1260,7 +1254,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             maxCommitStamp = Math.max(...offsets.map(bookmark => bookmark.commitStamp));
                         }
                     }
-                    if (maxCommitStamp >= timeStampOfLastEvent) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -1373,13 +1367,13 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             
             let vehicleIdForChecking;
             let event2ForChecking;
-            let timeStampOfLastEvent;
+            let stream;
             for(let i = 0; i <= 10; i++) {
                 const vehicleId = shortid.generate();
                 if(vehicleIdForChecking == undefined) {
                     vehicleIdForChecking = vehicleId;
                 }
-                const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: context,
                     aggregate: 'vehicle',
                     aggregateId: vehicleId
@@ -1413,10 +1407,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 if(event2ForChecking == undefined) {
                     event2ForChecking = event2;
                 }
-                timeStampOfLastEvent = new Date().getTime();
                 stream.addEvent(event2);
                 await stream.commitAsync();
             }
+            const lastEvent = stream.events[stream.events.length - 1]
             
             pollCounter = 0;
             let maxCommitStamp;
@@ -1446,7 +1440,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                         }
                     }
                     // stream Revision adding. 10 vehicle created, 10 updates
-                    if (maxCommitStamp >= timeStampOfLastEvent) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -1775,10 +1769,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     vehicleId: vehicleId
                 }
             }
-            const timeStampOfLastEvent = new Date().getTime();
             stream.addEvent(event2);
             await stream.commitAsync();
-            
+            const lastEvent = stream.events[stream.events.length - 1]
+
             pollCounter = 0;
             let maxCommitStamp;
             while (pollCounter < 10) {
@@ -1805,7 +1799,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             maxCommitStamp = Math.max(...offsets.map(bookmark => bookmark.commitStamp));
                         }
                     }
-                    if (maxCommitStamp >= timeStampOfLastEvent) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -2324,8 +2318,6 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             }
         ]
         stream.addEvent(initialEvents[0]);
-        await sleep(retryInterval);
-        const timeStampBeforeLastEventAdd = new Date().getTime();
         
         stream.addEvent(initialEvents[1]);
         await stream.commitAsync();
@@ -2451,9 +2443,11 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
         }
         
         expect(projectionOffset.length).toBeGreaterThan(0);
-        expect(maxCommitStamp).toBeGreaterThanOrEqual(timeStampBeforeLastEventAdd);
-        expect(maxEventId != '').toBeTruthy();
-        expect(maxStreamRevision).toEqual(1);
+        const lastSuccesfulEvent = stream.events[stream.events.length - 1];
+        expect(maxCommitStamp).toEqual(lastSuccesfulEvent.commitStamp.getTime());
+        expect(maxEventId).toEqual(lastSuccesfulEvent.id);
+        expect(maxStreamRevision).toEqual(lastSuccesfulEvent.streamRevision);
+        
         // if it ran on the same partition:shard, the bookmark of that same shard must be updated so it should only increment by one
         expect(updatedIdCount).toEqual(1);
     });
@@ -2567,10 +2561,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     field3: 2
                 }
             ];
-            let timeStampOfLastEvent;
+            let stream;
             for (let i = 0; i < 5; i++) {
                 const keysetId = shortid.generate();
-                const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: 'keyset',
                     aggregate: 'keyset',
                     aggregateId: keysetId
@@ -2584,10 +2578,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     name: "KEYSET_LIST_NEXT_CREATED",
                     payload: payload
                 };
-                timeStampOfLastEvent = new Date().getTime();
                 stream.addEvent(event);
                 await stream.commitAsync();
             }
+            const lastEvent = stream.events[stream.events.length - 1]
             
             pollCounter = 0;
             let maxCommitStamp;
@@ -2615,7 +2609,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             maxCommitStamp = Math.max(...offsets.map(bookmark => bookmark.commitStamp));
                         }
                     }
-                    if (maxCommitStamp >= timeStampOfLastEvent) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -2770,11 +2764,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     field3: 2
                 }
             ];
-            
-            let timeStampOfLastEvent;
+            let stream;
             for (let i = 0; i < 5; i++) {
                 const keysetId = shortid.generate();
-                const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: 'keyset',
                     aggregate: 'keyset',
                     aggregateId: keysetId
@@ -2788,10 +2781,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     name: "KEYSET_LIST_PREV_CREATED",
                     payload: payload
                 };
-                timeStampOfLastEvent = new Date().getTime();
                 stream.addEvent(event);
                 await stream.commitAsync();
             }
+            const lastEvent = stream.events[stream.events.length - 1];
             
             pollCounter = 0;
             let maxCommitStamp;
@@ -2819,7 +2812,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             maxCommitStamp = Math.max(...offsets.map(bookmark => bookmark.commitStamp));
                         }
                     }
-                    if (maxCommitStamp >= timeStampOfLastEvent) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -2975,10 +2968,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 }
             ];
             
-            let timeStampOfLastEvent;
+            let stream;
             for (let i = 0; i < 5; i++) {
                 const keysetId = shortid.generate();
-                const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: 'keyset',
                     aggregate: 'keyset',
                     aggregateId: keysetId
@@ -2992,10 +2985,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     name: "KEYSET_LIST_LAST_CREATED",
                     payload: payload
                 };
-                timeStampOfLastEvent = new Date().getTime();
                 stream.addEvent(event);
                 await stream.commitAsync();
             }
+            const lastEvent = stream.events[stream.events.length - 1]
             
             pollCounter = 0;
             let maxCommitStamp;
@@ -3023,7 +3016,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             maxCommitStamp = Math.max(...offsets.map(bookmark => bookmark.commitStamp));
                         }
                     }
-                    if (maxCommitStamp >= timeStampOfLastEvent) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -3181,10 +3174,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 }
             ];
             
-            let timeStampOfLastEvent;
+            let stream;
             for (let i = 0; i < 6; i++) {
                 const keysetId = shortid.generate();
-                const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: 'keyset',
                     aggregate: 'keyset',
                     aggregateId: keysetId
@@ -3198,10 +3191,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     name: "KEYSET_LIST_LAST_2_CREATED",
                     payload: payload
                 };
-                timeStampOfLastEvent = new Date().getTime();
                 stream.addEvent(event);
                 await stream.commitAsync();
             }
+            const lastEvent = stream.events[stream.events.length - 1]
             
             pollCounter = 0;
             let maxCommitStamp;
@@ -3229,7 +3222,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             maxCommitStamp = Math.max(...offsets.map(bookmark => bookmark.commitStamp));
                         }
                     }
-                    if (maxCommitStamp >= timeStampOfLastEvent) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -3383,10 +3376,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 }
             ];
             
-            let timeStampOfLastEvent;
+            let stream;
             for (let i = 0; i < 5; i++) {
                 const keysetId = shortid.generate();
-                const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: 'keyset',
                     aggregate: 'keyset',
                     aggregateId: keysetId
@@ -3400,10 +3393,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     name: "KEYSET_LIST_NULL_CREATED",
                     payload: payload
                 };
-                timeStampOfLastEvent = new Date().getTime();
                 stream.addEvent(event);
                 await stream.commitAsync();
             }
+            const lastEvent = stream.events[stream.events.length - 1]
             
             const sanitizedPayloads = [
                 { // #1
@@ -3459,7 +3452,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             maxCommitStamp = Math.max(...offsets.map(bookmark => bookmark.commitStamp));
                         }
                     }
-                    if (maxCommitStamp >= timeStampOfLastEvent) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
@@ -3615,10 +3608,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 }
             ];
             
-            let timeStampOfLastEvent;
+            let stream;
             for (let i = 0; i < 5; i++) {
                 const keysetId = shortid.generate();
-                const stream = await clusteredEventstore.getLastEventAsStreamAsync({
+                stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: 'keyset',
                     aggregate: 'keyset',
                     aggregateId: keysetId
@@ -3632,10 +3625,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     name: "KEYSET_LIST_NULL_2_CREATED",
                     payload: payload
                 };
-                timeStampOfLastEvent = new Date().getTime();
                 stream.addEvent(event);
                 await stream.commitAsync();
             }
+            const lastEvent = stream.events[stream.events.length - 1]
             
             const sanitizedPayloads = [
                 { // #1
@@ -3692,7 +3685,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                             maxCommitStamp = Math.max(...offsets.map(bookmark => bookmark.commitStamp));
                         }
                     }
-                    if (maxCommitStamp >= timeStampOfLastEvent) {
+                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
                         hasPassed = true;
                         break;
                     }
