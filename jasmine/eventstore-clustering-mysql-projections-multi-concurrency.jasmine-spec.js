@@ -313,9 +313,12 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
                         const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                        maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                        maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
-                        maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                        if (deserializedOffset) {
+                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                            maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                        }
+                        
                         if (pj.processedDate && projection.state == 'running' && maxCommitStamp) {
                             hasPassed = true;
                         }
@@ -447,9 +450,11 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
                         const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                        maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                        maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
-                        maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                        if (deserializedOffset) {
+                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                            maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                        }
                         if (pj.processedDate && projection.state == 'running' && maxCommitStamp) {
                             hasPassed = true;
                         }
@@ -508,10 +513,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             if (projectionTasks.length > 0) {
                 for (const pj of projectionTasks) {
                     if (pj) {
-                        const deserializedBookmark = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                        expect(deserializedBookmark.eventId).toEqual('');
-                        expect(deserializedBookmark.commitStamp).toEqual(0);
-                        expect(deserializedBookmark.streamRevision).toEqual(-1);
+                        expect(pj.offset).toEqual(null);
                     }
                 }
             }
@@ -682,10 +684,12 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
                         const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                        maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                        maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
-                        maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
-                        
+                        if (deserializedOffset) {
+                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                            maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                          
+                        }
                         let deserializedErrorOffset = {}
                         if (pj.errorOffset) {
                             deserializedErrorOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.errorOffset));
@@ -693,7 +697,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                             maxErrorEventId = !maxErrorEventId || deserializedErrorOffset.eventId > maxErrorEventId ?  deserializedErrorOffset.eventId : maxErrorEventId; 
                             maxErrorStreamRevision = isNaN(maxErrorStreamRevision) || deserializedErrorOffset.streamRevision > maxErrorStreamRevision ?  deserializedErrorOffset.streamRevision : maxErrorStreamRevision;
                         }
-                        if (projection.state == 'faulted' && deserializedOffset.commitStamp && deserializedErrorOffset.commitStamp) {
+                        if (projection.state == 'faulted' && deserializedOffset && deserializedOffset.commitStamp && deserializedErrorOffset.commitStamp) {
                             faultedProjectionTask = pj;
                             faultedOffset = deserializedOffset;
                             faultedErrorOffset = deserializedErrorOffset;
@@ -839,9 +843,11 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     let hasPassed = false;
                     for (const pj of projectionTasks) {
                         const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                        maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                        maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
-                        maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                        if (deserializedOffset) {
+                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                            maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;  
+                        }
                         
                         let deserializedErrorOffset = {}
                         if (pj.errorOffset) {
@@ -850,7 +856,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                             maxErrorEventId = !maxErrorEventId || deserializedErrorOffset.eventId > maxErrorEventId ?  deserializedErrorOffset.eventId : maxErrorEventId; 
                             maxErrorStreamRevision = isNaN(maxErrorStreamRevision) || deserializedErrorOffset.streamRevision > maxErrorStreamRevision ?  deserializedErrorOffset.streamRevision : maxErrorStreamRevision;
                         }
-                        if (projection.state == 'faulted' && deserializedOffset.commitStamp && deserializedErrorOffset.commitStamp) {
+                        if (projection.state == 'faulted' && deserializedOffset && deserializedOffset.commitStamp && deserializedErrorOffset.commitStamp) {
                             faultedProjectionTask = pj;
                             faultedOffset = deserializedOffset;
                             faultedErrorOffset = deserializedErrorOffset;
@@ -1115,7 +1121,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
 
                         if (pj.processedDate && projection.state == 'running') {
                             const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            if (deserializedOffset) {
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            }
                         }
                     }
                     if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
@@ -1292,7 +1300,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
 
                         if (pj.processedDate && projection.state == 'running') {
                             const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            if (deserializedOffset) {
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            }
                       
                         }
                     }
@@ -1644,7 +1654,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
 
                         if (pj.processedDate && projection.state == 'running') {
                             const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            if (deserializedOffset) {
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                            }
                         }
                     }
                     if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
@@ -2257,9 +2269,11 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     if (hasPassed) {
                         for (const pj of projectionTasks) {
                             const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                            maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                            maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
-                            maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                            if (deserializedOffset) {
+                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
+                                maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
+                            }
                         }
                         break;
                     } else {
@@ -2425,7 +2439,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
     
                             if (pj.processedDate && projection.state == 'running') {
                                 const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                if (deserializedOffset) {
+                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                }
                             }
                         }
                         if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
@@ -2621,7 +2637,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
     
                             if (pj.processedDate && projection.state == 'running') {
                                 const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                if (deserializedOffset) {
+                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                }
                             }
                         }
                         if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
@@ -2817,7 +2835,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
     
                             if (pj.processedDate && projection.state == 'running') {
                                 const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                if (deserializedOffset) {
+                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                }
                             }
                         }
                         if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
@@ -3015,7 +3035,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
     
                             if (pj.processedDate && projection.state == 'running') {
                                 const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                if (deserializedOffset) {
+                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                }
                             }
                         }
                         if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
@@ -3237,7 +3259,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
     
                             if (pj.processedDate && projection.state == 'running') {
                                 const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                if (deserializedOffset) {
+                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                }
                             }
                         }
                         if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
@@ -3462,7 +3486,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
     
                             if (pj.processedDate && projection.state == 'running') {
                                 const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                if (deserializedOffset) {
+                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
+                                }
                             }
                         }
                         if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {

@@ -538,22 +538,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             await clusteredEventstore.resetProjectionAsync(projectionConfig.projectionId);
             
             const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
-            let deserializedOffset = [];
             if (projectionTasks.length > 0) {
                 for (const pj of projectionTasks) {
                     if (pj) {
-                        deserializedOffset = _deserializeProjectionOffset(pj.offset);
-                        deserializedOffset.forEach((bookmark) => {
-                            const deserializedBookmark = _deserializeProjectionOffset(bookmark);
-                            expect(deserializedBookmark.eventId).toEqual('');
-                            expect(deserializedBookmark.commitStamp).toEqual(0);
-                            expect(deserializedBookmark.streamRevision).toEqual(-1);
-                        });
+                        expect(pj.offset).toEqual(null);
                     }
                 }
             }
             
-            expect(deserializedOffset.length).toBeGreaterThan(0);
         });
         
         it('should delete the projection', async function() {
