@@ -61,7 +61,7 @@ function getSpecificStore(options) {
     options.type = options.type.toLowerCase();
     
     if (options.clusterType) {
-        dbPath = __dirname + "/lib/databases/clustered/" + options.clusterType + ".js";
+        dbPath = __dirname + "/lib/databases/" + options.clusterType + ".js";
     } else {
         dbPath = __dirname + "/lib/databases/" + options.type + ".js";
     }
