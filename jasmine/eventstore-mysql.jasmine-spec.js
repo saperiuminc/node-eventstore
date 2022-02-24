@@ -216,7 +216,6 @@ xdescribe('evenstore mysql classicist tests', function() {
     beforeEach(async function() {
         Bluebird.promisifyAll(eventstore.store);
         await eventstore.store.clearAsync();
-        await eventstore.closeProjectionEventStreamBuffersAsync();
 
         const projections = await eventstore.getProjectionsAsync();
         for (let index = 0; index < projections.length; index++) {

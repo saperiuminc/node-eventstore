@@ -210,8 +210,6 @@ describe('eventstore clustering mysql projection tests', () => {
                     await eventstore.store.clearAsync();
                 }
                 
-                await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
-                
                 let projections = await clusteredEventstore.getProjectionsAsync();
                 for (const projection of projections) {
                     await clusteredEventstore.resetProjectionAsync(projection.projectionId);
@@ -285,8 +283,6 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 }
                 expect(pollCounter).toBeLessThan(5);
-                
-                await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
                 
                 projections = await clusteredEventstore.getProjectionsAsync();
                 for (const projection of projections) {
@@ -379,8 +375,6 @@ describe('eventstore clustering mysql projection tests', () => {
             
             afterEach(async function() {
                 // console.log('AFTER EACH');
-                await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
-                
                 const projections = await clusteredEventstore.getProjectionsAsync();
                 for (const projection of projections) {
                     const projectionId = projection.projectionId;
@@ -604,8 +598,6 @@ describe('eventstore clustering mysql projection tests', () => {
         
         afterEach(async function() {
             // console.log('AFTER EACH');
-            await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
-            
             const projections = await clusteredEventstore.getProjectionsAsync();
             for (const projection of projections) {
                 const projectionId = projection.projectionId;
