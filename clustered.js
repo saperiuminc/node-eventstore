@@ -103,7 +103,7 @@ const esFunction = function(opts) {
     
     var Store;
     if (options.clusters && Array.isArray(options.clusters) && options.clusters.length) {
-        options.clusterType = 'clustered-' + options.clusters[0].type;
+        options.clusterType = 'clustered-partitioned-store'
     }
     
     // eslint-disable-next-line no-useless-catch

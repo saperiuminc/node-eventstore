@@ -204,9 +204,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
         }, 60000);
         
         afterEach(async function() {
-            // console.log('AFTER EACH');
-            await clusteredEventstore.closeProjectionEventStreamBuffersAsync();
-            
+            // console.log('AFTER EACH');            
             const projections = await clusteredEventstore.getProjectionsAsync();
             for (const projection of projections) {
                 const projectionId = projection.projectionId;
