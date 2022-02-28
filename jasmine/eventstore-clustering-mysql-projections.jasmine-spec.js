@@ -7,6 +7,7 @@ const Bluebird = require('bluebird');
 const shortid = require('shortid');
 const Redis = require('ioredis');
 const helpers = require('../lib/helpers');
+const OffsetManager = require('../lib/offsetManager');
 const {
     isNumber
 } = require('lodash');
@@ -38,12 +39,10 @@ const eventstoreConfig = {
     pollingTimeout: 500
 }
 
+// TODO: Tests should not be aware of implementation internals
+const offsetManager = new OffsetManager();
 const _deserializeProjectionOffset = function(serializedProjectionOffset) {
-    return helpers.deserializeProjectionOffset(serializedProjectionOffset);
-}
-
-const _serializeProjectionOffset = function(projectionOffset) {
-    return helpers.serializeProjectionOffset(projectionOffset);
+  return offsetManager.deserializeOffset(serializedProjectionOffset);
 }
 
 const retryInterval = 1000;

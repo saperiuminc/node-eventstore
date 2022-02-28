@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const debug = require('debug')('eventstore:clustered');
 const ClusteredEventStore = require('./lib/eventstore-projections/clustered-eventstore');
+const OffsetManager = require('./lib/offsetManager');
 
 /**
 * PlaybackListStoreConfig
@@ -170,7 +171,9 @@ const esFunction = function(opts) {
     
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
-    var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
+    // TODO: Feb24: Move to Factory
+    var offsetManager = new OffsetManager();
+    var eventstore = new Eventstore(options, new Store(options, offsetManager), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
     
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
