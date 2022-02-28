@@ -265,6 +265,70 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
             }
         });
 
+        it('should return the correct results based on the query parameters passed using LISTVIEW and using nested filter groups', async (done) => {
+            try {
+                const allResultsInserted = await eventstorePlaybackListView.queryAsync(0, 10, null, null);
+                expect(allResultsInserted.count).toEqual(10);
+                expect(allResultsInserted.rows.length).toEqual(10);
+
+                const pagedResults = await eventstorePlaybackListView.queryAsync(5, 5, null, null);
+                // should get revision 5 - 9
+                expect(pagedResults.count).toEqual(10); // total still 10
+                expect(pagedResults.rows.length).toEqual(5); // paged should be 5
+
+                const filteredResults = await eventstorePlaybackListView.queryAsync(0, 5, [
+                    {
+                        group: 'group',
+                        groupBooleanOperator: 'or',
+                        filters: [
+                            {
+                                field: 'vehicleId',
+                                operator: 'is',
+                                value: 'vehicle_5',
+                                group: 'subgroup-1',
+                                groupBooleanOperator: 'and'
+                            },
+                            {
+                                field: 'vehicleId',
+                                operator: 'exists',
+                                group: 'subgroup-1',
+                                groupBooleanOperator: 'and'
+                            }
+                        ]
+                    },
+                    {
+                        group: 'group',
+                        groupBooleanOperator: 'or',
+                        filters: [
+                            {
+                                field: 'vehicleId',
+                                operator: 'notExists'
+                            }
+                        ]
+                    }
+                ], null);
+                expect(filteredResults.count).toEqual(1); // total = 1 after filter
+                expect(filteredResults.rows.length).toEqual(1);
+                expect(filteredResults.rows[0].revision).toEqual(5);
+                expect(filteredResults.rows[0].data.vehicleId).toEqual('vehicle_5');
+
+                const sortedResults = await eventstorePlaybackListView.queryAsync(0, 10, null, [{
+                    field: 'vehicleId',
+                    sortDirection: 'ASC'
+                }]);
+
+                expect(sortedResults.count).toEqual(10); // total still 10
+                expect(sortedResults.rows.length).toEqual(10);
+                expect(sortedResults.rows[0].revision).toEqual(0);
+                expect(sortedResults.rows[0].data.vehicleId).toEqual('vehicle_0');
+
+                done();
+            } catch (error) {
+                console.log(error);
+                throw error;
+            }
+        });
+
         it('should return the correct results based on the query parameters passed using optimized query', async (done) => {
             try {
                 const allResultsInserted = await eventstorePlaybackListViewOptimized.queryAsync(0, 10, null, null);
@@ -386,6 +450,7 @@ describe('eventstore-playback-list-view-mysql-store tests', () => {
                 throw error;
             }
         });
+
     });
 
     afterAll(async (done) => {
