@@ -151,7 +151,7 @@ describe('eventstore-playback-list-mysql-store tests', () => {
                 console.log(error);
                 throw error;
             }
-        })
+        });
     });
 
     describe('query date', () => {
