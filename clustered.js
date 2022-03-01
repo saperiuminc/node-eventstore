@@ -60,11 +60,12 @@ function getSpecificStore(options) {
     
     let dbPath = '';
     options.type = options.type.toLowerCase();
+    var optionsType = options.type + 'partitioned-store';
     
     if (options.clusterType) {
         dbPath = __dirname + "/lib/databases/" + options.clusterType + ".js";
     } else {
-        dbPath = __dirname + "/lib/databases/" + options.type + ".js";
+        dbPath = __dirname + "/lib/databases/" + optionsType + ".js";
     }
     
     if (!exists(dbPath)) {
