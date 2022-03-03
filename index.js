@@ -47,6 +47,48 @@ function exists(toCheck) {
     return _exists(toCheck);
 }
 
+
+function getSpecificPartitionStore(options) {
+      options = options || {};
+
+      options.type = options.type || 'inmemory';
+
+      if (_.isFunction(options.type)) {
+          return options.type;
+      }
+
+      options.type = options.type.toLowerCase();
+      var optionsType = options.type + '-partitioned-store';
+
+      var dbPath = __dirname + "/lib/databases/partitioned-stores/" + optionsType + ".js";
+
+      if (!exists(dbPath)) {
+          var errMsg = 'Implementation for db "' + options.type + '" does not exist!';
+          debug(errMsg);
+          throw new Error(errMsg);
+      }
+
+      try {
+          debug('dbPath:', dbPath);
+          var db = require(dbPath);
+          return db;
+      } catch (err) {
+
+          console.error('error in requiring store');
+          console.error(err);
+          if (err.message.indexOf('Cannot find module') >= 0 &&
+              err.message.indexOf("'") > 0 &&
+              err.message.lastIndexOf("'") !== err.message.indexOf("'")) {
+
+              var moduleName = err.message.substring(err.message.indexOf("'") + 1, err.message.lastIndexOf("'"));
+              var msg = 'Please install module "' + moduleName +
+                  '" to work with db implementation "' + options.type + '"!';
+              debug(msg);
+          }
+
+          throw err;
+      }
+}
 function getSpecificStore(options) {
     options = options || {};
 
@@ -57,7 +99,7 @@ function getSpecificStore(options) {
     }
 
     options.type = options.type.toLowerCase();
-    var optionsType = options.type + '-partitioned-store';
+    var optionsType = options.type;
 
     var dbPath = __dirname + "/lib/databases/" + optionsType + ".js";
 
@@ -97,10 +139,11 @@ const esFunction = function(options) {
     options = options || {};
 
     var Store;
+    // TODO: this is broken if importing regular eventstore
 
     // eslint-disable-next-line no-useless-catch
     try {
-        Store = getSpecificStore(options);
+        Store = getSpecificPartitionStore(options);
     } catch (err) {
         throw err;
     }

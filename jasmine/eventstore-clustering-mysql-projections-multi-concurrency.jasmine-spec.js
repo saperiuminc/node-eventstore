@@ -6,12 +6,8 @@ const clusteredEs = require('../clustered');
 const Bluebird = require('bluebird');
 const shortid = require('shortid');
 const Redis = require('ioredis');
-const helpers = require('../lib/helpers');
+const _ = require('lodash');
 const OffsetManager = require('../lib/offsetManager');
-
-const {
-    isNumber
-} = require('lodash');
 
 const redisConfig = {
     host: 'localhost',
@@ -316,7 +312,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                             maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
                             maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;
                         }
-                        
+
                         if (pj.processedDate && projection.state == 'running' && maxCommitStamp) {
                             hasPassed = true;
                         }
@@ -846,7 +842,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                             maxEventId = !maxEventId || deserializedOffset.eventId > maxEventId ?  deserializedOffset.eventId : maxEventId; 
                             maxStreamRevision = isNaN(maxStreamRevision) || deserializedOffset.streamRevision > maxStreamRevision ?  deserializedOffset.streamRevision : maxStreamRevision;  
                         }
-                        
+
                         let deserializedErrorOffset = {}
                         if (pj.errorOffset) {
                             deserializedErrorOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.errorOffset));
@@ -925,7 +921,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             expect(faultedOffset.commitStamp).toEqual(errorEvent.commitStamp.getTime());
             expect(faultedOffset.eventId).toEqual(errorEvent.id);
             expect(faultedOffset.streamRevision).toEqual(errorEvent.streamRevision);
-            
+
             expect(projection.state).toEqual('running');
             expect(faultedProjectionTask.isIdle).toEqual(0);
         });
@@ -1248,9 +1244,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     aggregate: 'vehicle',
                     aggregateId: vehicleId
                 });
-    
+
                 Bluebird.promisifyAll(stream);
-    
+
                 const event = {
                     name: "VEHICLE_CREATED",
                     payload: {
@@ -1262,7 +1258,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     }
                 }
                 stream.addEvent(event);
-    
+
                 const event2 = {
                     name: "VEHICLE_UPDATED",
                     payload: {
@@ -1904,7 +1900,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         }
                     },
                     VEHICLE_CREATED: async function(state, event, funcs) {
-    
+
                     }
                 },
                 query: {
@@ -1921,7 +1917,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     }]
                 }
             };
-    
+
             let hasRebalanced = false;
             clusteredEventstore.on('rebalance', function(updatedAssignments) {
                 for(const projectionTaskId of updatedAssignments) {
@@ -1946,16 +1942,16 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             }
             expect(pollCounter).toBeLessThan(5);
-    
+
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                 context: context,
                 aggregate: 'vehicle',
                 aggregateId: vehicleId
             });
-    
+
             Bluebird.promisifyAll(stream);
-    
+
             const event = {
                 name: "VEHICLE_CREATED",
                 payload: {
@@ -1966,7 +1962,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     mileage: 1245
                 }
             }
-    
+
             const listener = (data) => {
                 //NOTE: playback success runs on all projections shard partition instance hence need to determine which did run an event
                 if(data.eventsCount > 0) {
@@ -1976,9 +1972,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     done();
                 }
             };
-    
+
             clusteredEventstore.on('playbackSuccess', listener);
-    
+
             stream.addEvent(event);
             await stream.commitAsync();
         });
@@ -1996,7 +1992,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         }
                     },
                     VEHICLE_CREATED: async function(state, event, funcs) {
-    
+
                     }
                 },
                 query: {
@@ -2016,7 +2012,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 concurrentEventNames: ['VEHICLE_CREATED', 'VEHICLE_UPDATED'],
                 concurrencyCount: 5
             };
-            
+
             let hasRebalanced = false;
             clusteredEventstore.on('rebalance', function(updatedAssignments) {
                 for(const projectionTaskId of updatedAssignments) {
@@ -2028,7 +2024,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
-    
+
             let pollCounter = 0;
             while (pollCounter < 5) {
                 pollCounter += 1;
@@ -2055,16 +2051,15 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
 
             const expectedEventsCount = 10;
             for (let i = 0; i < expectedEventsCount; i++) {
-                
                 const vehicleId = shortid.generate();
                 const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: context,
                     aggregate: 'vehicle',
                     aggregateId: vehicleId
                 });
-    
+
                 Bluebird.promisifyAll(stream);
-    
+
                 const event = {
                     name: i == expectedEventsCount - 1 ? "VEHICLE_UPDATED" : "VEHICLE_CREATED",
                     payload: {
@@ -2075,7 +2070,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         mileage: 1245
                     }
                 }
-    
+
                 stream.addEvent(event);
                 await stream.commitAsync();
             }
@@ -2119,7 +2114,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     }]
                 }
             };
-    
+
             let hasRebalanced = false;
             clusteredEventstore.on('rebalance', function(updatedAssignments) {
                 for(const projectionTaskId of updatedAssignments) {
@@ -2144,16 +2139,16 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             }
             expect(pollCounter).toBeLessThan(5);
-            
+
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                 context: context,
                 aggregate: 'vehicle',
                 aggregateId: vehicleId
             });
-    
+
             Bluebird.promisifyAll(stream);
-    
+
             const initialEvents = [{
                     name: "VEHICLE_CREATED",
                     payload: {
@@ -2178,7 +2173,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             stream.addEvent(initialEvents[0]);
             stream.addEvent(initialEvents[1]);
             await stream.commitAsync();
-    
+
             // let pollCounter = 0;
             // while (pollCounter < 10) {
             //     const initialProjection = await clusteredEventstore.getProjectionAsync(initialProjectionConfig.projectionId);
@@ -2217,7 +2212,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             }
 
             expect(pollCounter).toBeLessThan(10);
-    
+
             const projectionWithLatestOffsetConfig = {
                 projectionId: 'auction-list',
                 projectionName: 'Auction Listing',
@@ -2243,10 +2238,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     }]
                 }
             };
-    
+
             await clusteredEventstore.projectAsync(projectionWithLatestOffsetConfig);
             await clusteredEventstore.runProjectionAsync(projectionWithLatestOffsetConfig.projectionId, false);
-        
+
             pollCounter = 0;
             let maxCommitStamp;
             let maxEventId;
@@ -2288,9 +2283,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             expect(maxCommitStamp).toEqual(lastSuccesfulEvent.commitStamp.getTime());
             expect(maxEventId).toEqual(lastSuccesfulEvent.id);
             expect(maxStreamRevision).toEqual(lastSuccesfulEvent.streamRevision);
-            
+
         });
-        
+
         describe('querying playbacklistviews with keyset pagination support', () => {
             it('should get data from the playbacklistview with keyset pagination support - querying the next page', async function() {
                 const projectionConfig = {
@@ -2337,42 +2332,21 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         }]
                     }
                 };
-            
-                let hasRebalanced = false;
-                clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                    for(const projectionTaskId of updatedAssignments) {
-                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                            hasRebalanced = true;
-                        }
-                    }
-                });
+
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
                 await clusteredEventstore.startAllProjectionsAsync();
-            
-                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-next',
-                    ('SELECT keyset_list_next.row_id, keyset_list_next.row_revision, keyset_list_next.row_json, keyset_list_next.keysetId, keyset_list_next.field1, keyset_list_next.field2, keyset_list_next.field3' + 
-                        ' FROM (SELECT keyset_list_next.row_id as rowId FROM keyset_list_next @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_next ON LRLT.rowId = keyset_list_next.row_id @@order;'),
-                    'SELECT COUNT(1) as total_count FROM keyset_list_next list @@where;', {
-                        alias: {},
-                        paginationPrimaryKeys: [
-                            `keysetId`
-                        ],
-                    });
 
-                let pollCounter = 0;
-                while (pollCounter < 5) {
-                    pollCounter += 1;
-                    if (hasRebalanced) {
-                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                        break;
-                    } else {
-                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                        await sleep(retryInterval);
-                    }
-                }
-                expect(pollCounter).toBeLessThan(5);
-            
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-next',
+                ('SELECT keyset_list_next.row_id, keyset_list_next.row_revision, keyset_list_next.row_json, keyset_list_next.keysetId, keyset_list_next.field1, keyset_list_next.field2, keyset_list_next.field3' + 
+                ' FROM (SELECT keyset_list_next.row_id as rowId FROM keyset_list_next @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_next ON LRLT.rowId = keyset_list_next.row_id @@order;'),
+                'SELECT COUNT(1) as total_count FROM keyset_list_next list @@where;', {
+                    alias: {},
+                    paginationPrimaryKeys: [
+                        `keysetId`
+                    ],
+                });
+
                 const payloads = [
                     { // #1
                         field1: 5,
@@ -2409,10 +2383,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         aggregateId: keysetId
                     });
                     Bluebird.promisifyAll(stream);
-            
+
                     const payload = payloads[i];
                     payload.keysetId = keysetId;
-            
+
                     const event = {
                         name: "KEYSET_LIST_NEXT_CREATED",
                         payload: payload
@@ -2420,75 +2394,50 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-                const lastEvent = stream.events[stream.events.length - 1];
-                let maxCommitStamp;
-                pollCounter = 0;
+
+                let pollCounter = 0;
+                let filteredResults = null;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
-                    const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                    const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
-    
-                    if (projection && projectionTasks.length > 0) {
-                        let hasPassed = false;
 
-                        for(const pj of projectionTasks) {
-                            debug('pj', pj);
-    
-                            if (pj.processedDate && projection.state == 'running') {
-                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                if (deserializedOffset) {
-                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                                }
-                            }
-                        }
-                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
-                            hasPassed = true;
-                            break;
-                        }
+                    const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-next');
+                    Bluebird.promisifyAll(playbackListView);
 
-                        if (hasPassed) {
-                            break;
-                        } else {
-                            debug(`projection has not processed yet. trying again in 1000ms`);
-                            await sleep(retryInterval);
+                    const nextKeyArray = [payloads[2].field1, payloads[2].field2, payloads[2].field3, payloads[2].keysetId];
+                    const nextKey = Buffer.from(JSON.stringify(nextKeyArray)).toString('base64');
+                    filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                        { 
+                            field: 'field1', 
+                            sortDirection: 'DESC'
+                        },
+                        { 
+                            field: 'field2', 
+                            sortDirection: 'ASC'
+                        },
+                        { 
+                            field: 'field3', 
+                            sortDirection: 'ASC'
                         }
+                    ], null, nextKey);
+
+                    if (filteredResults && _.isEqual(filteredResults.count, 5)) {
+                        break;
                     } else {
                         debug(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 }
 
-                expect(pollCounter).toBeLessThan(10);
-            
-                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-next');
-                Bluebird.promisifyAll(playbackListView);
-            
-                const nextKeyArray = [payloads[2].field1, payloads[2].field2, payloads[2].field3, payloads[2].keysetId];
-                const nextKey = Buffer.from(JSON.stringify(nextKeyArray)).toString('base64');
-                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
-                    { 
-                        field: 'field1', 
-                        sortDirection: 'DESC'
-                    },
-                    { 
-                        field: 'field2', 
-                        sortDirection: 'ASC'
-                    },
-                    { 
-                        field: 'field3', 
-                        sortDirection: 'ASC'
-                    }
-                ], null, nextKey);
-            
                 expect(filteredResults.count).toEqual(5);
                 expect(filteredResults.rows.length).toEqual(2);
                 expect(filteredResults.rows[0].data).toEqual(payloads[1]);
                 expect(filteredResults.rows[1].data).toEqual(payloads[4]);
                 expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[1].field1, payloads[1].field2, payloads[1].field3, payloads[1].keysetId])).toString('base64'));
                 expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[4].field1, payloads[4].field2, payloads[4].field3, payloads[4].keysetId])).toString('base64'));
+                expect(pollCounter).toBeLessThan(10);
             });
-        
+
             it('should get data from the playbacklistview with keyset pagination support - querying the previous page', async function() {
                 const projectionConfig = {
                     projectionId: 'keyset-list-prev',
@@ -2534,42 +2483,21 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         }]
                     }
                 };
-            
-                let hasRebalanced = false;
-                clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                    for(const projectionTaskId of updatedAssignments) {
-                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                            hasRebalanced = true;
-                        }
-                    }
-                });
+
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-            
-                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-prev',
-                    ('SELECT keyset_list_prev.row_id, keyset_list_prev.row_revision, keyset_list_prev.row_json, keyset_list_prev.keysetId, keyset_list_prev.field1, keyset_list_prev.field2, keyset_list_prev.field3' + 
-                        ' FROM (SELECT keyset_list_prev.row_id as rowId FROM keyset_list_prev @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_prev ON LRLT.rowId = keyset_list_prev.row_id @@order;'),
-                    'SELECT COUNT(1) as total_count FROM keyset_list_prev list @@where;', {
-                        alias: {},
-                        paginationPrimaryKeys: [
-                            `keysetId`
-                        ],
-                    });
 
-                let pollCounter = 0;
-                while (pollCounter < 5) {
-                    pollCounter += 1;
-                    if (hasRebalanced) {
-                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                        break;
-                    } else {
-                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                        await sleep(retryInterval);
-                    }
-                }
-                expect(pollCounter).toBeLessThan(5);
-            
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-prev',
+                ('SELECT keyset_list_prev.row_id, keyset_list_prev.row_revision, keyset_list_prev.row_json, keyset_list_prev.keysetId, keyset_list_prev.field1, keyset_list_prev.field2, keyset_list_prev.field3' + 
+                ' FROM (SELECT keyset_list_prev.row_id as rowId FROM keyset_list_prev @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_prev ON LRLT.rowId = keyset_list_prev.row_id @@order;'),
+                'SELECT COUNT(1) as total_count FROM keyset_list_prev list @@where;', {
+                    alias: {},
+                    paginationPrimaryKeys: [
+                        `keysetId`
+                    ],
+                });
+
                 const payloads = [
                     { // #1
                         field1: 5,
@@ -2597,7 +2525,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         field3: 2
                     }
                 ];
-                let stream
+                let stream;
                 for (let i = 0; i < 5; i++) {
                     const keysetId = shortid.generate();
                     stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -2606,10 +2534,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         aggregateId: keysetId
                     });
                     Bluebird.promisifyAll(stream);
-            
+
                     const payload = payloads[i];
                     payload.keysetId = keysetId;
-            
+
                     const event = {
                         name: "KEYSET_LIST_PREV_CREATED",
                         payload: payload
@@ -2617,76 +2545,50 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-                const lastEvent = stream.events[stream.events.length - 1];
-                let maxCommitStamp;
-                
-                pollCounter = 0;
+
+                let pollCounter = 0;
+                let filteredResults = null;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
-                    const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                    const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
-    
-                    if (projection && projectionTasks.length > 0) {
-                        let hasPassed = false;
 
-                        for(const pj of projectionTasks) {
-                            debug('pj', pj);
-    
-                            if (pj.processedDate && projection.state == 'running') {
-                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                if (deserializedOffset) {
-                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                                }
-                            }
-                        }
-                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
-                            hasPassed = true;
-                            break;
-                        }
+                    const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-prev');
+                    Bluebird.promisifyAll(playbackListView);
 
-                        if (hasPassed) {
-                            break;
-                        } else {
-                            debug(`projection has not processed yet. trying again in 1000ms`);
-                            await sleep(retryInterval);
+                    const prevKeyArray = [payloads[3].field1, payloads[3].field2, payloads[3].field3, payloads[3].keysetId];
+                    const prevKey = Buffer.from(JSON.stringify(prevKeyArray)).toString('base64');
+                    filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                        { 
+                            field: 'field1', 
+                            sortDirection: 'DESC'
+                        },
+                        { 
+                            field: 'field2', 
+                            sortDirection: 'ASC'
+                        },
+                        { 
+                            field: 'field3', 
+                            sortDirection: 'ASC'
                         }
+                    ], prevKey, null);
+
+                    if (filteredResults && _.isEqual(filteredResults.count, 5)) {
+                        break;
                     } else {
                         debug(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 }
-            
-                expect(pollCounter).toBeLessThan(10);
-            
-                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-prev');
-                Bluebird.promisifyAll(playbackListView);
-            
-                const prevKeyArray = [payloads[3].field1, payloads[3].field2, payloads[3].field3, payloads[3].keysetId];
-                const prevKey = Buffer.from(JSON.stringify(prevKeyArray)).toString('base64');
-                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
-                    { 
-                        field: 'field1', 
-                        sortDirection: 'DESC'
-                    },
-                    { 
-                        field: 'field2', 
-                        sortDirection: 'ASC'
-                    },
-                    { 
-                        field: 'field3', 
-                        sortDirection: 'ASC'
-                    }
-                ], prevKey, null);
-            
+
                 expect(filteredResults.count).toEqual(5);
                 expect(filteredResults.rows.length).toEqual(2);
                 expect(filteredResults.rows[0].data).toEqual(payloads[1]);
                 expect(filteredResults.rows[1].data).toEqual(payloads[4]);
                 expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[1].field1, payloads[1].field2, payloads[1].field3, payloads[1].keysetId])).toString('base64'));
                 expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[4].field1, payloads[4].field2, payloads[4].field3, payloads[4].keysetId])).toString('base64'));
+                expect(pollCounter).toBeLessThan(10);
             });
-        
+
             it('should get data from the playbacklistview with keyset pagination support - querying the last page - 1', async function() {
                 const projectionConfig = {
                     projectionId: 'keyset-list-last',
@@ -2732,41 +2634,20 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         }]
                     }
                 };
-        
-                let hasRebalanced = false;
-                clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                    for(const projectionTaskId of updatedAssignments) {
-                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                            hasRebalanced = true;
-                        }
-                    }
-                });
+
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-        
-                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last',
-                    ('SELECT keyset_list_last.row_id, keyset_list_last.row_revision, keyset_list_last.row_json, keyset_list_last.keysetId, keyset_list_last.field1, keyset_list_last.field2, keyset_list_last.field3' + 
-                        ' FROM (SELECT keyset_list_last.row_id as rowId FROM keyset_list_last @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last ON LRLT.rowId = keyset_list_last.row_id @@order;'),
-                    'SELECT COUNT(1) as total_count FROM keyset_list_last list @@where;', {
-                        alias: {},
-                        paginationPrimaryKeys: [
-                            `keysetId`
-                        ],
-                    });
 
-                let pollCounter = 0;
-                while (pollCounter < 5) {
-                    pollCounter += 1;
-                    if (hasRebalanced) {
-                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                        break;
-                    } else {
-                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                        await sleep(retryInterval);
-                    }
-                }
-                expect(pollCounter).toBeLessThan(5);
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last',
+                ('SELECT keyset_list_last.row_id, keyset_list_last.row_revision, keyset_list_last.row_json, keyset_list_last.keysetId, keyset_list_last.field1, keyset_list_last.field2, keyset_list_last.field3' + 
+                ' FROM (SELECT keyset_list_last.row_id as rowId FROM keyset_list_last @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last ON LRLT.rowId = keyset_list_last.row_id @@order;'),
+                'SELECT COUNT(1) as total_count FROM keyset_list_last list @@where;', {
+                    alias: {},
+                    paginationPrimaryKeys: [
+                        `keysetId`
+                    ],
+                });
 
                 const payloads = [
                     { // #1
@@ -2795,6 +2676,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         field3: 2
                     }
                 ];
+
                 let stream;
                 for (let i = 0; i < 5; i++) {
                     const keysetId = shortid.generate();
@@ -2804,10 +2686,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         aggregateId: keysetId
                     });
                     Bluebird.promisifyAll(stream);
-        
+
                     const payload = payloads[i];
                     payload.keysetId = keysetId;
-        
+
                     const event = {
                         name: "KEYSET_LIST_LAST_CREATED",
                         payload: payload
@@ -2815,73 +2697,47 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-                const lastEvent = stream.events[stream.events.length - 1];
-                let maxCommitStamp;
-                
-                pollCounter = 0;
+
+                let pollCounter = 0;
+                let filteredResults = null;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
-                    const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                    const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
-    
-                    if (projection && projectionTasks.length > 0) {
-                        let hasPassed = false;
 
-                        for(const pj of projectionTasks) {
-                            debug('pj', pj);
-    
-                            if (pj.processedDate && projection.state == 'running') {
-                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                if (deserializedOffset) {
-                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                                }
-                            }
-                        }
-                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
-                            hasPassed = true;
-                            break;
-                        }
+                    const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-last');
+                    Bluebird.promisifyAll(playbackListView);
 
-                        if (hasPassed) {
-                            break;
-                        } else {
-                            debug(`projection has not processed yet. trying again in 1000ms`);
-                            await sleep(retryInterval);
+                    filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                        { 
+                            field: 'field1', 
+                            sortDirection: 'DESC'
+                        },
+                        { 
+                            field: 'field2', 
+                            sortDirection: 'ASC'
+                        },
+                        { 
+                            field: 'field3', 
+                            sortDirection: 'ASC'
                         }
+                    ], null, '__LAST');
+
+                    if (filteredResults && _.isEqual(filteredResults.count, 5)) {
+                        break;
                     } else {
                         debug(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 }
-        
-                expect(pollCounter).toBeLessThan(10);
-        
-                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-last');
-                Bluebird.promisifyAll(playbackListView);
-        
-                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
-                    { 
-                        field: 'field1', 
-                        sortDirection: 'DESC'
-                    },
-                    { 
-                        field: 'field2', 
-                        sortDirection: 'ASC'
-                    },
-                    { 
-                        field: 'field3', 
-                        sortDirection: 'ASC'
-                    }
-                ], null, '__LAST');
-        
+
                 expect(filteredResults.count).toEqual(5);
                 expect(filteredResults.rows.length).toEqual(1);
                 expect(filteredResults.rows[0].data).toEqual(payloads[3]);
                 expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[3].field1, payloads[3].field2, payloads[3].field3, payloads[3].keysetId])).toString('base64'));
                 expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[3].field1, payloads[3].field2, payloads[3].field3, payloads[3].keysetId])).toString('base64'));
+                expect(pollCounter).toBeLessThan(10);
             });
-        
+
             it('should get data from the playbacklistview with keyset pagination support - querying the last page - 2', async function() {
                 const projectionConfig = {
                     projectionId: 'keyset-list-last-2',
@@ -2927,41 +2783,20 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         }]
                     }
                 };
-        
-                let hasRebalanced = false;
-                clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                    for(const projectionTaskId of updatedAssignments) {
-                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                            hasRebalanced = true;
-                        }
-                    }
-                });
+
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last-2',
-                    ('SELECT keyset_list_last_2.row_id, keyset_list_last_2.row_revision, keyset_list_last_2.row_json, keyset_list_last_2.keysetId, keyset_list_last_2.field1, keyset_list_last_2.field2, keyset_list_last_2.field3' + 
-                        ' FROM (SELECT keyset_list_last_2.row_id as rowId FROM keyset_list_last_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last_2 ON LRLT.rowId = keyset_list_last_2.row_id @@order;'),
-                    'SELECT COUNT(1) as total_count FROM keyset_list_last_2 list @@where;', {
-                        alias: {},
-                        paginationPrimaryKeys: [
-                            `keysetId`
-                        ],
-                    });
-        
-                let pollCounter = 0;
-                while (pollCounter < 5) {
-                    pollCounter += 1;
-                    if (hasRebalanced) {
-                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                        break;
-                    } else {
-                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                        await sleep(retryInterval);
-                    }
-                }
-                expect(pollCounter).toBeLessThan(5);
+                ('SELECT keyset_list_last_2.row_id, keyset_list_last_2.row_revision, keyset_list_last_2.row_json, keyset_list_last_2.keysetId, keyset_list_last_2.field1, keyset_list_last_2.field2, keyset_list_last_2.field3' + 
+                ' FROM (SELECT keyset_list_last_2.row_id as rowId FROM keyset_list_last_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last_2 ON LRLT.rowId = keyset_list_last_2.row_id @@order;'),
+                'SELECT COUNT(1) as total_count FROM keyset_list_last_2 list @@where;', {
+                    alias: {},
+                    paginationPrimaryKeys: [
+                        `keysetId`
+                    ],
+                });
 
                 const payloads = [
                     { // #1
@@ -2995,6 +2830,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         field3: 5
                     }
                 ];
+
                 let stream;
                 for (let i = 0; i < 6; i++) {
                     const keysetId = shortid.generate();
@@ -3004,10 +2840,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         aggregateId: keysetId
                     });
                     Bluebird.promisifyAll(stream);
-        
+
                     const payload = payloads[i];
                     payload.keysetId = keysetId;
-        
+
                     const event = {
                         name: "KEYSET_LIST_LAST_2_CREATED",
                         payload: payload
@@ -3015,74 +2851,48 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-                const lastEvent = stream.events[stream.events.length - 1];
-                let maxCommitStamp;
-                
-                pollCounter = 0;
+
+                let pollCounter = 0;
+                let filteredResults = null;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
-                    const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                    const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
-    
-                    if (projection && projectionTasks.length > 0) {
-                        let hasPassed = false;
 
-                        for(const pj of projectionTasks) {
-                            debug('pj', pj);
-    
-                            if (pj.processedDate && projection.state == 'running') {
-                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                if (deserializedOffset) {
-                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                                }
-                            }
-                        }
-                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
-                            hasPassed = true;
-                            break;
-                        }
+                    const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-last-2');
+                    Bluebird.promisifyAll(playbackListView);
 
-                        if (hasPassed) {
-                            break;
-                        } else {
-                            debug(`projection has not processed yet. trying again in 1000ms`);
-                            await sleep(retryInterval);
+                    filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                        { 
+                            field: 'field1', 
+                            sortDirection: 'DESC'
+                        },
+                        { 
+                            field: 'field2', 
+                            sortDirection: 'ASC'
+                        },
+                        { 
+                            field: 'field3', 
+                            sortDirection: 'ASC'
                         }
+                    ], null, '__LAST');
+
+                    if (filteredResults && _.isEqual(filteredResults.count, 6)) {
+                        break;
                     } else {
                         debug(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 }
-        
-                expect(pollCounter).toBeLessThan(10);
-        
-                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-last-2');
-                Bluebird.promisifyAll(playbackListView);
-        
-                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
-                    { 
-                        field: 'field1', 
-                        sortDirection: 'DESC'
-                    },
-                    { 
-                        field: 'field2', 
-                        sortDirection: 'ASC'
-                    },
-                    { 
-                        field: 'field3', 
-                        sortDirection: 'ASC'
-                    }
-                ], null, '__LAST');
-        
+
                 expect(filteredResults.count).toEqual(6);
                 expect(filteredResults.rows.length).toEqual(2);
                 expect(filteredResults.rows[0].data).toEqual(payloads[3]);
                 expect(filteredResults.rows[1].data).toEqual(payloads[5]);
                 expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[3].field1, payloads[3].field2, payloads[3].field3, payloads[3].keysetId])).toString('base64'));
                 expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[5].field1, payloads[5].field2, payloads[5].field3, payloads[5].keysetId])).toString('base64'));
+                expect(pollCounter).toBeLessThan(10);
             });
-        
+
             it('should get data from the playbacklistview with keyset pagination support - querying with null values - 1', async function() {
                 const projectionConfig = {
                     projectionId: 'keyset-list-null',
@@ -3128,42 +2938,21 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         }]
                     }
                 };
-            
-                let hasRebalanced = false;
-                clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                    for(const projectionTaskId of updatedAssignments) {
-                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                            hasRebalanced = true;
-                        }
-                    }
-                });
+
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-            
-                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null',
-                    ('SELECT keyset_list_null.row_id, keyset_list_null.row_revision, keyset_list_null.row_json, keyset_list_null.keysetId, keyset_list_null.field1, keyset_list_null.field2, keyset_list_null.field3' + 
-                        ' FROM (SELECT keyset_list_null.row_id as rowId FROM keyset_list_null @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null ON LRLT.rowId = keyset_list_null.row_id @@order;'),
-                    'SELECT COUNT(1) as total_count FROM keyset_list_null list @@where;', {
-                        alias: {},
-                        paginationPrimaryKeys: [
-                            `keysetId`
-                        ],
-                    });
 
-                let pollCounter = 0;
-                while (pollCounter < 5) {
-                    pollCounter += 1;
-                    if (hasRebalanced) {
-                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                        break;
-                    } else {
-                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                        await sleep(retryInterval);
-                    }
-                }
-                expect(pollCounter).toBeLessThan(5);
-            
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null',
+                ('SELECT keyset_list_null.row_id, keyset_list_null.row_revision, keyset_list_null.row_json, keyset_list_null.keysetId, keyset_list_null.field1, keyset_list_null.field2, keyset_list_null.field3' + 
+                ' FROM (SELECT keyset_list_null.row_id as rowId FROM keyset_list_null @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null ON LRLT.rowId = keyset_list_null.row_id @@order;'),
+                'SELECT COUNT(1) as total_count FROM keyset_list_null list @@where;', {
+                    alias: {},
+                    paginationPrimaryKeys: [
+                        `keysetId`
+                    ],
+                });
+
                 const payloads = [
                     { // #1
                         field1: 5,
@@ -3191,6 +2980,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         field3: 2
                     }
                 ];
+
                 let stream;
                 for (let i = 0; i < 5; i++) {
                     const keysetId = shortid.generate();
@@ -3200,10 +2990,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         aggregateId: keysetId
                     });
                     Bluebird.promisifyAll(stream);
-            
+
                     const payload = payloads[i];
                     payload.keysetId = keysetId;
-            
+
                     const event = {
                         name: "KEYSET_LIST_NULL_CREATED",
                         payload: payload
@@ -3211,9 +3001,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-                const lastEvent = stream.events[stream.events.length - 1];
-                let maxCommitStamp;
-                
+
                 const sanitizedPayloads = [
                     { // #1
                         field1: 5,
@@ -3242,73 +3030,49 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     }
                 ];
 
-                pollCounter = 0;
+                let pollCounter = 0;
+                let filteredResults = null;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
-                    const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                    const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
-    
-                    if (projection && projectionTasks.length > 0) {
-                        let hasPassed = false;
 
-                        for(const pj of projectionTasks) {
-                            debug('pj', pj);
-    
-                            if (pj.processedDate && projection.state == 'running') {
-                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                if (deserializedOffset) {
-                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                                }
-                            }
-                        }
-                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
-                            hasPassed = true;
-                            break;
-                        }
+                    const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-null');
+                    Bluebird.promisifyAll(playbackListView);
 
-                        if (hasPassed) {
-                            break;
-                        } else {
-                            debug(`projection has not processed yet. trying again in 1000ms`);
-                            await sleep(retryInterval);
+                    const nextKeyArray = [payloads[2].field1, payloads[2].field2, payloads[2].field3, payloads[2].keysetId];
+                    const nextKey = Buffer.from(JSON.stringify(nextKeyArray)).toString('base64');
+                    filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                        { 
+                            field: 'field1', 
+                            sortDirection: 'DESC'
+                        },
+                        { 
+                            field: 'field2', 
+                            sortDirection: 'ASC'
+                        },
+                        { 
+                            field: 'field3', 
+                            sortDirection: 'ASC'
                         }
+                    ], null, nextKey);
+
+                    if (filteredResults && _.isEqual(filteredResults.count, 5)) {
+                        break;
                     } else {
                         debug(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 }
-            
-                expect(pollCounter).toBeLessThan(10);
-            
-                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-null');
-                Bluebird.promisifyAll(playbackListView);
-            
-                const nextKeyArray = [payloads[2].field1, payloads[2].field2, payloads[2].field3, payloads[2].keysetId];
-                const nextKey = Buffer.from(JSON.stringify(nextKeyArray)).toString('base64');
-                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
-                    { 
-                        field: 'field1', 
-                        sortDirection: 'DESC'
-                    },
-                    { 
-                        field: 'field2', 
-                        sortDirection: 'ASC'
-                    },
-                    { 
-                        field: 'field3', 
-                        sortDirection: 'ASC'
-                    }
-                ], null, nextKey);
-            
+
                 expect(filteredResults.count).toEqual(5);
                 expect(filteredResults.rows.length).toEqual(2);
                 expect(filteredResults.rows[0].data).toEqual(sanitizedPayloads[1]);
                 expect(filteredResults.rows[1].data).toEqual(sanitizedPayloads[4]);
                 expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[1].field1, payloads[1].field2, payloads[1].field3, payloads[1].keysetId])).toString('base64'));
                 expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[4].field1, payloads[4].field2, payloads[4].field3, payloads[4].keysetId])).toString('base64'));
+                expect(pollCounter).toBeLessThan(10);
             });
-        
+
             it('should get data from the playbacklistview with keyset pagination support - querying with null values - 2', async function() {
                 const projectionConfig = {
                     projectionId: 'keyset-list-null-2',
@@ -3354,42 +3118,21 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         }]
                     }
                 };
-            
-                let hasRebalanced = false;
-                clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                    for(const projectionTaskId of updatedAssignments) {
-                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                            hasRebalanced = true;
-                        }
-                    }
-                });
+
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.startAllProjectionsAsync();
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
-            
-                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null-2',
-                    ('SELECT keyset_list_null_2.row_id, keyset_list_null_2.row_revision, keyset_list_null_2.row_json, keyset_list_null_2.keysetId, keyset_list_null_2.field1, keyset_list_null_2.field2, keyset_list_null_2.field3' + 
-                        ' FROM (SELECT keyset_list_null_2.row_id as rowId FROM keyset_list_null_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null_2 ON LRLT.rowId = keyset_list_null_2.row_id @@order;'),
-                    'SELECT COUNT(1) as total_count FROM keyset_list_null_2 list @@where;', {
-                        alias: {},
-                        paginationPrimaryKeys: [
-                            `keysetId`
-                        ],
-                    });
 
-                let pollCounter = 0;
-                while (pollCounter < 5) {
-                    pollCounter += 1;
-                    if (hasRebalanced) {
-                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                        break;
-                    } else {
-                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                        await sleep(retryInterval);
-                    }
-                }
-                expect(pollCounter).toBeLessThan(5);
-            
+                await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null-2',
+                ('SELECT keyset_list_null_2.row_id, keyset_list_null_2.row_revision, keyset_list_null_2.row_json, keyset_list_null_2.keysetId, keyset_list_null_2.field1, keyset_list_null_2.field2, keyset_list_null_2.field3' + 
+                ' FROM (SELECT keyset_list_null_2.row_id as rowId FROM keyset_list_null_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null_2 ON LRLT.rowId = keyset_list_null_2.row_id @@order;'),
+                'SELECT COUNT(1) as total_count FROM keyset_list_null_2 list @@where;', {
+                    alias: {},
+                    paginationPrimaryKeys: [
+                        `keysetId`
+                    ],
+                });
+
                 const payloads = [
                     { // #1
                         field1: 5,
@@ -3417,6 +3160,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         field3: 2
                     }
                 ];
+
                 let stream;
                 for (let i = 0; i < 5; i++) {
                     const keysetId = shortid.generate();
@@ -3426,10 +3170,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         aggregateId: keysetId
                     });
                     Bluebird.promisifyAll(stream);
-            
+
                     const payload = payloads[i];
                     payload.keysetId = keysetId;
-            
+
                     const event = {
                         name: "KEYSET_LIST_NULL_2_CREATED",
                         payload: payload
@@ -3437,7 +3181,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                     stream.addEvent(event);
                     await stream.commitAsync();
                 }
-            
+
                 const sanitizedPayloads = [
                     { // #1
                         field1: 5,
@@ -3466,74 +3210,48 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         keysetId: payloads[4].keysetId
                     }
                 ];
-                const lastEvent = stream.events[stream.events.length - 1];
-                let maxCommitStamp;
-                
-                pollCounter = 0;
+
+                let pollCounter = 0;
+                let filteredResults = null;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
-                    const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                    const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
-    
-                    if (projection && projectionTasks.length > 0) {
-                        let hasPassed = false;
 
-                        for(const pj of projectionTasks) {
-                            debug('pj', pj);
-    
-                            if (pj.processedDate && projection.state == 'running') {
-                                const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                                if (deserializedOffset) {
-                                    maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                                }
-                            }
-                        }
-                        if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
-                            hasPassed = true;
-                            break;
-                        }
+                    const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-null-2');
+                    Bluebird.promisifyAll(playbackListView);
 
-                        if (hasPassed) {
-                            break;
-                        } else {
-                            debug(`projection has not processed yet. trying again in 1000ms`);
-                            await sleep(retryInterval);
+                    const nextKeyArray = [payloads[2].field1, payloads[2].field2, payloads[2].field3, payloads[2].keysetId];
+                    const nextKey = Buffer.from(JSON.stringify(nextKeyArray)).toString('base64');
+                    filteredResults = await playbackListView.queryAsync(0, 2, null, [
+                        { 
+                            field: 'field1', 
+                            sortDirection: 'DESC'
+                        },
+                        { 
+                            field: 'field2', 
+                            sortDirection: 'ASC'
+                        },
+                        { 
+                            field: 'field3', 
+                            sortDirection: 'ASC'
                         }
+                    ], null, nextKey);
+
+                    if (filteredResults && _.isEqual(filteredResults.count, 5)) {
+                        break;
                     } else {
                         debug(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 }
-            
-                expect(pollCounter).toBeLessThan(10);
-            
-                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('keyset-list-null-2');
-                Bluebird.promisifyAll(playbackListView);
-            
-                const nextKeyArray = [payloads[2].field1, payloads[2].field2, payloads[2].field3, payloads[2].keysetId];
-                const nextKey = Buffer.from(JSON.stringify(nextKeyArray)).toString('base64');
-                const filteredResults = await playbackListView.queryAsync(0, 2, null, [
-                    { 
-                        field: 'field1', 
-                        sortDirection: 'DESC'
-                    },
-                    { 
-                        field: 'field2', 
-                        sortDirection: 'ASC'
-                    },
-                    { 
-                        field: 'field3', 
-                        sortDirection: 'ASC'
-                    }
-                ], null, nextKey);
-            
+
                 expect(filteredResults.count).toEqual(5);
                 expect(filteredResults.rows.length).toEqual(2);
                 expect(filteredResults.rows[0].data).toEqual(sanitizedPayloads[1]);
                 expect(filteredResults.rows[1].data).toEqual(sanitizedPayloads[4]);
                 expect(filteredResults.previousKey).toEqual(Buffer.from(JSON.stringify([payloads[1].field1, payloads[1].field2, payloads[1].field3, payloads[1].keysetId])).toString('base64'));
                 expect(filteredResults.nextKey).toEqual(Buffer.from(JSON.stringify([payloads[4].field1, payloads[4].field2, payloads[4].field3, payloads[4].keysetId])).toString('base64'));
+                expect(pollCounter).toBeLessThan(10);
             });
         });
     });
