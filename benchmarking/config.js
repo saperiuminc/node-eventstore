@@ -15,7 +15,26 @@ module.exports = {
         database: 'eventstore',
         connectionPoolLimit: 1,
         projectionGroup: 'auction',
-        context: 'auction'
+        context: 'auction',
+    },
+    projectionConfigs: {
+        enableProjection: true,
+        projectionGroup: 'auction',
+        projectionStore: {
+            connection: {
+                host: 'localhost',
+                port: '3306',
+                user: 'root',
+                password: 'root',
+                database: 'eventstore'
+            },
+            pool: {
+                min: 1,
+                max: 1,
+                idleTimeoutMillis: 28800000
+            }
+        
+        }
     },
     salesChannelInstanceVehicleLeaderComputedTestEventPayload: {
         vehicleId: '',

@@ -5,16 +5,23 @@ const path = require('path');
 const bluebird = require('bluebird');
 const debug = require('debug')('DEBUG');
 const configs = require('./config');
+const Redis = require('ioredis')
 // const shortid = require('shortid');
 
 const shardCount = +process.env.SHARD_COUNT || 1;
-const config = {
+let config = {
     clusters: configs.clusterPorts.slice(0, shardCount).map((port) => {
         const esConfig = JSON.parse(JSON.stringify((configs.esConfig)));
         esConfig.port = port;
         return esConfig;
     })
 };
+
+const redisFactory = require('./redis-factory');
+config = Object.assign(config, configs.projectionConfigs);
+config.redisCreateClient = redisFactory.createClient
+
+// console.log(config);
 
 const testAggregateIds = [
     'nP0UTpzfn',
@@ -591,9 +598,9 @@ zbench('sharding', (z) => {
 
     z.teardownOnce(async (done, b) => {
         debug('docker compose down started');
-        await compose.down({
-            cwd: path.join(__dirname)
-        })
+        // await compose.down({
+        //     cwd: path.join(__dirname)
+        // })
         debug('docker compose down finished');
         done();
     });
