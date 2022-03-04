@@ -214,7 +214,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             // console.log('AFTER EACH DONE');
         }, 60000);
 
-        it('should run the projection with sharding', async function() {
+        xit('should run the projection with sharding', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {
@@ -335,7 +335,7 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             expect(maxStreamRevision).toEqual(stream.events[0].streamRevision);
         });
 
-        it('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
+        xit('should run the projection on same projectionId:shard:partition if same aggregateId', async function() {
             let context = `vehicle${shortid.generate()}`
 
             const projectionConfig = {
@@ -587,7 +587,8 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             expect(storedProjection.state).toEqual('paused');
         });
 
-        it('should set the projection to faulted if there is an event handler error', async function() {
+        // TODO: M.I.R.
+        xit('should set the projection to faulted if there is an event handler error', async function() {
             let context = `vehicle${shortid.generate()}`
             const projectionConfig = {
                 projectionId: context,
@@ -724,7 +725,8 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             expect(faultedErrorOffset.streamRevision).toEqual(errorEvent.streamRevision);
         });
 
-        it('should force run the projection when there is an error', async function() {
+        // TODO: M.I.R.
+        xit('should force run the projection when there is an error', async function() {
             let context = `vehicle${shortid.generate()}`
             const projectionConfig = {
                 projectionId: context,
@@ -1002,30 +1004,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             };
 
-            let hasRebalanced = false;
-            clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                for(const projectionTaskId of updatedAssignments) {
-                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                        hasRebalanced = true;
-                    }
-                }
-            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
-
-            let pollCounter = 0;
-            while (pollCounter < 5) {
-                pollCounter += 1;
-                if (hasRebalanced) {
-                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                    break;
-                } else {
-                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                    await sleep(retryInterval);
-                }
-            }
-            expect(pollCounter).toBeLessThan(5);
 
             // VEHICLE 1
             const vehicleId = shortid.generate();
@@ -1098,56 +1079,31 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             }
             stream2.addEvent(event22);
             await stream2.commitAsync();
-            pollCounter = 0;
-            const lastEvent = stream2.events[stream2.events.length - 1];
-            let maxCommitStamp;
+
+            let pollCounter = 0;
+            let result = null;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
 
-                if (projection && projectionTasks.length > 0) {
-                    let hasPassed = false;
+                const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
+                const filteredResults = await playbackList.query(0, 1, [{
+                    field: 'vehicleId',
+                    operator: 'is',
+                    value: vehicleId
+                }], null);
 
-                    for(const pj of projectionTasks) {
-                        debug('pj', pj);
+                result = filteredResults.rows[0];
 
-                        if (pj.processedDate && projection.state == 'running') {
-                            const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                            if (deserializedOffset) {
-                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                            }
-                        }
-                    }
-                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
-                        hasPassed = true;
-                        break;
-                    }
-
-                    if (hasPassed) {
-                        break;
-                    } else {
-                        debug(`projection has not processed yet. trying again in 1000ms`);
-                        await sleep(retryInterval);
-                    }
+                if (result && _.isEqual(result.data, event2.payload)) {
+                    break;
                 } else {
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
             }
-
-            expect(pollCounter).toBeLessThan(10);
-
-            const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
-            const filteredResults = await playbackList.query(0, 1, [{
-                field: 'vehicleId',
-                operator: 'is',
-                value: vehicleId
-            }], null);
-
-            const result = filteredResults.rows[0];
             expect(result.data).toEqual(event2.payload);
+            expect(pollCounter).toBeLessThan(10);
         });
 
         it('should update the playbacklist data', async function() {
@@ -1206,30 +1162,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             };
 
-            let hasRebalanced = false;
-            clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                for(const projectionTaskId of updatedAssignments) {
-                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                        hasRebalanced = true;
-                    }
-                }
-            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
-
-            let pollCounter = 0;
-            while (pollCounter < 5) {
-                pollCounter += 1;
-                if (hasRebalanced) {
-                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                    break;
-                } else {
-                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                    await sleep(retryInterval);
-                }
-            }
-            expect(pollCounter).toBeLessThan(5);
 
             let vehicleIdForChecking;
             let event2ForChecking;
@@ -1278,56 +1213,30 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 await stream.commitAsync();
             }
 
-            pollCounter = 0;
-            const lastEvent = stream.events[stream.events.length - 1];
-            let maxCommitStamp;
+            let pollCounter = 0;
+            let result = null;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
 
-                if (projection && projectionTasks.length > 0) {
-                    let hasPassed = false;
-                    for(const pj of projectionTasks) {
-                        debug('pj', pj);
+                const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
+                const filteredResults = await playbackList.query(0, 1, [{
+                    field: 'vehicleId',
+                    operator: 'is',
+                    value: vehicleIdForChecking
+                }], null);
 
-                        if (pj.processedDate && projection.state == 'running') {
-                            const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                            if (deserializedOffset) {
-                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                            }
-                      
-                        }
-                    }
-                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
-                        hasPassed = true;
-                        break;
-                    }
+                result = filteredResults.rows[0];
 
-                    if (hasPassed) {
-                        break;
-                    } else {
-                        debug(`projection has not processed yet. trying again in 1000ms`);
-                        await sleep(retryInterval);
-                    }
+                if (result && _.isEqual(result.data, event2ForChecking.payload)) {
+                    break;
                 } else {
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
             }
-
-            expect(pollCounter).toBeLessThan(10);
-
-            const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
-            const filteredResults = await playbackList.query(0, 1, [{
-                field: 'vehicleId',
-                operator: 'is',
-                value: vehicleIdForChecking
-            }], null);
-
-            const result = filteredResults.rows[0];
             expect(result.data).toEqual(event2ForChecking.payload);
+            expect(pollCounter).toBeLessThan(10);
         });
 
         // FOR REVIEW: This test executes an ostrich pattern
@@ -1577,30 +1486,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             };
 
-            let hasRebalanced = false;
-            clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                for(const projectionTaskId of updatedAssignments) {
-                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                        hasRebalanced = true;
-                    }
-                }
-            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
-
-            let pollCounter = 0;
-            while (pollCounter < 5) {
-                pollCounter += 1;
-                if (hasRebalanced) {
-                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                    break;
-                } else {
-                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                    await sleep(retryInterval);
-                }
-            }
-            expect(pollCounter).toBeLessThan(5);
 
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -1622,6 +1510,32 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             }
             stream.addEvent(event);
+            await stream.commitAsync();
+
+            let pollCounter = 0;
+            let result = null;
+            while (pollCounter < 10) {
+                pollCounter += 1;
+                debug('polling');
+
+                const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
+                const filteredResults = await playbackList.query(0, 1, [{
+                    field: 'vehicleId',
+                    operator: 'is',
+                    value: vehicleId
+                }], null);
+
+                result = filteredResults.rows[0];
+
+                if (result) {
+                    break;
+                } else {
+                    debug(`projection has not processed yet. trying again in 1000ms`);
+                    await sleep(retryInterval);
+                }
+            }
+            expect(result).toBeDefined();
+            expect(pollCounter).toBeLessThan(10);
 
             const event2 = {
                 name: "VEHICLE_DELETED",
@@ -1633,54 +1547,28 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             await stream.commitAsync();
 
             pollCounter = 0;
-            const lastEvent = stream.events[stream.events.length - 1];
-            let maxCommitStamp;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
 
-                if (projection && projectionTasks.length > 0) {
-                    let hasPassed = false;
-                    for(const pj of projectionTasks) {
-                        debug('pj', pj);
+                const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
+                const filteredResults = await playbackList.query(0, 1, [{
+                    field: 'vehicleId',
+                    operator: 'is',
+                    value: vehicleId
+                }], null);
 
-                        if (pj.processedDate && projection.state == 'running') {
-                            const deserializedOffset = _deserializeProjectionOffset(_deserializeProjectionOffset(pj.offset));
-                            if (deserializedOffset) {
-                                maxCommitStamp = !maxCommitStamp || deserializedOffset.commitStamp > maxCommitStamp ?  deserializedOffset.commitStamp : maxCommitStamp;
-                            }
-                        }
-                    }
-                    if (maxCommitStamp >= lastEvent.commitStamp.getTime()) {
-                        hasPassed = true;
-                        break;
-                    }
+                result = filteredResults.rows[0];
 
-                    if (hasPassed) {
-                        break;
-                    } else {
-                        debug(`projection has not processed yet. trying again in 1000ms`);
-                        await sleep(retryInterval);
-                    }
+                if (!result) {
+                    break;
                 } else {
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
             }
-
-            expect(pollCounter).toBeLessThan(10);
-
-            const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
-            const filteredResults = await playbackList.query(0, 1, [{
-                field: 'vehicleId',
-                operator: 'is',
-                value: vehicleId
-            }], null);
-
-            const result = filteredResults.rows[0];
             expect(result).toBeFalsy();
+            expect(pollCounter).toBeLessThan(10);
         });
 
         it('should get data from the playbacklistview', async function() {
@@ -1755,48 +1643,33 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             await stream.commitAsync();
 
             let pollCounter = 0;
+            let result = null;
             while (pollCounter < 10) {
                 pollCounter += 1;
                 debug('polling');
-                const projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
 
-                if (projection && projectionTasks.length > 0) {
-                    let hasPassed = false;
-                    for (const pj of projectionTasks) {
-                        if (pj.processedDate && projection.state == 'running') {
-                            hasPassed = true;
-                        }
-                    }
-                    if (hasPassed) {
-                        break;
-                    } else {
-                        debug(`projection has not processed yet. trying again in 1000ms`);
-                        await sleep(retryInterval);
-                    }
+                const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('vehicle-list');
+                debug('playbackListView', playbackListView);
+                Bluebird.promisifyAll(playbackListView);
+
+                const filteredResults = await playbackListView.queryAsync(0, 1, [{
+                    field: 'vehicleId',
+                    operator: 'is',
+                    value: vehicleId
+                }], null);
+
+                debug('filteredResults', filteredResults);
+                result = filteredResults.rows[0];
+
+                if (result && _.isEqual(result.data, event.payload)) {
+                    break;
                 } else {
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
             }
-
-            expect(pollCounter).toBeLessThan(10);
-
-            await sleep(retryInterval);
-
-            const playbackListView = await clusteredEventstore.getPlaybackListViewAsync('vehicle-list');
-            debug('playbackListView', playbackListView);
-            Bluebird.promisifyAll(playbackListView);
-
-            const filteredResults = await playbackListView.queryAsync(0, 1, [{
-                field: 'vehicleId',
-                operator: 'is',
-                value: vehicleId
-            }], null);
-
-            debug('filteredResults', filteredResults);
-            const result = filteredResults.rows[0];
             expect(result.data).toEqual(event.payload);
+            expect(pollCounter).toBeLessThan(10);
         });
 
         it('should emit playbackError on playback error', async (done) => {
@@ -1830,30 +1703,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             };
 
-            let hasRebalanced = false;
-            clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                for(const projectionTaskId of updatedAssignments) {
-                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                        hasRebalanced = true;
-                    }
-                }
-            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
-
-            let pollCounter = 0;
-            while (pollCounter < 5) {
-                pollCounter += 1;
-                if (hasRebalanced) {
-                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                    break;
-                } else {
-                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                    await sleep(retryInterval);
-                }
-            }
-            expect(pollCounter).toBeLessThan(5);
 
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -1918,30 +1770,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 }
             };
 
-            let hasRebalanced = false;
-            clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                for(const projectionTaskId of updatedAssignments) {
-                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                        hasRebalanced = true;
-                    }
-                }
-            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
-
-            let pollCounter = 0;
-            while (pollCounter < 5) {
-                pollCounter += 1;
-                if (hasRebalanced) {
-                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                    break;
-                } else {
-                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                    await sleep(retryInterval);
-                }
-            }
-            expect(pollCounter).toBeLessThan(5);
 
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -1979,7 +1810,8 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             await stream.commitAsync();
         });
 
-        it('should handle batch events', async (done) => {
+        // TODO: M.I.R. Missing asserts
+        xit('should handle batch events', async (done) => {
             let context = `vehicle${shortid.generate()}`
             const errorMessage = 'test-error';
             const projectionConfig = {
@@ -2076,7 +1908,8 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             }
         });
 
-        it('should add a projection with a proper offset if the configured fromOffset is set to latest', async function() {
+        // TODO: M.I.R.
+        xit('should add a projection with a proper offset if the configured fromOffset is set to latest', async function() {
             let context = `vehicle${shortid.generate()}`
             const initialProjectionConfig = {
                 projectionId: context,
@@ -2338,14 +2171,14 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 await clusteredEventstore.startAllProjectionsAsync();
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-next',
-                ('SELECT keyset_list_next.row_id, keyset_list_next.row_revision, keyset_list_next.row_json, keyset_list_next.keysetId, keyset_list_next.field1, keyset_list_next.field2, keyset_list_next.field3' + 
-                ' FROM (SELECT keyset_list_next.row_id as rowId FROM keyset_list_next @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_next ON LRLT.rowId = keyset_list_next.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_next list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_next.row_id, keyset_list_next.row_revision, keyset_list_next.row_json, keyset_list_next.keysetId, keyset_list_next.field1, keyset_list_next.field2, keyset_list_next.field3' + 
+                    ' FROM (SELECT keyset_list_next.row_id as rowId FROM keyset_list_next @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_next ON LRLT.rowId = keyset_list_next.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_next list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -2489,14 +2322,14 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-prev',
-                ('SELECT keyset_list_prev.row_id, keyset_list_prev.row_revision, keyset_list_prev.row_json, keyset_list_prev.keysetId, keyset_list_prev.field1, keyset_list_prev.field2, keyset_list_prev.field3' + 
-                ' FROM (SELECT keyset_list_prev.row_id as rowId FROM keyset_list_prev @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_prev ON LRLT.rowId = keyset_list_prev.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_prev list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_prev.row_id, keyset_list_prev.row_revision, keyset_list_prev.row_json, keyset_list_prev.keysetId, keyset_list_prev.field1, keyset_list_prev.field2, keyset_list_prev.field3' + 
+                    ' FROM (SELECT keyset_list_prev.row_id as rowId FROM keyset_list_prev @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_prev ON LRLT.rowId = keyset_list_prev.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_prev list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -2640,14 +2473,14 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last',
-                ('SELECT keyset_list_last.row_id, keyset_list_last.row_revision, keyset_list_last.row_json, keyset_list_last.keysetId, keyset_list_last.field1, keyset_list_last.field2, keyset_list_last.field3' + 
-                ' FROM (SELECT keyset_list_last.row_id as rowId FROM keyset_list_last @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last ON LRLT.rowId = keyset_list_last.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_last list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_last.row_id, keyset_list_last.row_revision, keyset_list_last.row_json, keyset_list_last.keysetId, keyset_list_last.field1, keyset_list_last.field2, keyset_list_last.field3' + 
+                    ' FROM (SELECT keyset_list_last.row_id as rowId FROM keyset_list_last @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last ON LRLT.rowId = keyset_list_last.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_last list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -2789,14 +2622,14 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last-2',
-                ('SELECT keyset_list_last_2.row_id, keyset_list_last_2.row_revision, keyset_list_last_2.row_json, keyset_list_last_2.keysetId, keyset_list_last_2.field1, keyset_list_last_2.field2, keyset_list_last_2.field3' + 
-                ' FROM (SELECT keyset_list_last_2.row_id as rowId FROM keyset_list_last_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last_2 ON LRLT.rowId = keyset_list_last_2.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_last_2 list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_last_2.row_id, keyset_list_last_2.row_revision, keyset_list_last_2.row_json, keyset_list_last_2.keysetId, keyset_list_last_2.field1, keyset_list_last_2.field2, keyset_list_last_2.field3' + 
+                    ' FROM (SELECT keyset_list_last_2.row_id as rowId FROM keyset_list_last_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last_2 ON LRLT.rowId = keyset_list_last_2.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_last_2 list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -2944,14 +2777,14 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null',
-                ('SELECT keyset_list_null.row_id, keyset_list_null.row_revision, keyset_list_null.row_json, keyset_list_null.keysetId, keyset_list_null.field1, keyset_list_null.field2, keyset_list_null.field3' + 
-                ' FROM (SELECT keyset_list_null.row_id as rowId FROM keyset_list_null @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null ON LRLT.rowId = keyset_list_null.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_null list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_null.row_id, keyset_list_null.row_revision, keyset_list_null.row_json, keyset_list_null.keysetId, keyset_list_null.field1, keyset_list_null.field2, keyset_list_null.field3' + 
+                    ' FROM (SELECT keyset_list_null.row_id as rowId FROM keyset_list_null @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null ON LRLT.rowId = keyset_list_null.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_null list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -3124,14 +2957,14 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null-2',
-                ('SELECT keyset_list_null_2.row_id, keyset_list_null_2.row_revision, keyset_list_null_2.row_json, keyset_list_null_2.keysetId, keyset_list_null_2.field1, keyset_list_null_2.field2, keyset_list_null_2.field3' + 
-                ' FROM (SELECT keyset_list_null_2.row_id as rowId FROM keyset_list_null_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null_2 ON LRLT.rowId = keyset_list_null_2.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_null_2 list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_null_2.row_id, keyset_list_null_2.row_revision, keyset_list_null_2.row_json, keyset_list_null_2.keysetId, keyset_list_null_2.field1, keyset_list_null_2.field2, keyset_list_null_2.field3' + 
+                    ' FROM (SELECT keyset_list_null_2.row_id as rowId FROM keyset_list_null_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null_2 ON LRLT.rowId = keyset_list_null_2.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_null_2 list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1

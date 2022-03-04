@@ -1730,10 +1730,10 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             await clusteredEventstore.startAllProjectionsAsync();
 
             await clusteredEventstore.registerPlaybackListViewAsync('vehicle-list',
-            'SELECT list.row_id, list.row_revision, list.row_json, list.meta_json FROM vehicle_list list @@where @@order @@limit',
-            'SELECT COUNT(1) as total_count FROM vehicle_list list @@where;', {
-                alias: {}
-            });
+                'SELECT list.row_id, list.row_revision, list.row_json, list.meta_json FROM vehicle_list list @@where @@order @@limit',
+                'SELECT COUNT(1) as total_count FROM vehicle_list list @@where;', {
+                    alias: {}
+                });
 
             const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -2306,14 +2306,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 await clusteredEventstore.startAllProjectionsAsync();
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-next',
-                ('SELECT keyset_list_next.row_id, keyset_list_next.row_revision, keyset_list_next.row_json, keyset_list_next.keysetId, keyset_list_next.field1, keyset_list_next.field2, keyset_list_next.field3' + 
-                ' FROM (SELECT keyset_list_next.row_id as rowId FROM keyset_list_next @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_next ON LRLT.rowId = keyset_list_next.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_next list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_next.row_id, keyset_list_next.row_revision, keyset_list_next.row_json, keyset_list_next.keysetId, keyset_list_next.field1, keyset_list_next.field2, keyset_list_next.field3' + 
+                    ' FROM (SELECT keyset_list_next.row_id as rowId FROM keyset_list_next @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_next ON LRLT.rowId = keyset_list_next.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_next list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -2457,14 +2457,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-prev',
-                ('SELECT keyset_list_prev.row_id, keyset_list_prev.row_revision, keyset_list_prev.row_json, keyset_list_prev.keysetId, keyset_list_prev.field1, keyset_list_prev.field2, keyset_list_prev.field3' + 
-                ' FROM (SELECT keyset_list_prev.row_id as rowId FROM keyset_list_prev @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_prev ON LRLT.rowId = keyset_list_prev.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_prev list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_prev.row_id, keyset_list_prev.row_revision, keyset_list_prev.row_json, keyset_list_prev.keysetId, keyset_list_prev.field1, keyset_list_prev.field2, keyset_list_prev.field3' + 
+                    ' FROM (SELECT keyset_list_prev.row_id as rowId FROM keyset_list_prev @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_prev ON LRLT.rowId = keyset_list_prev.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_prev list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -2608,14 +2608,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last',
-                ('SELECT keyset_list_last.row_id, keyset_list_last.row_revision, keyset_list_last.row_json, keyset_list_last.keysetId, keyset_list_last.field1, keyset_list_last.field2, keyset_list_last.field3' + 
-                ' FROM (SELECT keyset_list_last.row_id as rowId FROM keyset_list_last @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last ON LRLT.rowId = keyset_list_last.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_last list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_last.row_id, keyset_list_last.row_revision, keyset_list_last.row_json, keyset_list_last.keysetId, keyset_list_last.field1, keyset_list_last.field2, keyset_list_last.field3' + 
+                    ' FROM (SELECT keyset_list_last.row_id as rowId FROM keyset_list_last @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last ON LRLT.rowId = keyset_list_last.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_last list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -2757,14 +2757,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-last-2',
-                ('SELECT keyset_list_last_2.row_id, keyset_list_last_2.row_revision, keyset_list_last_2.row_json, keyset_list_last_2.keysetId, keyset_list_last_2.field1, keyset_list_last_2.field2, keyset_list_last_2.field3' + 
-                ' FROM (SELECT keyset_list_last_2.row_id as rowId FROM keyset_list_last_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last_2 ON LRLT.rowId = keyset_list_last_2.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_last_2 list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_last_2.row_id, keyset_list_last_2.row_revision, keyset_list_last_2.row_json, keyset_list_last_2.keysetId, keyset_list_last_2.field1, keyset_list_last_2.field2, keyset_list_last_2.field3' + 
+                    ' FROM (SELECT keyset_list_last_2.row_id as rowId FROM keyset_list_last_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_last_2 ON LRLT.rowId = keyset_list_last_2.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_last_2 list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -2912,14 +2912,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null',
-                ('SELECT keyset_list_null.row_id, keyset_list_null.row_revision, keyset_list_null.row_json, keyset_list_null.keysetId, keyset_list_null.field1, keyset_list_null.field2, keyset_list_null.field3' + 
-                ' FROM (SELECT keyset_list_null.row_id as rowId FROM keyset_list_null @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null ON LRLT.rowId = keyset_list_null.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_null list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_null.row_id, keyset_list_null.row_revision, keyset_list_null.row_json, keyset_list_null.keysetId, keyset_list_null.field1, keyset_list_null.field2, keyset_list_null.field3' + 
+                    ' FROM (SELECT keyset_list_null.row_id as rowId FROM keyset_list_null @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null ON LRLT.rowId = keyset_list_null.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_null list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
@@ -3092,14 +3092,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
 
                 await clusteredEventstore.registerPlaybackListViewAsync('keyset-list-null-2',
-                ('SELECT keyset_list_null_2.row_id, keyset_list_null_2.row_revision, keyset_list_null_2.row_json, keyset_list_null_2.keysetId, keyset_list_null_2.field1, keyset_list_null_2.field2, keyset_list_null_2.field3' + 
-                ' FROM (SELECT keyset_list_null_2.row_id as rowId FROM keyset_list_null_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null_2 ON LRLT.rowId = keyset_list_null_2.row_id @@order;'),
-                'SELECT COUNT(1) as total_count FROM keyset_list_null_2 list @@where;', {
-                    alias: {},
-                    paginationPrimaryKeys: [
-                        `keysetId`
-                    ],
-                });
+                    ('SELECT keyset_list_null_2.row_id, keyset_list_null_2.row_revision, keyset_list_null_2.row_json, keyset_list_null_2.keysetId, keyset_list_null_2.field1, keyset_list_null_2.field2, keyset_list_null_2.field3' + 
+                    ' FROM (SELECT keyset_list_null_2.row_id as rowId FROM keyset_list_null_2 @@where @@paginationOrder @@limit) LRLT JOIN keyset_list_null_2 ON LRLT.rowId = keyset_list_null_2.row_id @@order;'),
+                    'SELECT COUNT(1) as total_count FROM keyset_list_null_2 list @@where;', {
+                        alias: {},
+                        paginationPrimaryKeys: [
+                            `keysetId`
+                        ],
+                    });
 
                 const payloads = [
                     { // #1
