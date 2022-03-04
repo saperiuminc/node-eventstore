@@ -1,7 +1,8 @@
 const _ = require('lodash');
 const debug = require('debug')('eventstore:clustered');
 const ClusteredEventStore = require('./lib/eventstore-projections/clustered-eventstore');
-const OffsetManager = require('./lib/offsetManager');
+const CompositeOffsetManager = require('./lib/offset-managers/composite-offset-manager');
+const ClusteredCompositeOffsetManager = require('./lib/offset-managers/clustered-composite-offset-manager');
 
 /**
 * PlaybackListStoreConfig
@@ -151,8 +152,14 @@ const esFunction = function(opts) {
     let options = opts ? opts : {};
     
     var Store;
+    var offsetManager;
     if (options.clusters && Array.isArray(options.clusters) && options.clusters.length) {
         options.clusterType = 'clustered-partitioned-store'
+        // TODO: Feb24: Move to Factory
+        var compositeOffsetManager = new CompositeOffsetManager();
+        offsetManager = new ClusteredCompositeOffsetManager(options.clusters.length, compositeOffsetManager);
+    } else {
+        offsetManager = new CompositeOffsetManager();
     }
     
     // eslint-disable-next-line no-useless-catch
@@ -219,8 +226,6 @@ const esFunction = function(opts) {
     
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
-    // TODO: Feb24: Move to Factory
-    var offsetManager = new OffsetManager();
     var eventstore = new Eventstore(options, new Store(options, offsetManager), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
     
     if (options.emitStoreEvents) {
