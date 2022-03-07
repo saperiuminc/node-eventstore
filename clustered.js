@@ -2,6 +2,7 @@ const _ = require('lodash');
 const debug = require('debug')('eventstore:clustered');
 const ClusteredEventStore = require('./lib/eventstore-projections/clustered-eventstore');
 const CompositeOffsetManager = require('./lib/offset-managers/composite-offset-manager');
+const OffsetManager = require('./lib/offsetManager');
 const ClusteredCompositeOffsetManager = require('./lib/offset-managers/clustered-composite-offset-manager');
 
 /**
@@ -227,7 +228,6 @@ const esFunction = function(opts) {
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
     // TODO: Feb24: Move to Factory
-    var offsetManager = new OffsetManager();
     var eventstore = new Eventstore(options, new Store(options, offsetManager), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, offsetManager);
     
     if (options.emitStoreEvents) {
