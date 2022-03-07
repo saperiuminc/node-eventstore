@@ -6,11 +6,7 @@ const clusteredEs = require('../clustered');
 const Bluebird = require('bluebird');
 const shortid = require('shortid');
 const Redis = require('ioredis');
-const helpers = require('../lib/helpers');
-const OffsetManager = require('../lib/offsetManager');
-const {
-    isNumber
-} = require('lodash');
+const _ = require('lodash');
 
 const redisConfig = {
     host: 'localhost',
@@ -37,12 +33,6 @@ const mysqlConfig2 = {
 
 const eventstoreConfig = {
     pollingTimeout: 500
-}
-
-// TODO: Tests should not be aware of implementation internals
-const offsetManager = new OffsetManager();
-const _deserializeProjectionOffset = function(serializedProjectionOffset) {
-  return offsetManager.deserializeOffset(serializedProjectionOffset);
 }
 
 const retryInterval = 1000;
@@ -400,6 +390,16 @@ describe('eventstore clustering mysql projection tests', () => {
                             }
                         },
                         VEHICLE_CREATED: async function(state, event, funcs) {
+                            const playbackList = await funcs.getPlaybackList('vehicle_list');
+                            const eventPayload = event.payload.payload;
+                            const data = {
+                                vehicleId: eventPayload.vehicleId,
+                                year: eventPayload.year,
+                                make: eventPayload.make,
+                                model: eventPayload.model,
+                                mileage: eventPayload.mileage
+                            };
+                            await playbackList.add(event.aggregateId, event.streamRevision, data, {});
                         }
                     },
                     query: [{
@@ -416,30 +416,9 @@ describe('eventstore clustering mysql projection tests', () => {
                     }
                 };
                 
-                let hasRebalanced = false;
-                clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                    for(const projectionTaskId of updatedAssignments) {
-                        if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                            hasRebalanced = true;
-                        }
-                    }
-                });
                 await clusteredEventstore.projectAsync(projectionConfig);
                 await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
                 await clusteredEventstore.startAllProjectionsAsync();
-                
-                let pollCounter = 0;
-                while (pollCounter < 5) {
-                    pollCounter += 1;
-                    if (hasRebalanced) {
-                        // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                        break;
-                    } else {
-                        // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                        await sleep(retryInterval);
-                    }
-                }
-                expect(pollCounter).toBeLessThan(5);
                 
                 const vehicleId = shortid.generate();
                 const stream = await clusteredEventstore.getLastEventAsStreamAsync({
@@ -460,61 +439,33 @@ describe('eventstore clustering mysql projection tests', () => {
                         mileage: 1245
                     }
                 }
-                const timeStampBeforeEventAdd = new Date().getTime();
                 stream.addEvent(event);
                 await stream.commitAsync();
                 
-                pollCounter = 0;
-                let projection;
-                let projectionOffset;
-                let maxCommitStamp;
-                // let maxStreamRevision;
-                let maxEventId;
+                let pollCounter = 0;
+                let result = null;
                 while (pollCounter < 10) {
                     pollCounter += 1;
                     debug('polling');
-                    projection = await clusteredEventstore.getProjectionAsync(projectionConfig.projectionId);
-                    const projectionTasks = await clusteredEventstore.getProjectionTasksAsync(projectionConfig.projectionId);
-                    
-                    if (projection && projectionTasks.length > 0) {
-                        let hasPassed = false;
-                        for (const pj of projectionTasks) {
-                            const deserializedOffset = _deserializeProjectionOffset(pj.offset);
-                            projectionOffset = deserializedOffset.map((bookmark) => {
-                                const deserializedBookmark = _deserializeProjectionOffset(bookmark);
-                                return {
-                                    eventId: deserializedBookmark.eventId,
-                                    commitStamp: deserializedBookmark.commitStamp,
-                                    streamRevision: deserializedBookmark.streamRevision
-                                }
-                            })
-                            maxCommitStamp = Math.max(...projectionOffset.map(bookmark => bookmark.commitStamp));
-                            // maxStreamRevision = Math.max(...projectionOffset.map(bookmark => bookmark.streamRevision));
-                            projectionOffset.forEach((bookmark) => {
-                                if (!maxEventId || bookmark.eventId > maxEventId) {
-                                    maxEventId = bookmark.eventId
-                                }
-                            });
-                            if (pj.processedDate && projection.state == 'running' && maxCommitStamp) {
-                                hasPassed = true;
-                            }
-                        }
-                        if (hasPassed) {
-                            break;
-                        } else {
-                            debug(`projection has not processed yet. trying again in 1000ms`);
-                            await sleep(retryInterval);
-                        }
+
+                    const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
+                    const filteredResults = await playbackList.query(0, 1, [{
+                        field: 'vehicleId',
+                        operator: 'is',
+                        value: vehicleId
+                    }], null);
+
+                    result = filteredResults.rows[0];
+
+                    if (result && _.isEqual(result.data, event.payload)) {
+                        break;
                     } else {
                         debug(`projection has not processed yet. trying again in 1000ms`);
                         await sleep(retryInterval);
                     }
                 }
-                
+                expect(result.data).toEqual(event.payload);
                 expect(pollCounter).toBeLessThan(10);
-                expect(projectionOffset.length).toBeGreaterThan(0);
-                expect(maxCommitStamp).toBeGreaterThanOrEqual(timeStampBeforeEventAdd);
-                expect(maxEventId != '').toBeTruthy();
             });
         });
     });
