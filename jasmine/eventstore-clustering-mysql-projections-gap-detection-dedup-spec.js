@@ -44,7 +44,7 @@ const _deserializeProjectionOffset = function(serializedProjectionOffset) {
 }
 
 const retryInterval = 1000;
-fdescribe('Gap Detection and Deduplication', () => {
+xdescribe('Gap Detection and Deduplication', () => {
     const sleep = async function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
@@ -203,8 +203,7 @@ fdescribe('Gap Detection and Deduplication', () => {
             }
         }, testTimeout);
 
-        afterEach(async function() {
-            // console.log('AFTER EACH');            
+        afterEach(async function() {        
             const projections = await clusteredEventstore.getProjectionsAsync();
             for (const projection of projections) {
                 const projectionId = projection.projectionId;
@@ -216,7 +215,6 @@ fdescribe('Gap Detection and Deduplication', () => {
 
             clusteredEventstore.removeAllListeners('rebalance');
             await clusteredEventstore.closeAsync();
-            // console.log('AFTER EACH DONE');
         }, testTimeout);
 
         it('should update the projection checkpoint', async function() {
@@ -302,14 +300,16 @@ fdescribe('Gap Detection and Deduplication', () => {
             stream.addEvent(vehicleCreatedEvent);
             const updateEventsCount = 10;
             await stream.commitAsync();
+            let testModelName;
             for(let i = 0; i < updateEventsCount; i++) {
+                testModelName = `model-${shortid.generate()}`;
                 const event = {
                     name: "VEHICLE_UPDATED",
                     payload: {
                         vehicleId: vehicleId,
                         year: 2012,
                         make: "Honda",
-                        model: "model-" + shortid.generate(),
+                        model: testModelName,
                         mileage: 9999
                     }
                 }
@@ -324,8 +324,8 @@ fdescribe('Gap Detection and Deduplication', () => {
 
                 const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
                 const filteredResults = await playbackList.query(0, 10, null, null);
-                if (filteredResults.rows.length >= updateEventsCount) {
-                    console.log(filteredResults);
+                const rows = filteredResults.rows;
+                if (rows.length >= 0 && rows[0].data.model == testModelName) {
                     break;
                 } else {
                     console.log(`projection has not processed yet. trying again in 1000ms`);
@@ -348,6 +348,8 @@ fdescribe('Gap Detection and Deduplication', () => {
 
             const projectionCheckpointResult = queryResult[0][0];
             await mysqlConnection.end(); 
+
+            expect(pollCounter).toBeLessThan(10)
             expect(projectionCheckpointResult.projection_stream_version).toBe(10);
         }, testTimeout);
     }, testTimeout);
@@ -429,7 +431,6 @@ fdescribe('Gap Detection and Deduplication', () => {
             }
         });
         afterEach(async function() {
-            // console.log('AFTER EACH');            
             const projections = await clusteredEventstore.getProjectionsAsync();
             for (const projection of projections) {
                 const projectionId = projection.projectionId;
@@ -444,7 +445,7 @@ fdescribe('Gap Detection and Deduplication', () => {
             // console.log('AFTER EACH DONE');
         }, testTimeout);
     
-        fit('should be able to detect gaps', async function() {
+        it('should be able to detect gaps', async function() {
             let context = `vehicle`
             const projectionConfig = {
                 projectionId: context + '-projection',
@@ -476,7 +477,7 @@ fdescribe('Gap Detection and Deduplication', () => {
     
                         const newData = {
                             vehicleId: eventPayload.vehicleId,
-                            timesRun: (oldData.timesRun || 0) + 1
+                            timesRun: (oldData ? oldData.timesRun || 0 : 0) + 1
                         };
     
                         await playbackList.update(event.aggregateId, event.streamRevision, data, newData, {});
@@ -496,7 +497,6 @@ fdescribe('Gap Detection and Deduplication', () => {
                     }]
                 }
             };
-    
             
             const vehicleId = shortid.generate();
     
@@ -510,11 +510,15 @@ fdescribe('Gap Detection and Deduplication', () => {
             await mysqlConnection.query('USE eventstore;');
             await mysqlConnection.query(`
                 INSERT INTO events (id, event_id, aggregate_id, aggregate, context, payload, commit_stamp, stream_revision, partition_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-            `, [0, 'event-id-1', vehicleId, 'vehicle', 'vehicle', `{"vehicleId": "${vehicleId}"}`, 1646633120289, 0, 0]);
+            `, [0, 'c64e545f-5c36-4088-ad2a-dbd20a110a110', vehicleId, 'vehicle', 'vehicle', '{"name":"VEHICLE_CREATED","payload":{"vehicleId":"aerqRHne2u","year":2012,"make":"Honda","model":"Jazz","mileage":1245},"context":"vehicle","aggregate":"vehicle","aggregateId":"aerqRHne2u"}', '1646639234802', '0', '1']);
     
             await mysqlConnection.query(`
                 INSERT INTO events (id, event_id, aggregate_id, aggregate, context, payload, commit_stamp, stream_revision, partition_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-            `, [0, 'event-id-1', vehicleId, 'vehicle', 'vehicle', `{"vehicleId": "${vehicleId}"}`, 1646633120289, 1, 0]);
+            `, [1, 'c9c2094b-25eb-4665-8670-e9677788d7060', vehicleId, 'vehicle', 'vehicle', `{"name":"VEHICLE_CLEARED","payload":{"vehicleId":"aerqRHne2u"},"context":"vehicle","aggregate":"vehicle","aggregateId":"aerqRHne2u"}`, '1646639234802', '1', '1']);
+
+            await mysqlConnection.query(`
+                INSERT INTO events (id, event_id, aggregate_id, aggregate, context, payload, commit_stamp, stream_revision, partition_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            `, [2, 'c9c2094b-25eb-4665-8670-e9677788d7060', vehicleId, 'vehicle', 'vehicle', `{"name":"VEHICLE_CLEARED","payload":{"vehicleId":"aerqRHne2u"},"context":"vehicle","aggregate":"vehicle","aggregateId":"aerqRHne2u"}`, '1646639234802', '2', '1']);
     
             await mysqlConnection.query(`
             INSERT INTO projection_checkpoint (projection_id, context, aggregate, aggregate_id, projection_stream_version) VALUES (?, ?, ?, ?, ?);
@@ -532,8 +536,10 @@ fdescribe('Gap Detection and Deduplication', () => {
     
                 const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
                 const filteredResults = await playbackList.query(0, 10, null, null);
-                if (filteredResults.rows.length >= 0) {
-                    console.log(filteredResults);
+                const rows = filteredResults.rows;
+                console.log(rows);
+                if (rows[0]) {
+                    console.log(rows[0]);
                     break;
                 } else {
                     console.log(`projection has not processed yet. trying again in 1000ms`);
@@ -548,7 +554,7 @@ fdescribe('Gap Detection and Deduplication', () => {
     
             const projectionCheckpointResult = queryResult[0][0];
             await mysqlConnection.end(); 
-            expect(projectionCheckpointResult.projection_stream_version).toBe(10);
+            expect(projectionCheckpointResult.projection_stream_version).toBe(1);
         }, testTimeout);
        
     }, testTimeout);
