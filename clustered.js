@@ -228,7 +228,7 @@ const esFunction = function(opts) {
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
     // TODO: Feb24: Move to Factory
-    var eventstore = new Eventstore(options, new Store(options, offsetManager), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, offsetManager);
+    var eventstore = new Eventstore(options, new Store(options, offsetManager), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
     
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
