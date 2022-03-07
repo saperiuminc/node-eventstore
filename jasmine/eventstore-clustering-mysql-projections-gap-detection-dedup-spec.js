@@ -514,15 +514,16 @@ describe('Gap Detection and Deduplication', () => {
                 INSERT INTO events (id, event_id, aggregate_id, aggregate, context, payload, commit_stamp, stream_revision, partition_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
             `, [2, 'c9c2094b-25eb-4665-8670-e9677788d7060', vehicleId, 'vehicle', 'vehicle', `{"name":"VEHICLE_CLEARED","payload":{"vehicleId":"aerqRHne2u"},"context":"vehicle","aggregate":"vehicle","aggregateId":"aerqRHne2u"}`, '16466392348023', '1', '1']);
     
-            await mysqlConnection.query(`
-            INSERT INTO projection_checkpoint (projection_id, context, aggregate, aggregate_id, projection_stream_version) VALUES (?, ?, ?, ?, ?);
-        `, ['vehicle-projection', 'vehicle', 'vehicle', vehicleId, 1]);
+        //     await mysqlConnection.query(`
+        //     INSERT INTO projection_checkpoint (projection_id, context, aggregate, aggregate_id, projection_stream_version) VALUES (?, ?, ?, ?, ?);
+        // `, ['vehicle-projection', 'vehicle', 'vehicle', vehicleId, 0]);
     
     
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, true);
             await clusteredEventstore.startAllProjectionsAsync();
     
+            let rows;
             let pollCounter = 0;
             while (pollCounter < 10) {
                 pollCounter += 1;
@@ -530,13 +531,11 @@ describe('Gap Detection and Deduplication', () => {
     
                 const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
                 const filteredResults = await playbackList.query(0, 10, null, null);
-                const rows = filteredResults.rows;
-                console.log(rows);
-                if (rows[0]) {
-                    console.log(rows[0]);
+                rows = filteredResults.rows;
+                if (pollCounter > 5) {
                     break;
                 } else {
-                    console.log(`projection has not processed yet. trying again in 1000ms`);
+                    console.log(`Waiting for a while before checking`);
                     await sleep(retryInterval);
                 }
             }
@@ -548,7 +547,8 @@ describe('Gap Detection and Deduplication', () => {
     
             const projectionCheckpointResult = queryResult[0][0];
             await mysqlConnection.end(); 
-            expect(projectionCheckpointResult.projection_stream_version).toBe(2);
+            expect(projectionCheckpointResult.projection_stream_version).toBe(1);
+            expect(rows[0].data.timesRun).toBe(1);
         }, testTimeout);
        
     }, testTimeout);
