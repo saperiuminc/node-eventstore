@@ -97,7 +97,7 @@
     "test": "npm run test:extensions:lint && npm run test:extensions:unit",
     "test:adrai": "mocha",
     "test:extensions": "npm run test:extensions:lint && npm run test:extensions:unit",
-    "test:extensions:unit": "jasmine jasmine/eventstore-clustering-mysql-projections-gap-detection-dedup-spec.js",
+    "test:extensions:unit": "jasmine jasmine/*.jasmine-spec.js",
     "test:extensions:coverage": "nyc --reporter=lcov npm run test:extensions:unit",
     "test:extensions:integration:narrow": "jasmine jasmine/integration-narrow/*.jasmine-integration-spec.js",
     "test:extensions:benchmark": "jasmine jasmine/benchmark/*.jasmine-benchmark-spec.js",

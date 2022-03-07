@@ -37,14 +37,8 @@ const eventstoreConfig = {
     pollingTimeout: 500
 }
 
-// TODO: Tests should not be aware of implementation internals
-const offsetManager = new OffsetManager();
-const _deserializeProjectionOffset = function(serializedProjectionOffset) {
-  return offsetManager.deserializeOffset(serializedProjectionOffset);
-}
-
 const retryInterval = 1000;
-xdescribe('Gap Detection and Deduplication', () => {
+describe('Gap Detection and Deduplication', () => {
     const sleep = async function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
@@ -518,7 +512,7 @@ xdescribe('Gap Detection and Deduplication', () => {
 
             await mysqlConnection.query(`
                 INSERT INTO events (id, event_id, aggregate_id, aggregate, context, payload, commit_stamp, stream_revision, partition_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-            `, [2, 'c9c2094b-25eb-4665-8670-e9677788d7060', vehicleId, 'vehicle', 'vehicle', `{"name":"VEHICLE_CLEARED","payload":{"vehicleId":"aerqRHne2u"},"context":"vehicle","aggregate":"vehicle","aggregateId":"aerqRHne2u"}`, '1646639234802', '2', '1']);
+            `, [2, 'c9c2094b-25eb-4665-8670-e9677788d7060', vehicleId, 'vehicle', 'vehicle', `{"name":"VEHICLE_CLEARED","payload":{"vehicleId":"aerqRHne2u"},"context":"vehicle","aggregate":"vehicle","aggregateId":"aerqRHne2u"}`, '16466392348023', '1', '1']);
     
             await mysqlConnection.query(`
             INSERT INTO projection_checkpoint (projection_id, context, aggregate, aggregate_id, projection_stream_version) VALUES (?, ?, ?, ?, ?);
@@ -554,7 +548,7 @@ xdescribe('Gap Detection and Deduplication', () => {
     
             const projectionCheckpointResult = queryResult[0][0];
             await mysqlConnection.end(); 
-            expect(projectionCheckpointResult.projection_stream_version).toBe(1);
+            expect(projectionCheckpointResult.projection_stream_version).toBe(2);
         }, testTimeout);
        
     }, testTimeout);
