@@ -642,6 +642,7 @@ zbench('sharding', (z) => {
             context: context,
         }, (err, snapshot, stream) => {
             if (err) {
+                console.log(err);
                 b.error(err);
             } else {
                 stream.addEvent({
