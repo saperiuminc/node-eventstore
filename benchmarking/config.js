@@ -13,7 +13,7 @@ module.exports = {
         user: 'root',
         password: 'root',
         database: 'eventstore',
-        connectionPoolLimit: 1,
+        connectionPoolLimit: 20,
         projectionGroup: 'auction',
         context: 'auction',
     },
