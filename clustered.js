@@ -29,7 +29,6 @@ const ClusteredCompositeOffsetManager = require('./lib/offset-managers/clustered
 * @property {Boolean} shouldExhaustAllEvents tells the projection if it should exhaust all the events when a projection job is triggered.
 * @property {String} context the context name of this eventstore. default context name is "default"
 * @property {Number} lockTimeToLive the ttlDuration of the lock. used by leader election code
-* @property {Eventstore} outputsTo the eventstore where emits and states are outputted to. default is itself
 */
 
 var Eventstore = ClusteredEventStore,
@@ -146,9 +145,10 @@ function getSpecificStore(options) {
 
 /**
 * @param {EventstoreOptions} opts - The options
+* @param {Eventstore} outputsTo the eventstore where emits and states are outputted to. default is itself
 * @returns {Eventstore} - eventstore with Projection
 */
-const esFunction = function(opts) {
+const esFunction = function(opts, outputsTo) {
     let options = opts ? opts : {};
     
     var Store;
@@ -226,7 +226,7 @@ const esFunction = function(opts) {
     
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
-    var eventstore = new Eventstore(options, new Store(options, offsetManager), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
+    var eventstore = new Eventstore(options, new Store(options, offsetManager), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, outputsTo);
     
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
