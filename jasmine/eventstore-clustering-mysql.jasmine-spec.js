@@ -142,7 +142,7 @@ describe('eventstore clustering mysql tests', () => {
         await clustedEventstore.initAsync();
     })
 
-    it('should be able to call getEventStream', async () => {
+    xit('should be able to call getEventStream', async () => {
         const config = {
             clusters: [{
                 type: 'mysql',
@@ -200,7 +200,7 @@ describe('eventstore clustering mysql tests', () => {
         expect(savedStream.events[0].payload).toEqual(event);
     })
 
-    it('should be able to call getLastEventAsStream', async () => {
+    xit('should be able to call getLastEventAsStream', async () => {
         const config = {
             clusters: [{
                 type: 'mysql',
@@ -258,7 +258,7 @@ describe('eventstore clustering mysql tests', () => {
         expect(savedStream.events[0].payload).toEqual(event);
     })
 
-    it('should be able to call getLastEvent', async () => {
+    xit('should be able to call getLastEvent', async () => {
         const config = {
             clusters: [{
                 type: 'mysql',
