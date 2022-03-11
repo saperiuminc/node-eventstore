@@ -23,6 +23,7 @@
  * @property {Boolean} shouldExhaustAllEvents tells the projection if it should exhaust all the events when a projection job is triggered.
  * @property {String} context the context name of this eventstore. default context name is "default"
  * @property {Number} lockTimeToLive the ttlDuration of the lock. used by leader election code
+ * @property {Eventstore} outputsTo the eventstore where emits and states are outputted to. default is itself
  */
 
 var Eventstore = require('./lib/eventstore-projections/eventstore-projection'),
@@ -132,10 +133,9 @@ function getSpecificStore(options) {
 
 /**
  * @param {EventstoreOptions} options - The options
- * @param {Eventstore} outputsTo the eventstore where emits and states are outputted to. default is itself
  * @returns {Eventstore} - eventstore with Projection
  */
-const esFunction = function(options, outputsTo) {
+const esFunction = function(options) {
     options = options || {};
 
     var Store;
@@ -203,7 +203,7 @@ const esFunction = function(options, outputsTo) {
         }
     }
 
-    var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, outputsTo);
+    var eventstore = new Eventstore(options, new Store(options), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore);
 
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
