@@ -1,9 +1,7 @@
 const _ = require('lodash');
 const debug = require('debug')('eventstore:clustered');
 const ClusteredEventStore = require('./lib/eventstore-projections/clustered-eventstore');
-const CompositeOffsetManager = require('./lib/offset-managers/composite-offset-manager');
-const OffsetManager = require('./lib/offsetManager');
-const ClusteredCompositeOffsetManager = require('./lib/offset-managers/clustered-composite-offset-manager');
+const partitionedStoreFactory = require('./lib/partitioned-store-factory')();
 
 /**
 * PlaybackListStoreConfig
@@ -35,115 +33,6 @@ const ClusteredCompositeOffsetManager = require('./lib/offset-managers/clustered
 var Eventstore = ClusteredEventStore,
 StoreEventEmitter = require('./lib/storeEventEmitter');
 
-function exists(toCheck) {
-    var _exists = require('fs').existsSync || require('path').existsSync;
-    if (require('fs').accessSync) {
-        _exists = function(toCheck) {
-            try {
-                require('fs').accessSync(toCheck);
-                return true;
-            } catch (e) {
-                return false;
-            }
-        };
-    }
-    return _exists(toCheck);
-}
-
-function getSpecificPartitionStore(options) {
-  options = options || {};
-  
-  options.type = options.type || 'inmemory';
-  
-  if (_.isFunction(options.type)) {
-      return options.type;
-  }
-  
-  let dbPath = '';
-  options.type = options.type.toLowerCase();
-  var optionsType = options.type + '-partitioned-store';
-  
-  if (options.clusterType) {
-      dbPath = __dirname + "/lib/databases/partition-stores/" + options.clusterType + ".js";
-  } else {
-      dbPath = __dirname + "/lib/databases/partition-stores/" + optionsType + ".js";
-  }
-  
-  if (!exists(dbPath)) {
-      var errMsg = 'Implementation for db "' + options.type + '" does not exist!';
-      debug(errMsg);
-      throw new Error(errMsg);
-  }
-  
-  try {
-      debug('dbPath:', dbPath);
-      var db = require(dbPath);
-      return db;
-  } catch (err) {
-      
-      console.error('error in requiring store');
-      console.error(err);
-      if (err.message.indexOf('Cannot find module') >= 0 &&
-      err.message.indexOf("'") > 0 &&
-      err.message.lastIndexOf("'") !== err.message.indexOf("'")) {
-          
-          var moduleName = err.message.substring(err.message.indexOf("'") + 1, err.message.lastIndexOf("'"));
-          var msg = 'Please install module "' + moduleName +
-          '" to work with db implementation "' + options.type + '"!';
-          debug(msg);
-      }
-      
-      throw err;
-  }
-}
-
-function getSpecificStore(options) {
-    options = options || {};
-    
-    options.type = options.type || 'inmemory';
-    
-    if (_.isFunction(options.type)) {
-        return options.type;
-    }
-    
-    let dbPath = '';
-    options.type = options.type.toLowerCase();
-    var optionsType = options.type;
-    
-    if (options.clusterType) {
-        dbPath = __dirname + "/lib/databases/" + options.clusterType + ".js";
-    } else {
-        dbPath = __dirname + "/lib/databases/" + optionsType + ".js";
-    }
-    
-    if (!exists(dbPath)) {
-        var errMsg = 'Implementation for db "' + options.type + '" does not exist!';
-        debug(errMsg);
-        throw new Error(errMsg);
-    }
-    
-    try {
-        debug('dbPath:', dbPath);
-        var db = require(dbPath);
-        return db;
-    } catch (err) {
-        
-        console.error('error in requiring store');
-        console.error(err);
-        if (err.message.indexOf('Cannot find module') >= 0 &&
-        err.message.indexOf("'") > 0 &&
-        err.message.lastIndexOf("'") !== err.message.indexOf("'")) {
-            
-            var moduleName = err.message.substring(err.message.indexOf("'") + 1, err.message.lastIndexOf("'"));
-            var msg = 'Please install module "' + moduleName +
-            '" to work with db implementation "' + options.type + '"!';
-            debug(msg);
-        }
-        
-        throw err;
-    }
-}
-
 /**
 * @param {EventstoreOptions} opts - The options
 * @param {Eventstore} outputsTo the eventstore where emits and states are outputted to. default is itself
@@ -152,20 +41,10 @@ function getSpecificStore(options) {
 const esFunction = function(opts, outputsTo) {
     let options = opts ? opts : {};
     
-    var Store;
-    var offsetManager;
-    if (options.clusters && Array.isArray(options.clusters) && options.clusters.length) {
-        options.clusterType = 'clustered-partitioned-store'
-        // TODO: Feb24: Move to Factory
-        var compositeOffsetManager = new CompositeOffsetManager();
-        offsetManager = new ClusteredCompositeOffsetManager(options.clusters.length, compositeOffsetManager);
-    } else {
-        offsetManager = new CompositeOffsetManager();
-    }
-    
+    var partitionedStore;
     // eslint-disable-next-line no-useless-catch
     try {
-        Store = getSpecificPartitionStore(options);
+        partitionedStore = partitionedStoreFactory.getSpecificPartitionedStore(options);
     } catch (err) {
         throw err;
     }
@@ -227,7 +106,7 @@ const esFunction = function(opts, outputsTo) {
     
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
-    var eventstore = new Eventstore(options, new Store(options, offsetManager), distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, outputsTo);
+    var eventstore = new Eventstore(options, partitionedStore, distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, outputsTo);
     
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
