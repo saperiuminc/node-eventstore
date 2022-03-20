@@ -59,7 +59,7 @@ function getSpecificPartitionStore(options) {
       options.type = options.type.toLowerCase();
       var optionsType = options.type + '-partitioned-store';
 
-      var dbPath = __dirname + "/lib/databases/partitioned-stores/" + optionsType + ".js";
+      var dbPath = __dirname + "/lib/databases/partition-stores/" + optionsType + ".js";
 
       if (!exists(dbPath)) {
           var errMsg = 'Implementation for db "' + options.type + '" does not exist!';
