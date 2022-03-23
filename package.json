@@ -1,7 +1,7 @@
 {
   "author": "adrai",
   "name": "@saperiuminc/eventstore",
-  "version": "1.15.13-sharding.22",
+  "version": "1.15.13-sharding.23",
   "contributors": [
     "Ryan Goce <ryan@saperium.com>",
     "Gabby Sanchez <gabby@saperium.com>",
@@ -61,7 +61,7 @@
     "murmurhash": "^1.0.0",
     "mysql": "^2.18.1",
     "mysql2": "^2.3.0",
-    "nanoid": "^3.1.30",
+    "nanoid": "^3.3.1",
     "nodeify": "^1.0.1",
     "opentracing": "^0.14.4",
     "parent-require": "1.0.0",
