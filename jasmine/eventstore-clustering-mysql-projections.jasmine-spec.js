@@ -594,7 +594,11 @@ describe('eventstore clustering mysql projection tests', () => {
                 }
             }
             
+            // for streambuffer on
             stream.addEvent(event);
+            // add 4 more events
+
+
             await stream.commitAsync();
             
             let pollCounter = 0;
@@ -609,6 +613,12 @@ describe('eventstore clustering mysql projection tests', () => {
             }
             expect(pollCounter).toBeLessThan(3);
             expect(counter).toEqual(1);
+
+            // subscribe new token
+            // will catchup
+            // expect 2nd token to receive 5 callbacks
+            // add event
+            // expect both subscribers to receive event
         });
         
         it('should be able to call unsubscribe and stop receiving new events', async () => {
@@ -696,78 +706,453 @@ describe('eventstore clustering mysql projection tests', () => {
             expect(counter).toEqual(1);
         });
 
-        xit('should be able to detect gaps', async () => {
-            const aggregateId = shortid.generate();
+        describe('stream buffer on', () => {
+            let clusteredEventstoreStreamBufferOn;
+            beforeEach(async function() {
+                try {
+                    const config = {
+                        clusters: [{
+                            type: 'mysql',
+                            host: mysqlConfig.host,
+                            port: mysqlConfig.port,
+                            user: mysqlConfig.user,
+                            password: mysqlConfig.password,
+                            database: mysqlConfig.database,
+                            connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                        }, {
+                            type: 'mysql',
+                            host: mysqlConfig2.host,
+                            port: mysqlConfig2.port,
+                            user: mysqlConfig2.user,
+                            password: mysqlConfig2.password,
+                            database: mysqlConfig2.database,
+                            connectionPoolLimit: mysqlConfig2.connectionPoolLimit
+                        }],
+                        partitions: 2,
+                        // projections-specific configuration below
+                        redisCreateClient: redisFactory().createClient,
+                        listStore: {
+                            type: 'mysql',
+                            connection: {
+                                host: mysqlConfig.host,
+                                port: mysqlConfig.port,
+                                user: mysqlConfig.user,
+                                password: mysqlConfig.password,
+                                database: mysqlConfig.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }, // required
+                        projectionStore: {
+                            type: 'mysql',
+                            connection: {
+                                host: mysqlConfig.host,
+                                port: mysqlConfig.port,
+                                user: mysqlConfig.user,
+                                password: mysqlConfig.password,
+                                database: mysqlConfig.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }, // required
+                        enableProjection: true,
+                        enableProjectionEventStreamBuffer: false,
+                        enableSubscriptionEventStreamBuffer: true,
+                        eventCallbackTimeout: 1000,
+                        lockTimeToLive: 1000,
+                        pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
+                        pollingMaxRevisions: 100,
+                        errorMaxRetryCount: 2,
+                        errorRetryExponent: 2,
+                        playbackEventJobCount: 10,
+                        context: 'vehicle',
+                        projectionGroup: shortid.generate(),
+                        membershipPollingTimeout: 250
+                    };
+                    clusteredEventstoreStreamBufferOn = clusteredEs(config);
+                    Bluebird.promisifyAll(clusteredEventstoreStreamBufferOn);
+                    Bluebird.promisifyAll(clusteredEventstoreStreamBufferOn.store);
+                    await clusteredEventstoreStreamBufferOn.initAsync();
+                } catch (error) {
+                    console.error('error in beforeAll', error);
+                }
+                
+            }, 60000);
             
-            const query = {
-                aggregateId: aggregateId,
-                aggregate: 'vehicle',
-                context: 'vehicle'
-            };
-            
-            let counter = 0;
-            const subscriptionToken = clusteredEventstore.subscribe(query, 0, (err, event, callback) => {
-                counter++;
-                callback();
-            }, (err) => {
-                debug(`playback error`, err);
-            });
-            
-            const stream = await clusteredEventstore.getLastEventAsStreamAsync(query);
-            
-            Bluebird.promisifyAll(stream);
-            
-            const event1 = {
-                name: "VEHICLE_CREATED",
-                payload: {
-                    vehicleId: aggregateId,
-                    year: 2012,
-                    make: "Honda",
-                    model: "Jazz",
-                    mileage: 1245,
-                    test: {
-                        message: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                        messages: [
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-                        ]
+            afterEach(async function() {
+                // console.log('AFTER EACH');
+                const projections = await clusteredEventstoreStreamBufferOn.getProjectionsAsync();
+                for (const projection of projections) {
+                    const projectionId = projection.projectionId;
+                    await clusteredEventstoreStreamBufferOn.resetProjectionAsync(projectionId);
+                    await clusteredEventstoreStreamBufferOn.deleteProjectionAsync(projectionId);
+                }
+                
+                await clusteredEventstoreStreamBufferOn.store.clearAsync();
+                
+                clusteredEventstoreStreamBufferOn.removeAllListeners('rebalance');
+                await clusteredEventstoreStreamBufferOn.closeAsync();
+                // console.log('AFTER EACH DONE');
+            }, 60000);
+
+            it('should be able to call subscribe and receive new events', async () => {
+                const aggregateId = shortid.generate();
+                
+                const query = {
+                    aggregateId: aggregateId,
+                    aggregate: 'vehicle',
+                    context: 'vehicle'
+                };
+                
+                let counter1 = 0;
+                const subscriptionToken1 = clusteredEventstoreStreamBufferOn.subscribe(query, 0, (err, event, callback) => {
+                    counter1++;
+                    callback();
+                }, (err) => {
+                    debug(`playback error`, err);
+                });
+                
+                const stream = await clusteredEventstoreStreamBufferOn.getLastEventAsStreamAsync(query);
+                Bluebird.promisifyAll(stream);
+                
+                const events = [{
+                    name: "VEHICLE_CREATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        year: 2012,
+                        make: "Honda",
+                        model: "Jazz",
+                        mileage: 1245
+                    }
+                }, {
+                    name: "VEHICLE_UPDATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        mileage: 1246
+                    }
+                }, {
+                    name: "VEHICLE_UPDATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        mileage: 1247
+                    }
+                }, {
+                    name: "VEHICLE_UPDATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        mileage: 1248
+                    }
+                }, {
+                    name: "VEHICLE_UPDATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        mileage: 1249
+                    }
+                }];
+
+                events.forEach((event) => {
+                    stream.addEvent(event);
+                });
+                await stream.commitAsync();
+                
+                let pollCounter = 0;
+                while (pollCounter < 3) {
+                    if (counter1 > 0) {
+                        break;
+                    } else {
+                        debug(`events have not yet been played back. trying again in 1000ms`);
+                        pollCounter++;
+                        await sleep(1000);
                     }
                 }
-            }
+                expect(pollCounter).toBeLessThan(3);
+                expect(counter1).toEqual(5);
+    
+                // subscribe new token
+                let counter2 = 0
+                const subscriptionToken2 = clusteredEventstoreStreamBufferOn.subscribe(query, 0, (err, event, callback) => {
+                    counter2++;
+                    callback();
+                }, (err) => {
+                    debug(`playback error`, err);
+                });
 
-            const event2 = {
-                name: "VEHICLE_UPDATED",
-                payload: {
-                    vehicleId: aggregateId,
-                    year: 2013,
+                // will catchup
+                pollCounter = 0;
+                while (pollCounter < 3) {
+                    if (counter2 > 0) {
+                        break;
+                    } else {
+                        debug(`events have not yet been played back. trying again in 1000ms`);
+                        pollCounter++;
+                        await sleep(1000);
+                    }
                 }
-            }
-            stream.addEvent(event1);
-            stream.addEvent(event2);
-            await stream.commitAsync();
+                // expect 2nd token to receive 5 callbacks
+                expect(pollCounter).toBeLessThan(3);
+                expect(counter2).toEqual(5);
+                
+                // add event
+                const event6 = {
+                    name: "VEHICLE_CREATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        year: 2012,
+                        make: "Honda",
+                        model: "Jazz",
+                        mileage: 1245
+                    }
+                }
+                
+                stream.addEvent(event6);
+                await stream.commitAsync();
+
+                pollCounter = 0;
+                counter1 = 0;
+                counter2 = 0;
+                while (pollCounter < 3) {
+                    if (counter1 > 0) {
+                        break;
+                    } else {
+                        debug(`events have not yet been played back. trying again in 1000ms`);
+                        pollCounter++;
+                        await sleep(1000);
+                    }
+                }
+
+                // expect both subscribers to receive event
+                expect(pollCounter).toBeLessThan(3);
+                expect(counter1).toEqual(1);
+                expect(counter2).toEqual(1);
+            });
+        });
+
+        describe('stream buffer off', () => {
+            let clusteredEventstoreStreamBufferOff;
+            beforeEach(async function() {
+                try {
+                    const config = {
+                        clusters: [{
+                            type: 'mysql',
+                            host: mysqlConfig.host,
+                            port: mysqlConfig.port,
+                            user: mysqlConfig.user,
+                            password: mysqlConfig.password,
+                            database: mysqlConfig.database,
+                            connectionPoolLimit: mysqlConfig.connectionPoolLimit
+                        }, {
+                            type: 'mysql',
+                            host: mysqlConfig2.host,
+                            port: mysqlConfig2.port,
+                            user: mysqlConfig2.user,
+                            password: mysqlConfig2.password,
+                            database: mysqlConfig2.database,
+                            connectionPoolLimit: mysqlConfig2.connectionPoolLimit
+                        }],
+                        partitions: 2,
+                        // projections-specific configuration below
+                        redisCreateClient: redisFactory().createClient,
+                        listStore: {
+                            type: 'mysql',
+                            connection: {
+                                host: mysqlConfig.host,
+                                port: mysqlConfig.port,
+                                user: mysqlConfig.user,
+                                password: mysqlConfig.password,
+                                database: mysqlConfig.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }, // required
+                        projectionStore: {
+                            type: 'mysql',
+                            connection: {
+                                host: mysqlConfig.host,
+                                port: mysqlConfig.port,
+                                user: mysqlConfig.user,
+                                password: mysqlConfig.password,
+                                database: mysqlConfig.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }, // required
+                        enableProjection: true,
+                        enableProjectionEventStreamBuffer: false,
+                        enableSubscriptionEventStreamBuffer: false,
+                        eventCallbackTimeout: 1000,
+                        lockTimeToLive: 1000,
+                        pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
+                        pollingMaxRevisions: 100,
+                        errorMaxRetryCount: 2,
+                        errorRetryExponent: 2,
+                        playbackEventJobCount: 10,
+                        context: 'vehicle',
+                        projectionGroup: shortid.generate(),
+                        membershipPollingTimeout: 250
+                    };
+                    clusteredEventstoreStreamBufferOff = clusteredEs(config);
+                    Bluebird.promisifyAll(clusteredEventstoreStreamBufferOff);
+                    Bluebird.promisifyAll(clusteredEventstoreStreamBufferOff.store);
+                    await clusteredEventstoreStreamBufferOff.initAsync();
+                } catch (error) {
+                    console.error('error in beforeAll', error);
+                }
+                
+            }, 60000);
             
-            let pollCounter = 0;
-            while (pollCounter < 3) {
-                if (counter > 0) {
-                    break;
-                } else {
-                    debug(`events have not yet been played back. trying again in 1000ms`);
-                    pollCounter++;
-                    await sleep(1000);
+            afterEach(async function() {
+                // console.log('AFTER EACH');
+                const projections = await clusteredEventstoreStreamBufferOff.getProjectionsAsync();
+                for (const projection of projections) {
+                    const projectionId = projection.projectionId;
+                    await clusteredEventstoreStreamBufferOff.resetProjectionAsync(projectionId);
+                    await clusteredEventstoreStreamBufferOff.deleteProjectionAsync(projectionId);
                 }
-            }
-            expect(pollCounter).toBeLessThan(3);
-            expect(counter).toEqual(1);
+                
+                await clusteredEventstoreStreamBufferOff.store.clearAsync();
+                
+                clusteredEventstoreStreamBufferOff.removeAllListeners('rebalance');
+                await clusteredEventstoreStreamBufferOff.closeAsync();
+                // console.log('AFTER EACH DONE');
+            }, 60000);
+
+            it('should be able to call subscribe and receive new events', async () => {
+                const aggregateId = shortid.generate();
+                
+                const query = {
+                    aggregateId: aggregateId,
+                    aggregate: 'vehicle',
+                    context: 'vehicle'
+                };
+                
+                let counter1 = 0;
+                const subscriptionToken1 = clusteredEventstoreStreamBufferOff.subscribe(query, 0, (err, event, callback) => {
+                    counter1++;
+                    callback();
+                }, (err) => {
+                    debug(`playback error`, err);
+                });
+                
+                const stream = await clusteredEventstoreStreamBufferOff.getLastEventAsStreamAsync(query);
+                
+                Bluebird.promisifyAll(stream);
+                
+                const events = [{
+                    name: "VEHICLE_CREATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        year: 2012,
+                        make: "Honda",
+                        model: "Jazz",
+                        mileage: 1245
+                    }
+                }, {
+                    name: "VEHICLE_UPDATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        mileage: 1246
+                    }
+                }, {
+                    name: "VEHICLE_UPDATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        mileage: 1247
+                    }
+                }, {
+                    name: "VEHICLE_UPDATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        mileage: 1248
+                    }
+                }, {
+                    name: "VEHICLE_UPDATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        mileage: 1249
+                    }
+                }];
+
+                events.forEach((event) => {
+                    stream.addEvent(event);
+                });
+                await stream.commitAsync();
+                
+                let pollCounter = 0;
+                while (pollCounter < 3) {
+                    if (counter1 > 0) {
+                        break;
+                    } else {
+                        debug(`events have not yet been played back. trying again in 1000ms`);
+                        pollCounter++;
+                        await sleep(1000);
+                    }
+                }
+                expect(pollCounter).toBeLessThan(3);
+                expect(counter1).toEqual(5);
+    
+                // subscribe new token
+                let counter2 = 0
+                const subscriptionToken2 = clusteredEventstoreStreamBufferOff.subscribe(query, 0, (err, event, callback) => {
+                    counter2++;
+                    callback();
+                }, (err) => {
+                    debug(`playback error`, err);
+                });
+
+                // will catchup
+                pollCounter = 0;
+                while (pollCounter < 3) {
+                    if (counter2 > 0) {
+                        break;
+                    } else {
+                        debug(`events have not yet been played back. trying again in 1000ms`);
+                        pollCounter++;
+                        await sleep(1000);
+                    }
+                }
+                // expect 2nd token to receive 5 callbacks
+                expect(counter2).toEqual(5);
+                
+                // add event
+                const event6 = {
+                    name: "VEHICLE_CREATED",
+                    payload: {
+                        vehicleId: aggregateId,
+                        year: 2012,
+                        make: "Honda",
+                        model: "Jazz",
+                        mileage: 1245
+                    }
+                }
+                
+                stream.addEvent(event6);
+                await stream.commitAsync();
+
+                pollCounter = 0;
+                counter1 = 0;
+                counter2 = 0;
+                while (pollCounter < 3) {
+                    if (counter1 > 0) {
+                        break;
+                    } else {
+                        debug(`events have not yet been played back. trying again in 1000ms`);
+                        pollCounter++;
+                        await sleep(1000);
+                    }
+                }
+
+                // expect both subscribers to receive event
+                expect(counter1).toEqual(1);
+                expect(counter2).toEqual(1);
+            });
         });
     });
 });
