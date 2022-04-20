@@ -355,7 +355,6 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 if (result && result.length >= 500) {
                     break;
                 } else {
-                    console.log('Current length:', result.length);
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
@@ -386,7 +385,6 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 if (result && result.length === 1000) {
                     break;
                 } else {
-                    console.log('Current length:', result.length);
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }

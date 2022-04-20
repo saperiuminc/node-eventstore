@@ -133,7 +133,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            redisCreateClient: redisFactory().createClient
         };
 
         const clustedEventstore = clusteredEs(config);
@@ -160,7 +161,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            redisCreateClient: redisFactory().createClient
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -218,7 +220,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            redisCreateClient: redisFactory().createClient
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -276,7 +279,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            redisCreateClient: redisFactory().createClient
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -336,7 +340,8 @@ describe('eventstore clustering mysql tests', () => {
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig.connectionPoolLimit
             }],
-            partitions: partitionCount
+            partitions: partitionCount,
+            redisCreateClient: redisFactory().createClient
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -409,7 +414,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            redisCreateClient: redisFactory().createClient
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -469,7 +475,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            redisCreateClient: redisFactory().createClient
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -541,7 +548,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            redisCreateClient: redisFactory().createClient
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -588,7 +596,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            redisCreateClient: redisFactory().createClient
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -620,7 +629,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            redisCreateClient: redisFactory().createClient
         };
         const clustedEventstore = clusteredEs(config);
 

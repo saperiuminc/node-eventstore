@@ -86,6 +86,7 @@ const esFunction = function(opts, outputsTo) {
             // NOTE: we only have one store as of the moment. we can add more playbacklist stores in the future and pass it to the eventstore later
             // based on the listStore configuration
             // TODO: add base class for playbackliststore when there is a need to create another store in the future
+            options.listStore.redisCreateClient = options.redisCreateClient;
             const type = options.listStore.type || defaultDataStore;
             const EventstorePlaybackListStore = require(`./lib/eventstore-projections/playbacklist/eventstore-playbacklist-${type}-store`);
             playbackListStore = new EventstorePlaybackListStore(options.listStore);
@@ -97,6 +98,7 @@ const esFunction = function(opts, outputsTo) {
         }
         
         if (options.projectionStore) {
+            options.projectionStore.redisCreateClient = options.redisCreateClient;
             const type = options.projectionStore.type || defaultDataStore;
             const EventstoreProjectionStore = require(`./lib/eventstore-projections/projection/eventstore-projection-${type}-store`);
             projectionStore = new EventstoreProjectionStore(options.projectionStore);
