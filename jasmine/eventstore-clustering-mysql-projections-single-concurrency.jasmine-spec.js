@@ -36,7 +36,7 @@ const eventstoreConfig = {
 }
 
 const retryInterval = 1000;
-describe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
+xdescribe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
