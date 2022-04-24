@@ -75,9 +75,10 @@ describe('Gap Detection and Deduplication', () => {
         // await sleep(10000);
         console.log('waiting');
 
-        let connectCounter = 0;
+        let mysqlConnectCounter = 0;
+        let redisConnectCounter = 0;
         const connectCounterThreshold = 30;
-        while (connectCounter < connectCounterThreshold) {
+        while (mysqlConnectCounter < connectCounterThreshold) {
             try {
                 const mysqlConnection = await mysql2.createConnection({
                     host: 'localhost',
@@ -100,16 +101,50 @@ describe('Gap Detection and Deduplication', () => {
                 break;
             } catch (error) {
                 console.log(`cannot connect to mysql. sleeping for ${retryInterval}ms`);
-                connectCounter++;
+                mysqlConnectCounter++;
                 await sleep(retryInterval);
             }
         }
 
-        if (connectCounter == connectCounterThreshold) {
+        const _redisConnect = async function() {
+            return new Promise((resolve, reject) => {
+                let redisConn = new Redis({
+                    host: redisConfig.host,
+                    port: redisConfig.port
+                });
+                redisConn.get('probeForReadyKey', (err) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        redisConn.quit();
+                        resolve();
+                    }
+                });
+            })
+        };
+        
+        if (mysqlConnectCounter == connectCounterThreshold) {
             throw new Error('cannot connect to mysql');
         }
-        
+
         console.log('successfully connected to mysql');
+
+        while (redisConnectCounter < connectCounterThreshold) {
+            try {
+                await _redisConnect();
+                break;
+            } catch (error) {
+                console.log(`cannot connect to redis. sleeping for ${retryInterval}ms`);
+                redisConnectCounter++;
+                await sleep(retryInterval);
+            }
+        }
+
+        if (redisConnectCounter == connectCounterThreshold) {
+            throw new Error('cannot connect to mysql');
+        }
+
+        console.log('successfully connected to redis');
         await sleep(5000);
     }, testTimeout);
 
