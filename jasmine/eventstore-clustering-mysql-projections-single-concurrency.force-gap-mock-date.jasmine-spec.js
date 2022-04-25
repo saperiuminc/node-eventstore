@@ -31,13 +31,8 @@ const mysqlConfig2 = {
     database: 'eventstore',
     connectionPoolLimit: 10
 }
-
-const eventstoreConfig = {
-    pollingTimeout: 500
-}
-
 const retryInterval = 1000;
-fdescribe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
+describe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
@@ -116,7 +111,7 @@ fdescribe('Single Concurrency -- eventstore clustering mysql projection tests', 
         debug('docker compose down finished');
     });
 
-    describe('handling surge', () => {
+    describe('handle gaps in projection', () => {
         let clusteredEventstore;
         beforeEach(async function() {
             try {
@@ -130,15 +125,15 @@ fdescribe('Single Concurrency -- eventstore clustering mysql projection tests', 
                         database: mysqlConfig.database,
                         connectionPoolLimit: mysqlConfig.connectionPoolLimit
                     }, 
-                    // {
-                    //     type: 'mysql',
-                    //     host: mysqlConfig2.host,
-                    //     port: mysqlConfig2.port,
-                    //     user: mysqlConfig2.user,
-                    //     password: mysqlConfig2.password,
-                    //     database: mysqlConfig2.database,
-                    //     connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-                    // }
+                    {
+                        type: 'mysql',
+                        host: mysqlConfig2.host,
+                        port: mysqlConfig2.port,
+                        user: mysqlConfig2.user,
+                        password: mysqlConfig2.password,
+                        database: mysqlConfig2.database,
+                        connectionPoolLimit: mysqlConfig2.connectionPoolLimit
+                    }
                     ],
                     partitions: 2,
                     shouldDoTaskAssignment: false,

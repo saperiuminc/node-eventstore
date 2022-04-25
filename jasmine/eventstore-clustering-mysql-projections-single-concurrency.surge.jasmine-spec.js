@@ -129,7 +129,8 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                         password: mysqlConfig.password,
                         database: mysqlConfig.database,
                         connectionPoolLimit: mysqlConfig.connectionPoolLimit
-                    }, {
+                    }, 
+                    {
                         type: 'mysql',
                         host: mysqlConfig2.host,
                         port: mysqlConfig2.port,
@@ -137,7 +138,8 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                         password: mysqlConfig2.password,
                         database: mysqlConfig2.database,
                         connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-                    }],
+                    }
+                    ],
                     partitions: 2,
                     shouldDoTaskAssignment: false,
                     // projections-specific configuration below

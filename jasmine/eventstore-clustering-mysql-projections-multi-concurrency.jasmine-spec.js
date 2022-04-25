@@ -2921,7 +2921,8 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                         password: mysqlConfig.password,
                         database: mysqlConfig.database,
                         connectionPoolLimit: mysqlConfig.connectionPoolLimit
-                    }, {
+                    }, 
+                    {
                         type: 'mysql',
                         host: mysqlConfig2.host,
                         port: mysqlConfig2.port,
