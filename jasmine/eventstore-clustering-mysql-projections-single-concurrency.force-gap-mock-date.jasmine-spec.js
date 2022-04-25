@@ -37,7 +37,7 @@ const eventstoreConfig = {
 }
 
 const retryInterval = 1000;
-describe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
+fdescribe('Single Concurrency -- eventstore clustering mysql projection tests', () => {
     const sleep = function(timeout) {
         debug('sleeping for ', timeout);
         return new Promise((resolve) => {
@@ -176,14 +176,14 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                     enableProjectionEventStreamBuffer: false,
                     eventCallbackTimeout: 1000,
                     lockTimeToLive: 1000,
-                    pollingTimeout: eventstoreConfig.pollingTimeout, // optional,
+                    pollingTimeout: 10000, // optional,
                     pollingMaxRevisions: 100,
                     errorMaxRetryCount: 2,
                     errorRetryExponent: 2,
                     playbackEventJobCount: 10,
                     context: 'vehicle',
                     projectionGroup: shortid.generate(),
-                    membershipPollingTimeout: 500
+                    membershipPollingTimeout: 10000
                 };
                 clusteredEventstore = clusteredEs(config);
                 Bluebird.promisifyAll(clusteredEventstore);
@@ -318,19 +318,6 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 stream.addEvent(event);
 
                 await stream.commitAsync();
-                const event2 = {
-                    name: "VEHICLE_UPDATED",
-                    payload: {
-                        vehicleId: vehicleId,
-                        year: 2012,
-                        make: "Honda",
-                        model: "Jazz",
-                        mileage: 9999
-                    }
-                }
-                stream.addEvent(event2);
-
-                await stream.commitAsync();
             }
 
             const produceEvents = async function() {
@@ -338,42 +325,33 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 const date2 = new Date('2022-04-12T03:05:00');
                 const date3 = new Date('2022-04-12T03:03:00');
                 const date4 = new Date('2022-04-12T03:06:00');
+                jasmine.clock().install();
+                jasmine.clock().mockDate(date1);
+                await emit(1);
+                jasmine.clock().uninstall();
+                console.log('event 1');
+                await sleep(500);
 
-                try {
+                jasmine.clock().install();
+                jasmine.clock().mockDate(date2);
+                await emit(2);
+                jasmine.clock().uninstall();
+                console.log('event 2');
+                await sleep(500);
 
-                    jasmine.clock().install();
-                    jasmine.clock().mockDate(date1);
-                    await emit(1);
-                    jasmine.clock().uninstall();
-                    console.log('event 1');
-                    await sleep(500);
+                jasmine.clock().install();
+                jasmine.clock().mockDate(date3);
+                await emit(3);
+                jasmine.clock().uninstall();
+                console.log('event 3');
+                await sleep(500);
 
-                    jasmine.clock().install();
-                    jasmine.clock().mockDate(date2);
-                    await emit(2);
-                    jasmine.clock().uninstall();
-                    console.log('event 2');
-                    await sleep(500);
-
-                    jasmine.clock().install();
-                    jasmine.clock().mockDate(date3);
-                    await emit(3);
-                    jasmine.clock().uninstall();
-                    console.log('event 3');
-                    await sleep(500);
-
-                    jasmine.clock().install();
-                    jasmine.clock().mockDate(date4);
-                    await emit(4);
-                    jasmine.clock().uninstall();
-                    console.log('event 4');
-                    await sleep(500);
-
-
-                } catch (ex) {
-                    console.log('ex', ex)
-                }
-
+                jasmine.clock().install();
+                jasmine.clock().mockDate(date4);
+                await emit(4);
+                jasmine.clock().uninstall();
+                console.log('event 4');
+                await sleep(500);
             }
 
             await produceEvents();
@@ -381,18 +359,15 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             let result = null;
             while (pollCounter < 10) {
                 pollCounter += 1;
-                console.log('polling');
 
                 const playbackList = clusteredEventstore.getPlaybackList('vehicle_list_surge');
                 const filteredResults = await playbackList.query(0, 2000, [{
                     field: 'make',
                     operator: 'is',
-                    value: 'Honda'
+                    value: 'Toyota'
                 }], null);
 
                 result = filteredResults.rows;
-
-                console.log('result', result.length);
 
                 if (result && result.length === 4) {
                     break;
@@ -405,7 +380,6 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             }
             expect(pollCounter).toBeLessThan(10);
             expect(result.length).toEqual(4);
-            await sleep(30000);
         }, 50000);
     });
 });
