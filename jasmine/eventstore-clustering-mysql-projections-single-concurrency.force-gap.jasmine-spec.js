@@ -129,17 +129,15 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                         password: mysqlConfig.password,
                         database: mysqlConfig.database,
                         connectionPoolLimit: mysqlConfig.connectionPoolLimit
-                    }, 
-                    // {
-                    //     type: 'mysql',
-                    //     host: mysqlConfig2.host,
-                    //     port: mysqlConfig2.port,
-                    //     user: mysqlConfig2.user,
-                    //     password: mysqlConfig2.password,
-                    //     database: mysqlConfig2.database,
-                    //     connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-                    // }
-                    ],
+                    }, {
+                        type: 'mysql',
+                        host: mysqlConfig2.host,
+                        port: mysqlConfig2.port,
+                        user: mysqlConfig2.user,
+                        password: mysqlConfig2.password,
+                        database: mysqlConfig2.database,
+                        connectionPoolLimit: mysqlConfig2.connectionPoolLimit
+                    }],
                     partitions: 2,
                     shouldDoTaskAssignment: false,
                     // projections-specific configuration below
@@ -294,8 +292,8 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             }
             expect(pollCounter).toBeLessThan(5);
 
-            const emit = async function(id) {
-                const vehicleId = `${nanoid()}-${id}`;
+            const emit = async function() {
+                const vehicleId = nanoid();
 
                 const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                     context: context,
@@ -317,7 +315,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 }
                 stream.addEvent(event);
 
-                await stream.commitAsync();
+                // await stream.commitAsync();
                 const event2 = {
                     name: "VEHICLE_UPDATED",
                     payload: {
@@ -333,58 +331,34 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 await stream.commitAsync();
             }
 
-            const produceEvents = async function() {
-                const date1 = new Date('2022-04-12T03:00:00');
-                const date2 = new Date('2022-04-12T03:05:00');
-                const date3 = new Date('2022-04-12T03:03:00');
-                const date4 = new Date('2022-04-12T03:06:00');
+            const produceEvents = async function(totalEvents, addEventInterval) {
+                let eventCounter = 0;
 
-                try {
+                while(eventCounter !== totalEvents) {
+                    await emit();
 
-                    jasmine.clock().install();
-                    jasmine.clock().mockDate(date1);
-                    await emit(1);
-                    jasmine.clock().uninstall();
-                    console.log('event 1');
-                    await sleep(500);
+                    await new Promise((resolve) => {
+                        setTimeout(() => {
+                            return resolve();
+                        }, addEventInterval)
+                    });
 
-                    jasmine.clock().install();
-                    jasmine.clock().mockDate(date2);
-                    await emit(2);
-                    jasmine.clock().uninstall();
-                    console.log('event 2');
-                    await sleep(500);
-
-                    jasmine.clock().install();
-                    jasmine.clock().mockDate(date3);
-                    await emit(3);
-                    jasmine.clock().uninstall();
-                    console.log('event 3');
-                    await sleep(500);
-
-                    jasmine.clock().install();
-                    jasmine.clock().mockDate(date4);
-                    await emit(4);
-                    jasmine.clock().uninstall();
-                    console.log('event 4');
-                    await sleep(500);
-
-
-                } catch (ex) {
-                    console.log('ex', ex)
+                    eventCounter++;
                 }
-
             }
 
-            await produceEvents();
+            produceEvents(1000, 1);
+            produceEvents(1000, 1);
+            produceEvents(1000, 1);
+
             pollCounter = 0;
             let result = null;
-            while (pollCounter < 10) {
+            while (pollCounter < 50) {
                 pollCounter += 1;
-                console.log('polling');
+                debug('polling');
 
                 const playbackList = clusteredEventstore.getPlaybackList('vehicle_list_surge');
-                const filteredResults = await playbackList.query(0, 2000, [{
+                const filteredResults = await playbackList.query(0, 5000, [{
                     field: 'make',
                     operator: 'is',
                     value: 'Honda'
@@ -392,20 +366,16 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
 
                 result = filteredResults.rows;
 
-                console.log('result', result.length);
-
-                if (result && result.length === 4) {
+                if (result && result.length === 3000) {
                     break;
                 } else {
                     console.log('Current length:', result.length);
                     debug(`projection has not processed yet. trying again in 1000ms`);
-                    console.log('sleeping for ', retryInterval)
                     await sleep(retryInterval);
                 }
             }
-            expect(pollCounter).toBeLessThan(10);
-            expect(result.length).toEqual(4);
-            await sleep(30000);
+            expect(pollCounter).toBeLessThan(50);
+            expect(result.length).toEqual(3000);
         }, 50000);
     });
 });
