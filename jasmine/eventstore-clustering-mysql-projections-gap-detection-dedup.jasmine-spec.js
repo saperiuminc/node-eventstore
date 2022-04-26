@@ -134,7 +134,8 @@ describe('Gap Detection and Deduplication', () => {
                         password: mysqlConfig.password,
                         database: mysqlConfig.database,
                         connectionPoolLimit: mysqlConfig.connectionPoolLimit
-                    }, {
+                    }, 
+                    {
                         type: 'mysql',
                         host: mysqlConfig2.host,
                         port: mysqlConfig2.port,
@@ -142,7 +143,8 @@ describe('Gap Detection and Deduplication', () => {
                         password: mysqlConfig2.password,
                         database: mysqlConfig2.database,
                         connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-                    }],
+                    }
+                    ],
                     partitions: 2,
                     shouldDoTaskAssignment: false,
                     // projections-specific configuration below
@@ -268,7 +270,7 @@ describe('Gap Detection and Deduplication', () => {
             };
 
             await clusteredEventstore.projectAsync(projectionConfig);
-            await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, true);
+            await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
 
             const vehicleId = shortid.generate();
