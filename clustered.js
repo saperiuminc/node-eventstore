@@ -2,6 +2,7 @@ const _ = require('lodash');
 const debug = require('debug')('eventstore:clustered');
 const ClusteredEventStore = require('./lib/eventstore-projections/clustered-eventstore');
 const partitionedStoreFactory = require('./lib/partitioned-store-factory')();
+const DSignal = require('@saperiuminc/dsignal');
 
 /**
 * PlaybackListStoreConfig
@@ -106,7 +107,17 @@ const esFunction = function(opts, outputsTo) {
     
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
-    var eventstore = new Eventstore(options, partitionedStore, distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, outputsTo);
+
+    const dSignal = new DSignal({
+        group: options.projectionGroup,
+        createRedisClient: options.redisCreateClient,
+        concurrency: options.binConcurrency,
+        binTimeout: options.pollingTimeout,
+        registryTTL: options.registryTTL,
+        subscribePollTimeout: options.pollingTimeout
+    });
+
+    var eventstore = new Eventstore(options, dSignal, partitionedStore, distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, outputsTo);
     
     if (options.emitStoreEvents) {
         var storeEventEmitter = new StoreEventEmitter(eventstore);
