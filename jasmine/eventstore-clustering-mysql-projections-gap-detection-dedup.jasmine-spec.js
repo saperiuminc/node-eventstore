@@ -321,7 +321,7 @@ describe('Gap Detection and Deduplication', () => {
                 const playbackList = clusteredEventstore.getPlaybackList('vehicle_list');
                 const filteredResults = await playbackList.query(0, 10, null, null);
                 const rows = filteredResults.rows;
-                if (rows.length >= 0 && rows[0].data.model == testModelName) {
+                if (rows.length > 0 && rows[0].data.model == testModelName) {
                     break;
                 } else {
                     console.log(`projection has not processed yet. trying again in 1000ms`);
