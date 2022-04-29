@@ -264,30 +264,9 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
                 }
             };
 
-            let hasRebalanced = false;
-            clusteredEventstore.on('rebalance', function(updatedAssignments) {
-                for(const projectionTaskId of updatedAssignments) {
-                    if (projectionTaskId.startsWith(projectionConfig.projectionId)) {
-                        hasRebalanced = true;
-                    }
-                }
-            });
             await clusteredEventstore.projectAsync(projectionConfig);
             await clusteredEventstore.runProjectionAsync(projectionConfig.projectionId, false);
             await clusteredEventstore.startAllProjectionsAsync();
-
-            let pollCounter = 0;
-            while (pollCounter < 5) {
-                pollCounter += 1;
-                if (hasRebalanced) {
-                    // console.log(`clustered-es has rebalanced with the proper projection id. continuing with test`, projectionConfig.projectionId);
-                    break;
-                } else {
-                    // console.log(`clustered-es has not yet rebalanced with the proper projection id. trying again in 1000ms`, projectionConfig.projectionId);
-                    await sleep(retryInterval);
-                }
-            }
-            expect(pollCounter).toBeLessThan(5);
 
             const emit = async function(id) {
                 const vehicleId = `${nanoid()}-${id}`;
@@ -350,7 +329,7 @@ describe('Single Concurrency -- eventstore clustering mysql projection tests', (
             }
 
             await produceEvents();
-            pollCounter = 0;
+            let pollCounter = 0;
             let result = null;
             while (pollCounter < 10) {
                 pollCounter += 1;
