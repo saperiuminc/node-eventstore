@@ -119,8 +119,6 @@ const esFunction = function(opts, outputsTo) {
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
 
-
-
     var eventstore = new Eventstore(options, dSignal, partitionedStore, distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, outputsTo);
     
     if (options.emitStoreEvents) {
