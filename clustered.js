@@ -59,6 +59,8 @@ const esFunction = function(opts, outputsTo) {
     let projectionStore;
     let stateListStore;
     
+    let dSignal;
+
     if (options.enableProjection) {
         // TO DO: Find the best way to pass options params
         // options.redisConfig
@@ -77,6 +79,15 @@ const esFunction = function(opts, outputsTo) {
                 createClient: redisCreateClient,
                 ttlDuration: options.lockTimeToLive,
                 processingTimeout: options.eventCallbackTimeout
+            });
+
+            dSignal = new DSignal({
+                group: options.projectionGroup,
+                createRedisClient: options.redisCreateClient,
+                concurrency: options.binConcurrency,
+                binTimeout: options.pollingTimeout,
+                registryTTL: options.registryTTL,
+                subscribePollTimeout: options.pollingTimeout
             });
         } else {
             throw new Error('redisCreateClient is required when enableProjection is true');
@@ -108,14 +119,7 @@ const esFunction = function(opts, outputsTo) {
     options.shouldSkipSignalOverride = true;
     options.shouldDoTaskAssignment = false;
 
-    const dSignal = new DSignal({
-        group: options.projectionGroup,
-        createRedisClient: options.redisCreateClient,
-        concurrency: options.binConcurrency,
-        binTimeout: options.pollingTimeout,
-        registryTTL: options.registryTTL,
-        subscribePollTimeout: options.pollingTimeout
-    });
+
 
     var eventstore = new Eventstore(options, dSignal, partitionedStore, distributedSignal, distributedLock, playbackListStore, playbackListViewStore, projectionStore, stateListStore, outputsTo);
     
