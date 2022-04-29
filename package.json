@@ -42,7 +42,7 @@
     "@saperiuminc/eventstore": "^1.15.13-alpha.135",
     "@saperiuminc/mysql2-shared-pool": "^1.0.1",
     "@saperiuminc/waitables": "^1.0.3",
-    "@saperiuminc/dsignal": "1.0.0-develop.10",
+    "@saperiuminc/dsignal": "1.0.0-develop.11",
     "async": "2.6.2",
     "aws-xray-sdk": "^3.2.0",
     "bluebird": "^3.7.2",
