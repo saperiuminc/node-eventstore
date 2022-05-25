@@ -291,7 +291,13 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             expect(projection.state).toEqual('running');
             expect(projectionTasks).toBeTruthy();
             expect(projectionTasks.length).toEqual(4);
-            expect(projectionTasks[0].processedDate).toBeTruthy();
+            let isProcessed = false;
+            for (const projTask of projectionTasks) {
+                if (projTask.processedDate) {
+                    isProcessed = true;
+                }
+            }
+            expect(isProcessed).toBeTruthy();
         });
 
         it('should reset the projection', async function() {
@@ -3084,7 +3090,13 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             expect(projection.state).toEqual('running');
             expect(projectionTasks).toBeTruthy();
             expect(projectionTasks.length).toEqual(4);
-            expect(projectionTasks[0].processedDate).toBeTruthy();
+            let isProcessed = false;
+            for (const projTask of projectionTasks) {
+                if (projTask.processedDate) {
+                    isProcessed = true;
+                }
+            }
+            expect(isProcessed).toBeTruthy();
         });
 
         it('should add a projection and process all relevant events', async function() {
