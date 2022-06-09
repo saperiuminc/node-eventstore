@@ -90,7 +90,7 @@ export interface ProjectionConfiguration {
     projectionName: string;
     playbackInterface: Object;
     query: EventstoreQuery;
-    partitionBy: '' | 'stream' | 'function';
+    partitionBy: '' | 'stream' | 'task' | 'function';
     outputState: boolean;
     playbackList: PlaybackListConfiguration;
     eventCallbackTimeout: number;
