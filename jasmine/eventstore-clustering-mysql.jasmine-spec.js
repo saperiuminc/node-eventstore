@@ -7,6 +7,7 @@ const Bluebird = require('bluebird');
 const shortId = require('shortid');
 const Redis = require('ioredis');
 const { isNumber } = require('lodash');
+const murmurhash = require('murmurhash');
 
 const redisConfig = {
     host: 'localhost',
@@ -35,6 +36,7 @@ const mysqlConfig2 = {
 const eventstoreConfig = {
     pollingTimeout: 1000
 }
+const partitionCount = 25;
 
 describe('eventstore clustering mysql tests', () => {
     const sleep = function(timeout) {
@@ -133,7 +135,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            partitions: partitionCount
         };
 
         const clustedEventstore = clusteredEs(config);
@@ -200,7 +203,7 @@ describe('eventstore clustering mysql tests', () => {
         expect(savedStream.events[0].payload).toEqual(event);
     })
 
-    xit('should be able to call getLastEventAsStream', async () => {
+    it('should be able to call getLastEventAsStream', async () => {
         const config = {
             clusters: [{
                 type: 'mysql',
@@ -218,7 +221,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            partitions: partitionCount
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -255,7 +259,101 @@ describe('eventstore clustering mysql tests', () => {
             context: 'vehicle'
         });
 
-        expect(savedStream.events[0].payload).toEqual(event);
+        expect(savedStream.events[0].payload.name).toEqual(event.name);
+        expect(savedStream.events[0].payload.payload).toEqual(event.payload);
+    })
+
+    it('should be able to call getLastEventAsStream with partitionById, add the event to the proper partition, and only be retrieved by a getEvents with the proper partition', async () => {
+        const config = {
+            clusters: [{
+                type: 'mysql',
+                host: mysqlConfig.host,
+                port: mysqlConfig.port,
+                user: mysqlConfig.user,
+                password: mysqlConfig.password,
+                database: mysqlConfig.database,
+                connectionPoolLimit: mysqlConfig.connectionPoolLimit
+            }, {
+                type: 'mysql',
+                host: mysqlConfig2.host,
+                port: mysqlConfig2.port,
+                user: mysqlConfig2.user,
+                password: mysqlConfig2.password,
+                database: mysqlConfig2.database,
+                connectionPoolLimit: mysqlConfig2.connectionPoolLimit
+            }],
+            partitions: partitionCount
+        };
+        const clustedEventstore = clusteredEs(config);
+
+        Bluebird.promisifyAll(clustedEventstore);
+        await clustedEventstore.initAsync();
+
+        const aggregateId = 'vehicleId1';
+        const partitionById = 'dealershipId1';
+
+        const stream = await clustedEventstore.getLastEventAsStreamAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle',
+            partitionById: partitionById
+        });
+
+        Bluebird.promisifyAll(stream);
+
+        const event = {
+            name: "VEHICLE_CREATED",
+            payload: {
+                vehicleId: aggregateId,
+                year: 2012,
+                make: "Honda",
+                model: "Jazz",
+                mileage: 1245,
+                dealershipId: partitionById
+            }
+        }
+
+        stream.addEvent(event);
+        await stream.commitAsync();
+
+        const savedStream = await clustedEventstore.getLastEventAsStreamAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle',
+            partitionById: partitionById
+        });
+
+        console.log(savedStream.events[0]);
+        expect(savedStream.events[0].payload.name).toEqual(event.name);
+        expect(savedStream.events[0].payload.payload).toEqual(event.payload);
+        expect(savedStream.events[0].partitionById).toEqual(partitionById);
+
+        const getShard = function(aggregateId) {
+            let shard = murmurhash(aggregateId, 1) % config.clusters.length;
+            return shard;
+        };
+        const getPartition = function(partitionById) {
+            const partition = murmurhash(partitionById, 2) % config.partitions;
+            return partition;
+        };
+        
+        const getEventsResult = await clustedEventstore.getEventsAsync({
+            aggregate: 'vehicle',
+            context: 'vehicle',
+            shard: getShard(aggregateId),
+            partition: getPartition(partitionById)
+        });
+        expect(getEventsResult[0].payload.name).toEqual(event.name);
+        expect(getEventsResult[0].payload.payload).toEqual(event.payload);
+        expect(getEventsResult[0].partitionById).toEqual(partitionById);
+
+        const getEventsOtherPartitionResult = await clustedEventstore.getEventsAsync({
+            aggregate: 'vehicle',
+            context: 'vehicle',
+            shard: getShard(aggregateId),
+            partition: getPartition(aggregateId)
+        });
+        expect(getEventsOtherPartitionResult.length).toEqual(0);
     })
 
     xit('should be able to call getLastEvent', async () => {
@@ -276,7 +374,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            partitions: partitionCount
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -317,7 +416,6 @@ describe('eventstore clustering mysql tests', () => {
     })
 
     it('should be able to call getEvents', async () => {
-        const partitionCount = 25;
         const config = {
             clusters: [{
                 type: 'mysql',
@@ -409,7 +507,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            partitions: partitionCount
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -469,7 +568,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            partitions: partitionCount
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -502,7 +602,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            partitions: partitionCount
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -541,7 +642,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            partitions: partitionCount
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -588,7 +690,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            partitions: partitionCount
         };
         const clustedEventstore = clusteredEs(config);
 
@@ -620,7 +723,8 @@ describe('eventstore clustering mysql tests', () => {
                 password: mysqlConfig2.password,
                 database: mysqlConfig2.database,
                 connectionPoolLimit: mysqlConfig2.connectionPoolLimit
-            }]
+            }],
+            partitions: partitionCount
         };
         const clustedEventstore = clusteredEs(config);
 
