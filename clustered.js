@@ -91,9 +91,29 @@ const esFunction = function(opts, outputsTo) {
             playbackListStore = new EventstorePlaybackListStore(options.listStore);
             playbackListStore.init();
             
+            // const EventstoreStateListStore = require(`./lib/eventstore-projections/state-list/databases/eventstore-statelist-${type}-store`);
+            // stateListStore = new EventstoreStateListStore(options.listStore);
+            // stateListStore.init();
+        }
+
+        if (options.stateListStore) {
+            const type = options.stateListStore.type || defaultDataStore;
             const EventstoreStateListStore = require(`./lib/eventstore-projections/state-list/databases/eventstore-statelist-${type}-store`);
-            stateListStore = new EventstoreStateListStore(options.listStore);
-            stateListStore.init();
+            if (Array.isArray(options.stateListStore.clusters) && options.stateListStore.clusters.length > 0) {
+                const ClusteredEventstoreStateListStore = require(`./lib/eventstore-projections/state-list/databases/clustered.eventstore-statelist-store`);
+                const clusteredStateListStore = new ClusteredEventstoreStateListStore(options.stateListStore);
+
+                options.stateListStore.clusters.forEach((storeConfig) => {
+                    const store = new EventstoreStateListStore(storeConfig);
+                    clusteredStateListStore.addStore(store);
+                });
+
+                clusteredStateListStore.init();
+                stateListStore = clusteredStateListStore;
+            } else {
+                stateListStore = new EventstoreStateListStore(options.stateListStore);
+                stateListStore.init();
+            }
         }
         
         if (options.projectionStore) {

@@ -155,6 +155,34 @@ describe('eventstore clustering mysql projection tests', () => {
                             max: 10
                         }
                     }, // required
+                    stateListStore: {
+                        type: 'mysql',
+                        clusters: [{
+                            connection: {
+                                host: mysqlConfig.host,
+                                port: mysqlConfig.port,
+                                user: mysqlConfig.user,
+                                password: mysqlConfig.password,
+                                database: mysqlConfig.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }, {
+                            connection: {
+                                host: mysqlConfig2.host,
+                                port: mysqlConfig2.port,
+                                user: mysqlConfig2.user,
+                                password: mysqlConfig2.password,
+                                database: mysqlConfig2.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }]
+                    }, // required
                     projectionStore: {
                         type: 'mysql',
                         connection: {
@@ -325,6 +353,34 @@ describe('eventstore clustering mysql projection tests', () => {
                                 min: 10,
                                 max: 10
                             }
+                        }, // required
+                        stateListStore: {
+                            type: 'mysql',
+                            clusters: [{
+                                connection: {
+                                    host: mysqlConfig.host,
+                                    port: mysqlConfig.port,
+                                    user: mysqlConfig.user,
+                                    password: mysqlConfig.password,
+                                    database: mysqlConfig.database
+                                },
+                                pool: {
+                                    min: 10,
+                                    max: 10
+                                }
+                            }, {
+                                connection: {
+                                    host: mysqlConfig2.host,
+                                    port: mysqlConfig2.port,
+                                    user: mysqlConfig2.user,
+                                    password: mysqlConfig2.password,
+                                    database: mysqlConfig2.database
+                                },
+                                pool: {
+                                    min: 10,
+                                    max: 10
+                                }
+                            }]
                         }, // required
                         projectionStore: {
                             type: 'mysql',
@@ -508,6 +564,34 @@ describe('eventstore clustering mysql projection tests', () => {
                             min: 10,
                             max: 10
                         }
+                    }, // required
+                    stateListStore: {
+                        type: 'mysql',
+                        clusters: [{
+                            connection: {
+                                host: mysqlConfig.host,
+                                port: mysqlConfig.port,
+                                user: mysqlConfig.user,
+                                password: mysqlConfig.password,
+                                database: mysqlConfig.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }, {
+                            connection: {
+                                host: mysqlConfig2.host,
+                                port: mysqlConfig2.port,
+                                user: mysqlConfig2.user,
+                                password: mysqlConfig2.password,
+                                database: mysqlConfig2.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }]
                     }, // required
                     projectionStore: {
                         type: 'mysql',

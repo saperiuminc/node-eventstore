@@ -155,6 +155,34 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                             max: 10
                         }
                     }, // required
+                    stateListStore: {
+                        type: 'mysql',
+                        clusters: [{
+                            connection: {
+                                host: mysqlConfig.host,
+                                port: mysqlConfig.port,
+                                user: mysqlConfig.user,
+                                password: mysqlConfig.password,
+                                database: mysqlConfig.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }, {
+                            connection: {
+                                host: mysqlConfig2.host,
+                                port: mysqlConfig2.port,
+                                user: mysqlConfig2.user,
+                                password: mysqlConfig2.password,
+                                database: mysqlConfig2.database
+                            },
+                            pool: {
+                                min: 10,
+                                max: 10
+                            }
+                        }]
+                    }, // required
                     projectionStore: {
                         type: 'mysql',
                         connection: {
@@ -528,7 +556,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
         });
 
         it('should add and update data to the stateList', async function() {
-            let context = `vehicle${shortid.generate()}`
+            let context = `vehicle${shortid.generate()}`;
+            const vehicleId = shortid.generate();
+            const vehicleId2 = shortid.generate();
+
             const projectionConfig = {
                 projectionId: context,
                 projectionName: 'Vehicle Listing',
@@ -568,10 +599,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                             throw new Error('statelist test error. vehicle not inserted to state list');
                         } else {
                             const updatedStateData = row.value;
-                            updatedStateData.year = eventPayload.year;
+                            updatedStateData.year = updatedStateData.year + eventPayload.year;
                             updatedStateData.make = eventPayload.make;
                             updatedStateData.model = eventPayload.model;
-                            updatedStateData.mileage = eventPayload.mileage;
+                            updatedStateData.mileage = updatedStateData.mileage + eventPayload.mileage;
 
                             await stateList.set(row.index, updatedStateData, row.meta);
 
@@ -607,7 +638,6 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
             await clusteredEventstore.startAllProjectionsAsync();
 
             // VEHICLE 1
-            const vehicleId = shortid.generate();
             const stream = await clusteredEventstore.getLastEventAsStreamAsync({
                 context: context,
                 aggregate: 'vehicle',
@@ -620,10 +650,10 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 name: "VEHICLE_CREATED",
                 payload: {
                     vehicleId: vehicleId,
-                    year: 2012,
-                    make: "Honda",
-                    model: "Jazz",
-                    mileage: 1245
+                    year: 2011,
+                    make: "Honda 11",
+                    model: "Jazz 11",
+                    mileage: 124511
                 }
             }
             stream.addEvent(event);
@@ -633,17 +663,16 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 name: "VEHICLE_UPDATED",
                 payload: {
                     vehicleId: vehicleId,
-                    year: 2012,
-                    make: "Honda",
-                    model: "Jazz",
-                    mileage: 9999
+                    year: 2013,
+                    make: "Honda 12",
+                    model: "Jazz 12",
+                    mileage: 124512
                 }
             }
             stream.addEvent(event2);
             await stream.commitAsync();
 
             // VEHICLE 2
-            const vehicleId2 = shortid.generate();
             const stream2 = await clusteredEventstore.getLastEventAsStreamAsync({
                 context: context,
                 aggregate: 'vehicle',
@@ -657,9 +686,9 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 payload: {
                     vehicleId: vehicleId2,
                     year: 2012,
-                    make: "Honda",
-                    model: "Jazz",
-                    mileage: 1245
+                    make: "Honda 21",
+                    model: "Jazz 21",
+                    mileage: 124521
                 }
             }
             stream2.addEvent(event11);
@@ -669,14 +698,22 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
                 name: "VEHICLE_UPDATED",
                 payload: {
                     vehicleId: vehicleId2,
-                    year: 2012,
-                    make: "Honda",
-                    model: "Jazz",
-                    mileage: 9999
+                    year: 2014,
+                    make: "Honda 22",
+                    model: "Jazz 22",
+                    mileage: 124522
                 }
             }
             stream2.addEvent(event22);
             await stream2.commitAsync();
+
+            const expectedPayload = {
+                vehicleId: vehicleId,
+                year: event.payload.year + event2.payload.year,
+                make: "Honda 12",
+                model: "Jazz 12",
+                mileage: event.payload.mileage + event2.payload.mileage,
+            }
 
             let pollCounter = 0;
             let result = null;
@@ -693,14 +730,14 @@ describe('Multi Concurrency -- eventstore clustering mysql projection tests', ()
 
                 result = filteredResults.rows[0];
 
-                if (result && _.isEqual(result.data, event2.payload)) {
+                if (result && _.isEqual(result.data, expectedPayload)) {
                     break;
                 } else {
                     debug(`projection has not processed yet. trying again in 1000ms`);
                     await sleep(retryInterval);
                 }
             }
-            expect(result.data).toEqual(event2.payload);
+            expect(result.data).toEqual(expectedPayload);
             expect(pollCounter).toBeLessThan(10);
         });
 
