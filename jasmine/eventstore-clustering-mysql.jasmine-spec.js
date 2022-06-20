@@ -263,7 +263,7 @@ describe('eventstore clustering mysql tests', () => {
         expect(savedStream.events[0].payload.payload).toEqual(event.payload);
     })
 
-    it('should be able to call getLastEventAsStream with partitionById, add the event to the proper partition, and only be retrieved by a getEvents with the proper partition', async () => {
+    it('should be able to call getLastEventAsStream with partitionById, add the event to the proper partition, and only be retrieved by a getEvents with the proper partitionById', async () => {
         const config = {
             clusters: [{
                 type: 'mysql',
@@ -316,6 +316,7 @@ describe('eventstore clustering mysql tests', () => {
         stream.addEvent(event);
         await stream.commitAsync();
 
+        // Assert the partitionedBy stream contains the added event
         const savedStream = await clustedEventstore.getLastEventAsStreamAsync({
             aggregateId: aggregateId,
             aggregate: 'vehicle',
@@ -323,10 +324,18 @@ describe('eventstore clustering mysql tests', () => {
             partitionById: partitionById
         });
 
-        console.log(savedStream.events[0]);
         expect(savedStream.events[0].payload.name).toEqual(event.name);
         expect(savedStream.events[0].payload.payload).toEqual(event.payload);
         expect(savedStream.events[0].partitionById).toEqual(partitionById);
+
+        // Assert the domain stream does not contain the added event
+        const domainStream = await clustedEventstore.getLastEventAsStreamAsync({
+            aggregateId: aggregateId,
+            aggregate: 'vehicle',
+            context: 'vehicle'
+        });
+
+        expect(domainStream.events.length).toEqual(0);
 
         const getShard = function(aggregateId) {
             let shard = murmurhash(aggregateId, 1) % config.clusters.length;
@@ -337,16 +346,18 @@ describe('eventstore clustering mysql tests', () => {
             return partition;
         };
         
+        // Assert the getEvents with the proper partitionById query contains the added event
         const getEventsResult = await clustedEventstore.getEventsAsync({
             aggregate: 'vehicle',
             context: 'vehicle',
-            shard: getShard(aggregateId),
+            shard: getShard(partitionById),
             partition: getPartition(partitionById)
         });
         expect(getEventsResult[0].payload.name).toEqual(event.name);
         expect(getEventsResult[0].payload.payload).toEqual(event.payload);
         expect(getEventsResult[0].partitionById).toEqual(partitionById);
 
+        // Assert the getEvents without the partitionById query does not contain the added event
         const getEventsOtherPartitionResult = await clustedEventstore.getEventsAsync({
             aggregate: 'vehicle',
             context: 'vehicle',
